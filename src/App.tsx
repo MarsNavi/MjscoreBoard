@@ -906,6 +906,7 @@ function App() {
         onViewHistory={() => navigateTo('/history')}
         onViewStats={() => navigateTo('/stats')}
         onViewHelp={() => navigateTo('/help')}
+        onViewDeviceDebug={() => navigateTo('/device-debug')}
         gameName={gameName}
         onGameNameChange={setGameName}
         tempPlayerNames={tempPlayerNames}

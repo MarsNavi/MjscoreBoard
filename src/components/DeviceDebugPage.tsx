@@ -231,9 +231,9 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
     try {
       setBleError(null);
       setConnectingPosition(position);
-      const namePrefix = position === 'east' ? 'MJ-E' : position === 'south' ? 'MJ-S' : position === 'west' ? 'MJ-W' : 'MJ-N';
+      // Change: Search for generic MJ-SCOREBOARD instead of position-specific name
       const device = await nav.bluetooth.requestDevice({
-        filters: [{ namePrefix }],
+        filters: [{ namePrefix: 'MJ-SCOREBOARD' }],
         optionalServices: [BLE_SERVICE_UUID],
       });
       const server = await device.gatt.connect();
@@ -258,6 +258,12 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
         ...prev,
         [position]: connection,
       }));
+
+      // Send Setup Command
+      const encoder = new TextEncoder();
+      const setupCmd = `SETUP:${position.toUpperCase()}`;
+      await rxChar.writeValue(encoder.encode(setupCmd));
+
       await sendStateToConnection(position, connection);
     } catch (error) {
       if (error instanceof Error) {
@@ -358,7 +364,21 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
                 )}
               </div>
               <div className="w-full flex items-center justify-center">
+                {!bleDevices[position] ? (
+                  <div className="w-[240px] h-[160px] sm:w-[288px] sm:h-[192px] md:w-[360px] md:h-[240px] bg-slate-900 rounded-xl border border-slate-700 relative overflow-hidden flex flex-col items-center justify-center gap-4">
+                     <div className="text-slate-400 text-sm">请先连接设备</div>
+                     <button
+                        type="button"
+                        disabled={connectingPosition === position}
+                        onClick={() => connectBleForPosition(position)}
+                        className="px-4 py-2 rounded-lg bg-emerald-600 disabled:bg-slate-700 text-white text-sm hover:bg-emerald-500 shadow-lg"
+                      >
+                        {connectingPosition === position ? '连接中...' : '点击连接蓝牙'}
+                      </button>
+                  </div>
+                ) : (
                 <div className="w-[240px] h-[160px] sm:w-[288px] sm:h-[192px] md:w-[360px] md:h-[240px] bg-slate-900 rounded-xl border border-slate-700 relative overflow-hidden flex">
+
                   <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-slate-900/90 text-[10px] font-mono text-slate-400">
                     {position.toUpperCase()}
                   </div>
@@ -648,14 +668,12 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
                       )}
                     </>
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
-                      <div className="text-3xl font-extrabold tracking-widest mb-2">
-                        {position.toUpperCase()}
-                      </div>
-                      <div className="text-sm">欢迎开局</div>
+                    <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                      等待开局...
                     </div>
                   )}
                 </div>
+                )}
               </div>
               {game && gameStarted && (
                 <div className="mt-2 text-[10px] text-slate-500">
