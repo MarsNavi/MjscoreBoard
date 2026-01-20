@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>需要蓝牙权限以连接和管理麻将计分设备</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>需要蓝牙权限以发现和连接麻将计分设备</string>
 </dict>
 </plist>

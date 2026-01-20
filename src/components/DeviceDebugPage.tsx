@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { BleClient, ScanResult } from '@capacitor-community/bluetooth-le';
 import { Position, Player, Game, DeviceDisplayState } from '../lib/supabase';
+import { Scan, RefreshCw, Smartphone, Bluetooth } from 'lucide-react';
 
 interface DeviceDebugPageProps {
   game: Game | null;
@@ -14,52 +16,16 @@ interface DeviceDebugPageProps {
   onDeviceConfirm: (position: Position) => void;
 }
 
-interface BleCharacteristicEvent {
-  target: BleCharacteristic;
-}
-
-interface BleCharacteristic {
-  value: DataView | null;
-  startNotifications: () => Promise<void>;
-  addEventListener: (type: string, listener: (event: BleCharacteristicEvent) => void) => void;
-  writeValue: (data: ArrayBuffer) => Promise<void>;
-}
-
-interface BleService {
-  getCharacteristic: (uuid: string) => Promise<BleCharacteristic>;
-}
-
-interface BleServer {
-  getPrimaryService: (uuid: string) => Promise<BleService>;
-}
-
-interface BleDeviceGatt {
-  connected: boolean;
-  connect: () => Promise<BleServer>;
-  disconnect: () => void;
-}
-
-interface BleDevice {
-  name?: string;
-  gatt: BleDeviceGatt;
-}
-
-interface NavigatorBluetooth {
-  requestDevice: (options: { filters: Array<{ namePrefix: string }>; optionalServices: string[] }) => Promise<BleDevice>;
-}
-
-interface NavigatorWithBluetooth extends Navigator {
-  bluetooth?: NavigatorBluetooth;
-}
-
-type BleDeviceConnection = {
-  device: BleDevice;
-  server: BleServer;
-  txChar: BleCharacteristic;
-  rxChar: BleCharacteristic;
+type BleConnectionInfo = {
+  deviceId: string;
+  name: string;
 };
 
 const TOTAL_GAMES = 16;
+// Standard 16-bit UUIDs are often mapped to 128-bit UUIDs like this:
+// 0000xxxx-0000-1000-8000-00805f9b34fb
+// If your ESP32 uses 16-bit UUIDs (e.g., 0xFFF0), ensure these match.
+// The previous code used full 128-bit UUIDs, so we keep them.
 const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
 const BLE_TX_CHAR_UUID = '0000fff1-0000-1000-8000-00805f9b34fb';
 const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
@@ -70,7 +36,7 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
   const [selectedLoser, setSelectedLoser] = useState<Position | null>(null);
   const [deviceBaseScore, setDeviceBaseScore] = useState<number>(8);
   const [isSubmittingDeviceScore, setIsSubmittingDeviceScore] = useState(false);
-  const [bleDevices, setBleDevices] = useState<Record<Position, BleDeviceConnection | null>>({
+  const [bleDevices, setBleDevices] = useState<Record<Position, BleConnectionInfo | null>>({
     east: null,
     south: null,
     west: null,
@@ -78,6 +44,78 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
   });
   const [connectingPosition, setConnectingPosition] = useState<Position | null>(null);
   const [bleError, setBleError] = useState<string | null>(null);
+  
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannedDevices, setScannedDevices] = useState<ScanResult[]>([]);
+  const scannedDevicesRef = useRef<ScanResult[]>([]);
+
+  // Initialize Bluetooth Low Energy on mount
+  useEffect(() => {
+    const initBle = async () => {
+      try {
+        await BleClient.initialize();
+        // Start scanning automatically
+        startScan();
+      } catch (error) {
+        console.error('Failed to initialize BLE:', error);
+        setBleError('蓝牙初始化失败，请检查权限和蓝牙开关');
+      }
+    };
+    initBle();
+
+    return () => {
+      stopScan();
+    };
+  }, []);
+
+  const startScan = async () => {
+    try {
+      if (isScanning) return;
+      
+      setScannedDevices([]);
+      scannedDevicesRef.current = [];
+      setIsScanning(true);
+      setBleError(null);
+
+      await BleClient.requestLEScan(
+        {
+           services: [BLE_SERVICE_UUID],
+           // filters: [{ namePrefix: 'MJ-SCOREBOARD' }], // Optional: filter by name prefix
+        },
+        (result) => {
+          if (!result.device.name) return; // Ignore unnamed devices
+          
+          // Check if device is already in list
+          const existingIndex = scannedDevicesRef.current.findIndex(d => d.device.deviceId === result.device.deviceId);
+          if (existingIndex === -1) {
+            scannedDevicesRef.current = [...scannedDevicesRef.current, result];
+            setScannedDevices([...scannedDevicesRef.current]);
+          } else {
+             // Update RSSI if needed, but for now just ignore duplicates
+          }
+        }
+      );
+      
+      // Stop scanning after 10 seconds to save battery
+      setTimeout(() => {
+        stopScan();
+      }, 10000);
+
+    } catch (error) {
+      console.error('Failed to start scan:', error);
+      setBleError('无法开始扫描，请检查定位和蓝牙权限');
+      setIsScanning(false);
+    }
+  };
+
+  const stopScan = async () => {
+    try {
+      await BleClient.stopLEScan();
+      setIsScanning(false);
+    } catch (error) {
+      console.error('Failed to stop scan:', error);
+    }
+  };
 
   const buildDeviceDisplayState = (position: Position): DeviceDisplayState | null => {
     if (!game || !gameStarted) return null;
@@ -210,50 +248,59 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
     return `STATE:${mode}:${deviceState.round}:${deviceState.game_number}:${e}:${s}:${w}:${n}`;
   };
 
-  const sendStateToConnection = async (position: Position, connection: BleDeviceConnection) => {
+  const sendStateToConnection = async (position: Position, connection: BleConnectionInfo) => {
     const payload = buildStatePayload(position);
     const encoder = new TextEncoder();
     const data = encoder.encode(payload);
+    // Convert Uint8Array to DataView for Capacitor BLE
+    const dataView = new DataView(data.buffer);
     try {
-      await connection.rxChar.writeValue(data.buffer);
+      await BleClient.write(connection.deviceId, BLE_SERVICE_UUID, BLE_RX_CHAR_UUID, dataView);
     } catch (error) {
-      console.error(error);
+      console.error(`Failed to write to device ${connection.deviceId}:`, error);
     }
   };
 
-  const connectBleForPosition = async (position: Position) => {
-    const nav: NavigatorWithBluetooth | undefined =
-      typeof navigator !== 'undefined' ? (navigator as NavigatorWithBluetooth) : undefined;
-    if (!nav || !nav.bluetooth) {
-      setBleError('当前环境不支持蓝牙');
-      return;
-    }
+  const connectToDevice = async (position: Position, deviceId: string, deviceName: string) => {
     try {
+      // Check if device is already connected to another position
+      for (const pos of positions) {
+         if (bleDevices[pos]?.deviceId === deviceId) {
+             setBleError(`设备 ${deviceName} 已经绑定到 ${positionLabels[pos]}`);
+             return;
+         }
+      }
+
       setBleError(null);
       setConnectingPosition(position);
-      // Change: Search for generic MJ-SCOREBOARD instead of position-specific name
-      const device = await nav.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'MJ-SCOREBOARD' }],
-        optionalServices: [BLE_SERVICE_UUID],
+      
+      // Stop scanning before connecting
+      await stopScan();
+
+      await BleClient.connect(deviceId, (disconnectedDeviceId) => {
+          console.log('device disconnected', disconnectedDeviceId);
+          setBleDevices((prev) => ({
+             ...prev,
+             [position]: null
+          }));
       });
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
-      const txChar = await service.getCharacteristic(BLE_TX_CHAR_UUID);
-      const rxChar = await service.getCharacteristic(BLE_RX_CHAR_UUID);
-      txChar.addEventListener('characteristicvaluechanged', (event: BleCharacteristicEvent) => {
-        const characteristic = event.target;
-        const value = characteristic.value;
-        if (!value) return;
-        const text = new TextDecoder().decode(value.buffer);
-        handleBleMessage(position, text);
-      });
-      await txChar.startNotifications();
-      const connection: BleDeviceConnection = {
-        device,
-        server,
-        txChar,
-        rxChar,
+      
+      // Start Notifications on TX Characteristic (ESP32 sends to Phone)
+      await BleClient.startNotifications(
+        deviceId,
+        BLE_SERVICE_UUID,
+        BLE_TX_CHAR_UUID,
+        (value) => {
+            const text = new TextDecoder().decode(value.buffer);
+            handleBleMessage(position, text);
+        }
+      );
+
+      const connection: BleConnectionInfo = {
+        deviceId: deviceId,
+        name: deviceName || 'Unknown Device',
       };
+
       setBleDevices((prev) => ({
         ...prev,
         [position]: connection,
@@ -262,9 +309,15 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
       // Send Setup Command
       const encoder = new TextEncoder();
       const setupCmd = `SETUP:${position.toUpperCase()}`;
-      await rxChar.writeValue(encoder.encode(setupCmd));
+      const cmdData = encoder.encode(setupCmd);
+      await BleClient.write(deviceId, BLE_SERVICE_UUID, BLE_RX_CHAR_UUID, new DataView(cmdData.buffer));
 
       await sendStateToConnection(position, connection);
+      
+      // Remove from scanned list
+      setScannedDevices(prev => prev.filter(d => d.device.deviceId !== deviceId));
+      scannedDevicesRef.current = scannedDevicesRef.current.filter(d => d.device.deviceId !== deviceId);
+
     } catch (error) {
       if (error instanceof Error) {
         setBleError(error.message);
@@ -278,11 +331,11 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
     }
   };
 
-  const disconnectBleForPosition = (position: Position) => {
+  const disconnectBleForPosition = async (position: Position) => {
     const current = bleDevices[position];
-    if (current && current.device && current.device.gatt && current.device.gatt.connected) {
+    if (current && current.deviceId) {
       try {
-        current.device.gatt.disconnect();
+        await BleClient.disconnect(current.deviceId);
       } catch (error) {
         console.error(error);
       }
@@ -301,6 +354,7 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
     });
   }, [game, players, gameStarted, isConfirmMode]);
 
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
@@ -311,10 +365,10 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
           返回主页
         </button>
         <div className="text-sm font-semibold text-slate-200">
-          设备调试视图
+          设备连接管理
         </div>
         <div className="text-xs text-slate-500">
-          固定设备: 东南西北
+          搜索并绑定设备
         </div>
       </div>
 
@@ -324,57 +378,114 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
         </div>
       )}
 
-      <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-6xl mx-auto w-full">
+      <div className="flex-1 p-4 max-w-6xl mx-auto w-full flex flex-col gap-6">
+        {/* Scanned Devices Section */}
+        <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
+           <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                 <Scan size={16} />
+                 发现的设备 ({scannedDevices.length})
+              </h3>
+              <button 
+                 onClick={isScanning ? stopScan : startScan}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                    isScanning 
+                    ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' 
+                    : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                 }`}
+              >
+                 {isScanning ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                 {isScanning ? '扫描中...' : '重新扫描'}
+              </button>
+           </div>
+           
+           {scannedDevices.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                 {isScanning ? '正在搜寻附近的设备...' : '点击重新扫描以查找设备'}
+              </div>
+           ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                 {scannedDevices.map((result) => (
+                    <div key={result.device.deviceId} className="bg-slate-900 rounded-xl p-3 border border-slate-700 flex flex-col gap-2">
+                       <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                             <Smartphone size={16} className="text-slate-400" />
+                             <span className="font-semibold text-sm text-slate-200">{result.device.name || 'Unknown'}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono">RSSI: {result.rssi}</span>
+                       </div>
+                       <div className="text-[10px] text-slate-500 font-mono truncate mb-1">{result.device.deviceId}</div>
+                       <div className="flex items-center gap-1 mt-auto">
+                          <span className="text-[10px] text-slate-400 whitespace-nowrap">绑定为:</span>
+                          <div className="flex-1 flex gap-1 justify-end">
+                             {positions.map(pos => (
+                                <button
+                                   key={pos}
+                                   disabled={!!bleDevices[pos] || connectingPosition !== null}
+                                   onClick={() => connectToDevice(pos, result.device.deviceId, result.device.name || 'Unknown')}
+                                   className="px-2 py-1 rounded bg-slate-800 hover:bg-indigo-600 disabled:opacity-30 disabled:hover:bg-slate-800 text-[10px] text-slate-300 transition-colors border border-slate-700"
+                                >
+                                   {positionLabels[pos]}
+                                </button>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           )}
+        </div>
+
+        {/* Bound Devices Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {positions.map((position) => {
           const deviceState = buildDeviceDisplayState(position);
           const player = getPlayerByPosition(position);
           const layout = getRelativeLayout(position);
+          const isConnected = !!bleDevices[position];
 
           return (
             <div
               key={position}
-              className="rounded-2xl bg-slate-950/60 border border-slate-800 shadow-xl flex flex-col items-center justify-center py-4"
+              className={`rounded-2xl border shadow-xl flex flex-col items-center justify-center py-4 transition-colors ${
+                 isConnected 
+                 ? 'bg-slate-950/60 border-slate-800' 
+                 : 'bg-slate-900/30 border-slate-800/50'
+              }`}
             >
-              <div className="text-xs font-semibold text-slate-400 mb-1">
-                {player ? player.name : '未绑定选手'}
+              <div className="text-xs font-semibold text-slate-400 mb-1 flex items-center gap-2">
+                <span>{player ? player.name : '未绑定选手'}</span>
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono">{positionLabels[position]}家</span>
               </div>
-              <div className="mb-1 flex items-center justify-center gap-2 text-[10px] text-slate-400">
-                <span>
-                  {bleDevices[position]
-                    ? `已连接${bleDevices[position]?.device?.name ? `：${bleDevices[position]?.device?.name}` : ''}`
-                    : '未连接'}
-                </span>
-                {bleDevices[position] ? (
-                  <button
-                    type="button"
-                    onClick={() => disconnectBleForPosition(position)}
-                    className="px-2 py-0.5 rounded-full border border-slate-600 text-[10px] hover:bg-slate-700"
-                  >
-                    断开
-                  </button>
+              
+              <div className="mb-2 flex items-center justify-center gap-2 text-[10px] text-slate-400 h-6">
+                {isConnected ? (
+                   <>
+                     <span className="text-emerald-400 flex items-center gap-1">
+                        <Bluetooth size={10} />
+                        已连接: {bleDevices[position]?.name}
+                     </span>
+                     <button
+                       type="button"
+                       onClick={() => disconnectBleForPosition(position)}
+                       className="px-2 py-0.5 rounded-full border border-slate-600 text-[10px] hover:bg-slate-700 text-slate-400"
+                     >
+                       断开
+                     </button>
+                   </>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={connectingPosition === position}
-                    onClick={() => connectBleForPosition(position)}
-                    className="px-2 py-0.5 rounded-full bg-emerald-600 disabled:bg-slate-700 text-slate-50 text-[10px] hover:bg-emerald-500"
-                  >
-                    {connectingPosition === position ? '连接中...' : '连接设备'}
-                  </button>
+                   <span className="text-slate-600 flex items-center gap-1">
+                      <Scan size={10} />
+                      等待绑定...
+                   </span>
                 )}
               </div>
+              
               <div className="w-full flex items-center justify-center">
-                {!bleDevices[position] ? (
-                  <div className="w-[240px] h-[160px] sm:w-[288px] sm:h-[192px] md:w-[360px] md:h-[240px] bg-slate-900 rounded-xl border border-slate-700 relative overflow-hidden flex flex-col items-center justify-center gap-4">
-                     <div className="text-slate-400 text-sm">请先连接设备</div>
-                     <button
-                        type="button"
-                        disabled={connectingPosition === position}
-                        onClick={() => connectBleForPosition(position)}
-                        className="px-4 py-2 rounded-lg bg-emerald-600 disabled:bg-slate-700 text-white text-sm hover:bg-emerald-500 shadow-lg"
-                      >
-                        {connectingPosition === position ? '连接中...' : '点击连接蓝牙'}
-                      </button>
+                {!isConnected ? (
+                  <div className="w-[240px] h-[160px] sm:w-[288px] sm:h-[192px] md:w-[360px] md:h-[240px] bg-slate-900/50 rounded-xl border border-dashed border-slate-700/50 relative overflow-hidden flex flex-col items-center justify-center gap-2">
+                     <Smartphone size={32} className="text-slate-700" />
+                     <div className="text-slate-600 text-xs">请在上方列表中选择设备绑定</div>
                   </div>
                 ) : (
                 <div className="w-[240px] h-[160px] sm:w-[288px] sm:h-[192px] md:w-[360px] md:h-[240px] bg-slate-900 rounded-xl border border-slate-700 relative overflow-hidden flex">
@@ -480,6 +591,7 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
                             <button
                               type="button"
                               onClick={() => {
+
                                 setActiveWinner((prev) => (prev === position ? null : position));
                                 setSelectedLoser(null);
                                 setDeviceBaseScore(8);
@@ -683,6 +795,7 @@ export default function DeviceDebugPage({ game, players, gameStarted, isConfirmM
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

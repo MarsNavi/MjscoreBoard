@@ -38,10 +38,10 @@ public:
       cfg.panel_height = 480;
       cfg.offset_x = 0;
       cfg.offset_y = 0;
-      cfg.offset_rotation = 0;
+      cfg.offset_rotation = 2;
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits = 1;
-      cfg.readable = true;
+      cfg.readable = false;
       cfg.invert = true;
       cfg.rgb_order = false;
       cfg.dlen_16bit = false;
@@ -51,9 +51,8 @@ public:
 
     {
       auto cfg = _light_instance.config();
-      // pin_bl=45 在部分 ESP32 开发板上无效，会导致 ledc_channel_config 报错
-      // 临时改为 -1 禁用 PWM 背光控制以便调试；确认后请替换为正确的背光引脚
-      cfg.pin_bl = -1;
+      // SC01 Plus 背光引脚通常为 45
+      cfg.pin_bl = 45;
       cfg.invert = false;
       cfg.freq = 44100;
       cfg.pwm_channel = 7;

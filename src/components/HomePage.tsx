@@ -380,12 +380,12 @@ export default function HomePage({
             </button>
             
             <button
-              onClick={onViewDeviceDebug}
-              className="col-span-2 bg-white hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100 border-2 border-slate-200 hover:border-slate-400 text-gray-700 hover:text-slate-700 py-3 sm:py-4 rounded-2xl font-bold transition-all shadow-md hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
-            >
-              <Bluetooth size={20} className="text-slate-500" />
-              <span className="text-sm sm:text-base">设备调试</span>
-            </button>
+                onClick={onViewDeviceDebug}
+                className="col-span-2 bg-white hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100 border-2 border-slate-200 hover:border-slate-400 text-gray-700 hover:text-slate-700 py-3 sm:py-4 rounded-2xl font-bold transition-all shadow-md hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+              >
+                <Bluetooth size={20} className="text-slate-500" />
+                <span className="text-sm sm:text-base">连接设备</span>
+              </button>
           </div>
         </div>
       </div>
