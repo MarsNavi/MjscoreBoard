@@ -12,17 +12,22 @@ import GameHistoryPage from './components/GameHistoryPage';
 import PlayerStatsPage from './components/PlayerStatsPage';
 import HelpPage from './components/HelpPage';
 import { AdminPage } from './components/AdminPage';
-import { RotateCcw, Undo, History, Ban, AlertTriangle, Home } from 'lucide-react';
+import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
-import DeviceDebugPage from './components/DeviceDebugPage';
+import { useBle } from './contexts/BleContext';
+import BleConnectionManager from './components/BleConnectionManager';
+import { DeviceDisplayState } from './lib/supabase';
 
 const TOTAL_GAMES = 16;
+const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
+const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
 
-type PageView = 'home' | 'game' | 'history' | 'stats' | 'gameDetail' | 'help' | 'admin' | 'deviceDebug';
+type PageView = 'home' | 'game' | 'history' | 'stats' | 'gameDetail' | 'help' | 'admin';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState<PageView>('home');
+  const [showBleModal, setShowBleModal] = useState(false);
   const [game, setGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameStarted, setGameStarted] = useState(false);
@@ -52,6 +57,46 @@ function App() {
     west: false,
     north: false,
   });
+
+  const { bleDevices, writeData, setMessageHandler } = useBle();
+
+  // Helper to build state for device
+  const buildDeviceDisplayState = (position: Position): DeviceDisplayState | null => {
+    if (!game || !gameStarted) return null;
+
+    const allScores: Record<Position, number> = {
+      east: 0,
+      south: 0,
+      west: 0,
+      north: 0,
+    };
+
+    players.forEach((player) => {
+      allScores[player.position as Position] = player.score;
+    });
+
+    const selfScore = allScores[position];
+
+    return {
+      game_id: game.id,
+      position,
+      round: game.current_round,
+      game_number: game.current_game,
+      self_score: selfScore,
+      all_scores: allScores,
+    };
+  };
+
+  const getRelativePositions = (winner: Position): Position[] => {
+    const order: Position[] = ['east', 'south', 'west', 'north'];
+    const winnerIndex = order.indexOf(winner);
+
+    const left = order[(winnerIndex + 3) % 4];
+    const opposite = order[(winnerIndex + 2) % 4];
+    const right = order[(winnerIndex + 1) % 4];
+
+    return [left, opposite, right];
+  };
 
   const restoreLocalGameSnapshot = (userId: string) => {
     const snapshot = loadLocalGameSnapshot(userId);
@@ -133,8 +178,6 @@ function App() {
         setCurrentPage('stats');
       } else if (hash === '/help') {
         setCurrentPage('help');
-      } else if (hash === '/device-debug') {
-        setCurrentPage('deviceDebug');
       } else if (hash.startsWith('/game/')) {
         const gameId = hash.split('/')[2];
         if (gameId) {
@@ -853,9 +896,7 @@ function App() {
     resetDeviceConfirmStates();
     resetDeviceHuangStates();
 
-    if (currentPage !== 'deviceDebug') {
-      navigateTo(`/game/${game.id}`);
-    }
+    navigateTo(`/game/${game.id}`);
   };
 
   const handleDeviceConfirm = (position: Position) => {
@@ -880,6 +921,96 @@ function App() {
       return next;
     });
   };
+
+  // Sync State Effect
+  useEffect(() => {
+    const syncToDevices = async () => {
+       const positions: Position[] = ['east', 'south', 'west', 'north'];
+       for (const position of positions) {
+          const connection = bleDevices[position];
+          if (!connection || connection.status !== 'connected') continue;
+
+          // 1. Send Names
+          const pList = [
+            { pos: 0, name: players.find(p => p.position === 'east')?.name || '' },
+            { pos: 1, name: players.find(p => p.position === 'south')?.name || '' },
+            { pos: 2, name: players.find(p => p.position === 'west')?.name || '' },
+            { pos: 3, name: players.find(p => p.position === 'north')?.name || '' },
+          ];
+          for (const item of pList) {
+            const cmd = `NAME:${item.pos}:${item.name}\n`;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(cmd);
+            try {
+               await writeData(connection.deviceId, new DataView(data.buffer));
+               await new Promise(resolve => setTimeout(resolve, 50)); 
+            } catch (e) {
+               console.error('Sync name error', e);
+            }
+          }
+
+          // 2. Send Game State
+          let payload = 'STATE:IDLE';
+          const deviceState = buildDeviceDisplayState(position);
+          if (deviceState) {
+            const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
+            const e = deviceState.all_scores.east ?? 0;
+            const s = deviceState.all_scores.south ?? 0;
+            const w = deviceState.all_scores.west ?? 0;
+            const n = deviceState.all_scores.north ?? 0;
+            payload = `STATE:${mode}:${deviceState.round}:${deviceState.game_number}:${e}:${s}:${w}:${n}`;
+          }
+          const encoder = new TextEncoder();
+          const data = encoder.encode(payload + '\n');
+          try {
+             await writeData(connection.deviceId, new DataView(data.buffer));
+          } catch (e) {
+             console.error('Sync state error', e);
+          }
+       }
+    };
+    syncToDevices();
+  }, [game, players, gameStarted, isConfirmMode, bleDevices]); // Sync whenever game state or connection changes
+
+  // Message Handler Effect
+  useEffect(() => {
+     setMessageHandler((position, raw) => {
+        const msg = raw.trim();
+        if (!msg) return;
+        if (msg === 'BTN:HUANG') {
+           handleDeviceHuang(position);
+           return;
+        }
+        if (msg === 'BTN:CONFIRM') {
+           handleDeviceConfirm(position);
+           return;
+        }
+        const parts = msg.split(':');
+        if (parts[0] === 'HE') {
+           const kind = parts[1];
+           if (kind === 'ZIMO') {
+              const base = parseInt(parts[2] || '8', 10);
+              if (Number.isNaN(base)) return;
+              handleDeviceScoreSubmit(position, null, base);
+              return;
+           }
+           if (kind === 'RON') {
+              const rel = parts[2];
+              const base = parseInt(parts[3] || '8', 10);
+              if (Number.isNaN(base)) return;
+              const [left, opposite, right] = getRelativePositions(position);
+              let loser: Position | null = null;
+              if (rel === 'LEFT') loser = left;
+              else if (rel === 'RIGHT') loser = right;
+              else if (rel === 'OPPOSITE') loser = opposite;
+              
+              if (loser) {
+                 handleDeviceScoreSubmit(position, loser, base);
+              }
+           }
+        }
+     });
+  }, [game, players, gameStarted, isConfirmMode]); // Re-register when closure vars change
 
   const getPlayerByPosition = (position: Position): Player | undefined => {
     return players.find((p) => p.position === position);
@@ -906,7 +1037,6 @@ function App() {
         onViewHistory={() => navigateTo('/history')}
         onViewStats={() => navigateTo('/stats')}
         onViewHelp={() => navigateTo('/help')}
-        onViewDeviceDebug={() => navigateTo('/device-debug')}
         gameName={gameName}
         onGameNameChange={setGameName}
         tempPlayerNames={tempPlayerNames}
@@ -920,23 +1050,6 @@ function App() {
       <AdminPage
         onBack={() => navigateTo('')}
         currentUserId={currentUser.id}
-      />
-    );
-  }
-
-  if (currentPage === 'deviceDebug') {
-    return (
-      <DeviceDebugPage
-        game={game}
-        players={players}
-        gameStarted={gameStarted}
-        isConfirmMode={isConfirmMode}
-        onBack={() => navigateTo('')}
-        onDeviceScoreSubmit={handleDeviceScoreSubmit}
-        huangStates={deviceHuangStates}
-        onDeviceHuang={handleDeviceHuang}
-        confirmStates={deviceConfirmStates}
-        onDeviceConfirm={handleDeviceConfirm}
       />
     );
   }
@@ -990,11 +1103,24 @@ function App() {
             setCurrentPage('home');
           }
         }}
-        className="fixed top-2 left-2 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-gray-600 hover:text-gray-800"
+        className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-2 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-gray-600 hover:text-gray-800"
         title="返回主界面"
       >
         <Home size={20} />
       </button>
+
+      <button
+        onClick={() => setShowBleModal(true)}
+        className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-14 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-blue-600 hover:text-blue-800"
+        title="蓝牙设备管理"
+      >
+        <Bluetooth size={20} />
+      </button>
+
+      <BleConnectionManager 
+        isOpen={showBleModal} 
+        onClose={() => setShowBleModal(false)} 
+      />
 
       <div className="flex-1 flex items-center justify-center px-4 pt-14 pb-6">
         <div className="relative flex-shrink-0 w-[min(calc(100vw-32px),380px)] h-[min(calc(100vw-32px),380px)] max-[799px]:portrait:w-[min(calc(100vw-32px),min(calc(100vh-260px),380px))] max-[799px]:portrait:h-[min(calc(100vw-32px),min(calc(100vh-260px),380px))] max-[799px]:landscape:w-[min(calc(100vw-160px),min(calc(100vh-180px),300px))] max-[799px]:landscape:h-[min(calc(100vw-160px),min(calc(100vh-180px),300px))] min-[800px]:w-[600px] min-[800px]:h-[600px]">

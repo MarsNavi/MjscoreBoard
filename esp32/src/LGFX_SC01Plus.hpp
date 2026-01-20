@@ -38,14 +38,14 @@ public:
       cfg.panel_height = 480;
       cfg.offset_x = 0;
       cfg.offset_y = 0;
-      cfg.offset_rotation = 2;
+      cfg.offset_rotation = 0;
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits = 1;
       cfg.readable = false;
       cfg.invert = true;
       cfg.rgb_order = false;
       cfg.dlen_16bit = false;
-      cfg.bus_shared = true;
+      cfg.bus_shared = false;
       _panel_instance.config(cfg);
     }
 
@@ -56,7 +56,7 @@ public:
       cfg.invert = false;
       cfg.freq = 44100;
       cfg.pwm_channel = 7;
-      _panel_instance.setLight(&_light_instance);
+      // _panel_instance.setLight(&_light_instance); // Disable LGFX backlight control for manual handling
     }
 
     {

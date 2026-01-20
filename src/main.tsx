@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { initDB } from './lib/db';
+import { BleProvider } from './contexts/BleContext';
 
 // Initialize local database
 initDB();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <BleProvider>
+      <App />
+    </BleProvider>
   </StrictMode>
 );

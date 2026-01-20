@@ -1,6 +1,6 @@
 import { User, Position, Game, Player, ScoreRecord, Penalty, GameResult } from '../lib/types';
 import { db } from '../lib/db';
-import { History, TrendingUp, HelpCircle, Download, Upload, Bluetooth } from 'lucide-react';
+import { History, TrendingUp, HelpCircle, Download, Upload } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 interface HomePageProps {
@@ -9,7 +9,6 @@ interface HomePageProps {
   onViewHistory: () => void;
   onViewStats: () => void;
   onViewHelp: () => void;
-  onViewDeviceDebug: () => void;
   gameName: string;
   onGameNameChange: (name: string) => void;
   tempPlayerNames: Record<Position, string>;
@@ -29,7 +28,6 @@ export default function HomePage({
   onViewHistory,
   onViewStats,
   onViewHelp,
-  onViewDeviceDebug,
   gameName,
   onGameNameChange,
   tempPlayerNames,
@@ -235,7 +233,7 @@ export default function HomePage({
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZjk5MDAiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNk0xMiAzOGMzLjMxIDAgNiAyLjY5IDYgNnMtMi42OSA2LTYgNi02LTIuNjktNi02IDIuNjktNiA2LTZ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-40"></div>
 
-      <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white py-6 md:py-10 px-4 shadow-2xl">
+      <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] md:py-10 md:pt-[calc(2.5rem+env(safe-area-inset-top))] px-4 shadow-2xl">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-center sm:text-left drop-shadow-lg">
@@ -378,14 +376,6 @@ export default function HomePage({
               <TrendingUp size={20} className="text-rose-500" />
               <span className="text-sm sm:text-base">成绩统计</span>
             </button>
-            
-            <button
-                onClick={onViewDeviceDebug}
-                className="col-span-2 bg-white hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100 border-2 border-slate-200 hover:border-slate-400 text-gray-700 hover:text-slate-700 py-3 sm:py-4 rounded-2xl font-bold transition-all shadow-md hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
-              >
-                <Bluetooth size={20} className="text-slate-500" />
-                <span className="text-sm sm:text-base">连接设备</span>
-              </button>
           </div>
         </div>
       </div>

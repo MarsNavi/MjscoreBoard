@@ -4,11 +4,39 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 #include "LGFX_SC01Plus.hpp"
+#include <lvgl.h>
+
+LV_FONT_DECLARE(lv_font_sh_bold_22);
+LV_FONT_DECLARE(lv_font_sh_bold_40);
+
+// --- Colors (Tailwind Match) ---
+#define C_SLATE_950 lv_color_hex(0x000000)
+#define C_SLATE_900 lv_color_hex(0x000000)
+#define C_SLATE_800 lv_color_hex(0x1E293B)
+#define C_SLATE_700 lv_color_hex(0x334155)
+#define C_SLATE_600 lv_color_hex(0x475569)
+#define C_SLATE_500 lv_color_hex(0x64748B)
+#define C_SLATE_400 lv_color_hex(0x94A3B8)
+#define C_SLATE_300 lv_color_hex(0xCBD5E1)
+#define C_SLATE_200 lv_color_hex(0xE2E8F0)
+#define C_SLATE_100 lv_color_hex(0xF1F5F9)
+
+#define C_EMERALD_600 lv_color_hex(0x059669)
+#define C_EMERALD_500 lv_color_hex(0x10B981)
+#define C_EMERALD_400 lv_color_hex(0x34D399)
+
+#define C_RED_500 lv_color_hex(0xEF4444)
+#define C_GREEN_500 lv_color_hex(0x22C55E)
+#define C_AMBER_500 lv_color_hex(0xF59E0B)
+#define C_AMBER_300 lv_color_hex(0xFCD34D)
+#define C_SKY_500 lv_color_hex(0x0EA5E9)
 
 // --- Configuration ---
 static const char* SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
 static const char* TX_CHAR_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
 static const char* RX_CHAR_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
+
+#include <vector>
 
 // --- Global Objects ---
 LGFX tft;
@@ -17,497 +45,865 @@ BLECharacteristic* txChar = nullptr;
 BLECharacteristic* rxChar = nullptr;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
+std::vector<String> commandQueue;
+bool hasNewCommand = false;
+SemaphoreHandle_t queueMutex = NULL;
 
-// --- State ---
-enum AppMode {
-  MODE_CONNECTING,
-  MODE_WAITING_SETUP,
-  MODE_WAITING_GAME,
-  MODE_GAME_PLAY,
-  MODE_GAME_CONFIRM
-};
-
+// --- Game State ---
 struct GameState {
   String mode; // PLAY, CONFIRM, IDLE
   String round; // e.g., "east"
   int gameNumber; // 1-16
   int scores[4]; // 0:East, 1:South, 2:West, 3:North
   int prevScores[4];
+  String names[4];
 };
 
-AppMode currentMode = MODE_CONNECTING;
 GameState gameState;
 int myPositionIndex = -1; // 0:East, 1:South, 2:West, 3:North
-bool needRedraw = true;
+bool diffMode = false;
+int huBaseScore = 8;
+int huLoserRelPos = -1; // -1:None, 0:Left, 1:Opp, 2:Right, 3:Zimo
+bool isConfirmed = false;
 
-// Feature Flags & Local State
-bool diffMode = false;       // "差" mode
-bool inHuMenu = false;       // "和" menu open
-int huBaseScore = 8;         // Base score for Hu
-int huLoserRelPos = -1;      // -1: None, 0: Left, 1: Opposite, 2: Right, 3: Zimo (Self)
+// --- LVGL UI Objects ---
+static lv_obj_t* scr_connect;
+static lv_obj_t* scr_waiting;
+static lv_obj_t* scr_game;
+static lv_obj_t* scr_hu; // Popup style
 
-// --- Buttons Helper ---
-struct Button {
-  int x, y, w, h;
-  String label;
-  uint16_t bgColor;
-  uint16_t textColor;
-  bool visible;
-  
-  bool contains(int tx, int ty) {
-    return visible && tx >= x && tx < x + w && ty >= y && ty < y + h;
-  }
-  
-  void draw(LGFX* gfx, bool active = false) {
-    if (!visible) return;
-    // Draw shadow/border
-    uint16_t fill = active ? TFT_WHITE : bgColor;
-    uint16_t text = active ? TFT_BLACK : textColor;
-    
-    // 绘制圆角矩形背景
-    gfx->fillRoundRect(x, y, w, h, 10, fill);
-    gfx->drawRoundRect(x, y, w, h, 10, TFT_WHITE);
-    
-    // 绘制文字
-    gfx->setTextColor(text);
-    gfx->setTextDatum(middle_center);
-    // 自动调整字号：如果文字较长，缩小字号
-    if (label.length() > 6) gfx->setTextSize(1);
-    else gfx->setTextSize(1.5); // 使用稍大的字体
-    
-    gfx->drawString(label, x + w / 2, y + h / 2);
-  }
-};
+// Game UI Elements
+static lv_obj_t* lbl_game_info; // Pill in sidebar
+static lv_obj_t* lbl_scores[4]; // Indices based on relative position: 0:Self, 1:Right, 2:Opp, 3:Left
+static lv_obj_t* lbl_names[4];
+static lv_obj_t* cont_players[4]; // 0:Self, 1:Right, 2:Opp, 3:Left
+static lv_obj_t* btn_player_confirm; // Button at bottom left
 
-// --- Function Prototypes ---
+static lv_obj_t* lbl_device_id; // Device ID (Top Left)
+
+static lv_obj_t* btn_hu;
+static lv_obj_t* btn_huang;
+static lv_obj_t* btn_diff;
+
+// Hu Menu Elements
+static lv_obj_t* lbl_hu_title;
+static lv_obj_t* lbl_hu_score;
+static lv_obj_t* btn_hu_opts[4]; // Left, Opp, Right, Zimo
+static lv_obj_t* btn_hu_submit;
+static lv_obj_t* lbl_hu_submit;
+
+// --- Prototypes ---
 void setupBle();
 void sendText(String payload);
-void drawConnecting();
-void drawWaitingSetup();
-void drawWaitingGame();
-void drawGame();
-void drawHuMenu();
-void handleTouch();
+void init_ui();
+void update_game_ui();
+void show_screen(lv_obj_t* scr);
+void create_connect_screen();
+void create_waiting_screen();
+void create_game_screen();
+void create_hu_menu();
+void processCommand(String cmd);
 
-// --- BLE Callbacks ---
-class ServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer* server) override {
-    deviceConnected = true;
-  }
-  void onDisconnect(BLEServer* server) override {
-    deviceConnected = false;
-  }
-};
+// --- Display Flushing ---
+void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+    uint32_t w = (area->x2 - area->x1 + 1);
+    uint32_t h = (area->y2 - area->y1 + 1);
 
-class RxCallbacks : public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic* characteristic) override {
-    std::string value = characteristic->getValue();
-    String msg = String(value.c_str());
-    msg.trim();
-    
-    if (msg.startsWith("STATE:")) {
-      int parts[8]; 
-      int lastIdx = 6;
-      String newModeStr = "";
-      
-      for (int i = 0; i < 7; i++) {
-        int nextIdx = msg.indexOf(':', lastIdx);
-        if (nextIdx == -1) nextIdx = msg.length();
-        String part = msg.substring(lastIdx, nextIdx);
-        
-        if (i == 0) newModeStr = part;
-        else if (i == 1) gameState.round = part;
-        else if (i == 2) gameState.gameNumber = part.toInt();
-        else if (i >= 3 && i <= 6) {
-          gameState.prevScores[i - 3] = gameState.scores[i - 3];
-          gameState.scores[i - 3] = part.toInt();
-        }
-        lastIdx = nextIdx + 1;
-      }
-      
-      gameState.mode = newModeStr;
+    tft.startWrite();
+    tft.setAddrWindow(area->x1, area->y1, w, h);
+    tft.writePixels((uint16_t *)&color_p->full, w * h);
+    tft.endWrite();
 
-      if (myPositionIndex != -1) {
-        if (gameState.mode == "CONFIRM") {
-          currentMode = MODE_GAME_CONFIRM;
-          inHuMenu = false; // Force close menu on state change
-        } else if (gameState.mode == "IDLE") {
-          currentMode = MODE_WAITING_GAME;
-          inHuMenu = false;
-        } else {
-          currentMode = MODE_GAME_PLAY;
-        }
-      }
-      needRedraw = true;
-      
-    } else if (msg.startsWith("SETUP:")) {
-      String pos = msg.substring(6);
-      pos.trim();
-      if (pos == "EAST") myPositionIndex = 0;
-      else if (pos == "SOUTH") myPositionIndex = 1;
-      else if (pos == "WEST") myPositionIndex = 2;
-      else if (pos == "NORTH") myPositionIndex = 3;
-      
-      currentMode = MODE_WAITING_GAME;
-      needRedraw = true;
+    lv_disp_flush_ready(disp);
+}
+
+// --- Touch Reading ---
+void my_touch_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
+    uint16_t touchX, touchY;
+    bool touched = tft.getTouch(&touchX, &touchY);
+
+    if (!touched) {
+        data->state = LV_INDEV_STATE_REL;
+    } else {
+        data->state = LV_INDEV_STATE_PR;
+        data->point.x = touchX;
+        data->point.y = touchY;
     }
-  }
-};
+}
 
 // --- Setup ---
 void setup() {
-  Serial.begin(115200);
-  tft.init();
-  tft.setRotation(1); 
-  tft.setBrightness(200); // 提高亮度
-  tft.fillScreen(TFT_BLACK);
-  
-  // 设置中文字体
-  // 注意：需要确保 LovyanGFX 库已启用中文字体支持
-  // 如果无法显示中文，请检查平台配置或使用 print 替代
-  tft.setFont(&fonts::efontCN_24); 
-  tft.setTextSize(1);
-  
-  gameState.mode = "IDLE";
-  setupBle();
+    Serial.begin(115200);
+
+    Serial.begin(115200);
+    Serial.println("System Starting...");
+
+    queueMutex = xSemaphoreCreateMutex();
+
+    tft.init();
+    // Manual Backlight Control (After init to override LGFX default)
+    pinMode(45, OUTPUT);
+    digitalWrite(45, HIGH); 
+
+    tft.setRotation(1); // Landscape Mode
+    // tft.setBrightness(255); // Handled manually above
+    tft.fillScreen(TFT_BLACK);
+
+    // LVGL Init
+    lv_init();
+    static lv_disp_draw_buf_t draw_buf;
+    static lv_color_t buf[320 * 40]; 
+    lv_disp_draw_buf_init(&draw_buf, buf, NULL, 320 * 40);
+
+    static lv_disp_drv_t disp_drv;
+    lv_disp_drv_init(&disp_drv);
+    disp_drv.hor_res = tft.width();
+    disp_drv.ver_res = tft.height();
+    disp_drv.flush_cb = my_disp_flush;
+    disp_drv.draw_buf = &draw_buf;
+    lv_disp_drv_register(&disp_drv);
+
+    static lv_indev_drv_t indev_drv;
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = my_touch_read;
+    lv_indev_drv_register(&indev_drv);
+
+    // Create UI
+    init_ui();
+
+    // Initial State
+    gameState.mode = "IDLE";
+    gameState.names[0] = "";
+    gameState.names[1] = "";
+    gameState.names[2] = "";
+    gameState.names[3] = "";
+    setupBle();
 }
 
 // --- Loop ---
 void loop() {
-  if (!deviceConnected && oldDeviceConnected) {
-    delay(500);
-    tft.fillScreen(TFT_BLACK);
-    bleServer->startAdvertising(); 
-    oldDeviceConnected = deviceConnected;
-    currentMode = MODE_CONNECTING;
-    myPositionIndex = -1;
-    needRedraw = true;
-  }
-  if (deviceConnected && !oldDeviceConnected) {
-    oldDeviceConnected = deviceConnected;
-    currentMode = MODE_WAITING_SETUP;
-    needRedraw = true;
-  }
+    lv_timer_handler(); // Handle LVGL tasks
 
-  handleTouch();
+    // Process Commands in Main Loop (Safe for UI updates)
+    if (hasNewCommand) {
+        std::vector<String> processingQueue;
+        
+        if (xSemaphoreTake(queueMutex, 10)) {
+            if (!commandQueue.empty()) {
+                processingQueue = commandQueue;
+                commandQueue.clear();
+            }
+            hasNewCommand = false;
+            xSemaphoreGive(queueMutex);
+        }
 
-  if (needRedraw) {
-    switch (currentMode) {
-      case MODE_CONNECTING: drawConnecting(); break;
-      case MODE_WAITING_SETUP: drawWaitingSetup(); break;
-      case MODE_WAITING_GAME: drawWaitingGame(); break;
-      case MODE_GAME_PLAY:
-      case MODE_GAME_CONFIRM:
-        if (inHuMenu) drawHuMenu();
-        else drawGame(); 
-        break;
+        for (const String& cmd : processingQueue) {
+            processCommand(cmd);
+        }
     }
-    needRedraw = false;
-  }
-  delay(20);
+
+    if (!deviceConnected && oldDeviceConnected) {
+        delay(500);
+        bleServer->startAdvertising();
+        oldDeviceConnected = deviceConnected;
+        myPositionIndex = -1;
+        show_screen(scr_connect);
+    }
+    if (deviceConnected && !oldDeviceConnected) {
+        oldDeviceConnected = deviceConnected;
+        show_screen(scr_waiting);
+    }
+
+    delay(5);
 }
 
-// --- Logic ---
+// --- BLE Callbacks ---
+class ServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer* server) override {
+        deviceConnected = true;
+    }
+    void onDisconnect(BLEServer* server) override {
+        deviceConnected = false;
+    }
+};
+
+class RxCallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* characteristic) override {
+        std::string value = characteristic->getValue();
+        String fullMsg = String(value.c_str());
+        
+        // Handle sticky packets by splitting by newline
+        int start = 0;
+        while (start < fullMsg.length()) {
+            int end = fullMsg.indexOf('\n', start);
+            if (end == -1) end = fullMsg.length();
+            
+            String line = fullMsg.substring(start, end);
+            line.trim();
+            if (line.length() > 0) {
+                // Push to queue thread-safely
+                if (queueMutex && xSemaphoreTake(queueMutex, portMAX_DELAY)) {
+                    commandQueue.push_back(line);
+                    hasNewCommand = true;
+                    xSemaphoreGive(queueMutex);
+                }
+            }
+            start = end + 1;
+        }
+    }
+};
+
 void setupBle() {
-  uint64_t chipid = ESP.getEfuseMac();
-  String devName = "MJ-BOARD-" + String((uint32_t)chipid, HEX);
-  
-  BLEDevice::init(devName.c_str());
-  bleServer = BLEDevice::createServer();
-  bleServer->setCallbacks(new ServerCallbacks());
-  BLEService* service = bleServer->createService(SERVICE_UUID);
-  txChar = service->createCharacteristic(TX_CHAR_UUID, BLECharacteristic::PROPERTY_NOTIFY);
-  txChar->addDescriptor(new BLE2902());
-  rxChar = service->createCharacteristic(RX_CHAR_UUID, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
-  rxChar->setCallbacks(new RxCallbacks());
-  service->start();
-  
-  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);
-  pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
+    uint64_t chipid = ESP.getEfuseMac();
+    String devName = "MJ-BOARD-" + String((uint32_t)chipid, HEX);
+    BLEDevice::init(devName.c_str());
+    bleServer = BLEDevice::createServer();
+    bleServer->setCallbacks(new ServerCallbacks());
+    BLEService* service = bleServer->createService(SERVICE_UUID);
+    txChar = service->createCharacteristic(TX_CHAR_UUID, BLECharacteristic::PROPERTY_NOTIFY);
+    txChar->addDescriptor(new BLE2902());
+    rxChar = service->createCharacteristic(RX_CHAR_UUID, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+    rxChar->setCallbacks(new RxCallbacks());
+    service->start();
+    BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+    pAdvertising->setMinPreferred(0x06);
+    BLEDevice::startAdvertising();
 }
 
 void sendText(String payload) {
-  if (deviceConnected && txChar) {
-    txChar->setValue((uint8_t*)payload.c_str(), payload.length());
-    txChar->notify();
-  }
+    if (deviceConnected && txChar) {
+        txChar->setValue((uint8_t*)payload.c_str(), payload.length());
+        txChar->notify();
+    }
 }
 
-// --- Drawing ---
-void drawConnecting() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextDatum(middle_center);
-  tft.setTextColor(TFT_CYAN);
-  tft.setTextSize(1.5); // 基于 24px 字体放大
-  tft.drawString("麻将计分板", tft.width()/2, tft.height()/2 - 50);
-  
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString("正在等待蓝牙连接...", tft.width()/2, tft.height()/2 + 20);
-  
-  uint64_t chipid = ESP.getEfuseMac();
-  String devName = "设备ID: " + String((uint32_t)chipid, HEX);
-  tft.setTextColor(TFT_DARKGREY);
-  tft.drawString(devName, tft.width()/2, tft.height() - 30);
+// --- UI Creation ---
+
+static void event_handler_game_btn(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED) {
+        if (obj == btn_huang) {
+            sendText("BTN:HUANG\n");
+        } else if (obj == btn_player_confirm) {
+            sendText("BTN:CONFIRM\n");
+            isConfirmed = !isConfirmed;
+            update_game_ui();
+        } else if (obj == btn_diff) {
+            diffMode = !diffMode;
+            update_game_ui();
+        } else if (obj == btn_hu) {
+            huBaseScore = 8;
+            huLoserRelPos = -1;
+            // Reset button styles
+             for (int i=0; i<4; i++) {
+                 lv_obj_set_style_bg_color(btn_hu_opts[i], C_SLATE_700, 0);
+                 lv_obj_set_style_text_color(btn_hu_opts[i], C_SLATE_100, 0);
+             }
+            lv_label_set_text_fmt(lbl_hu_score, "%d", huBaseScore);
+            
+            // Set Title & Labels
+            if (myPositionIndex >= 0 && myPositionIndex <= 3) {
+                 lv_label_set_text_fmt(lbl_hu_title, "%s 和牌", gameState.names[myPositionIndex].c_str());
+                 
+                 // Dynamic Labels: Left, Opp, Right
+                 int leftIdx = (myPositionIndex + 3) % 4;
+                 int oppIdx = (myPositionIndex + 2) % 4;
+                 int rightIdx = (myPositionIndex + 1) % 4;
+                 
+                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[0], 0), "%s 点", gameState.names[leftIdx].c_str());
+                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[1], 0), "%s 点", gameState.names[oppIdx].c_str());
+                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[2], 0), "%s 点", gameState.names[rightIdx].c_str());
+                 
+            } else {
+                 lv_label_set_text(lbl_hu_title, "和牌结算");
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 0), "上家点");
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 0), "对家点");
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 0), "下家点");
+            }
+            
+            lv_obj_clear_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
-void drawWaitingSetup() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextDatum(middle_center);
-  tft.setTextSize(1.5);
-  tft.setTextColor(TFT_GREEN);
-  tft.drawString("蓝牙已连接!", tft.width()/2, tft.height()/2 - 20);
-  
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString("等待中控分配位置...", tft.width()/2, tft.height()/2 + 40);
+static void event_handler_hu_action(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    long user_data = (long)lv_event_get_user_data(e); // 0:Cancel, 1:Submit, 2-5:Pos, 10-13:Score
+
+    if(code == LV_EVENT_CLICKED) {
+        if (user_data == 0) { // Cancel
+            lv_obj_add_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
+        } else if (user_data == 1) { // Submit
+            if (huLoserRelPos == -1) return;
+            // Visual Feedback
+            lv_obj_set_style_bg_color(btn_hu_submit, C_SLATE_600, 0);
+            lv_label_set_text(lbl_hu_submit, "提交中...");
+            
+            String cmd = "";
+            if (huLoserRelPos == 3) cmd = "HE:ZIMO:" + String(huBaseScore) + "\n";
+            else {
+                String rel = (huLoserRelPos == 0) ? "LEFT" : (huLoserRelPos == 1 ? "OPPOSITE" : "RIGHT");
+                cmd = "HE:RON:" + rel + ":" + String(huBaseScore) + "\n";
+            }
+            sendText(cmd);
+            
+            // Delay close slightly or just close
+            lv_obj_add_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
+            lv_label_set_text(lbl_hu_submit, "确认并发送到中控");
+            
+        } else if (user_data >= 2 && user_data <= 5) { // Pos
+             huLoserRelPos = user_data - 2;
+             // Update Button Styles
+             for (int i=0; i<4; i++) {
+                 if (i == huLoserRelPos) {
+                     if (i == 3) lv_obj_set_style_bg_color(btn_hu_opts[i], C_EMERALD_500, 0);
+                     else lv_obj_set_style_bg_color(btn_hu_opts[i], C_RED_500, 0);
+                     lv_obj_set_style_text_color(btn_hu_opts[i], lv_color_white(), 0);
+                 } else {
+                     lv_obj_set_style_bg_color(btn_hu_opts[i], C_SLATE_700, 0);
+                     lv_obj_set_style_text_color(btn_hu_opts[i], C_SLATE_100, 0);
+                 }
+             }
+        } else if (user_data == 10) { huBaseScore = max(1, huBaseScore-5); }
+        else if (user_data == 11) { huBaseScore = max(1, huBaseScore-1); }
+        else if (user_data == 12) { huBaseScore += 1; }
+        else if (user_data == 13) { huBaseScore += 5; }
+        
+        if (user_data >= 10) {
+            lv_label_set_text_fmt(lbl_hu_score, "%d", huBaseScore);
+        }
+    }
 }
 
-void drawWaitingGame() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextDatum(middle_center);
-  tft.setTextSize(3); // 大字体显示方位
-  
-  String posName = "未知";
-  uint16_t posColor = TFT_WHITE;
-  if (myPositionIndex == 0) { posName = "东"; posColor = TFT_RED; }
-  else if (myPositionIndex == 1) { posName = "南"; posColor = TFT_GREEN; }
-  else if (myPositionIndex == 2) { posName = "西"; posColor = TFT_BLUE; }
-  else if (myPositionIndex == 3) { posName = "北"; posColor = TFT_YELLOW; }
-  
-  tft.setTextColor(posColor);
-  tft.drawString(posName, tft.width()/2, tft.height()/2 - 40);
-  
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString("等待开局...", tft.width()/2, tft.height()/2 + 40);
-}
-
-// --- Game UI Buttons ---
-// Screen: 480 x 320
-// 调整按钮布局以适应中文和更好的触摸体验
-Button btnHuang = {20, 230, 80, 70, "荒", TFT_ORANGE, TFT_BLACK, true};
-Button btnHu = {120, 220, 120, 80, "胡", TFT_RED, TFT_WHITE, true};
-Button btnDiff = {260, 230, 80, 70, "分差", TFT_BLUE, TFT_WHITE, true};
-Button btnConfirm = {350, 230, 110, 70, "确认", TFT_GREEN, TFT_BLACK, true};
-
-void drawGame() {
-  tft.fillScreen(TFT_BLACK);
-  
-  int w = tft.width();
-  
-  // 1. Info Header
-  tft.setTextDatum(top_center);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY);
-  
-  String roundName = gameState.round;
-  if (gameState.round == "east") roundName = "东风圈";
-  else if (gameState.round == "south") roundName = "南风圈";
-  else if (gameState.round == "west") roundName = "西风圈";
-  else if (gameState.round == "north") roundName = "北风圈";
-  
-  String info = roundName + "  第 " + String(gameState.gameNumber) + " 局";
-  tft.drawString(info, w/2, 10);
-  
-  // 2. Layout Logic (Cross layout)
-  int self = myPositionIndex;
-  int right = (self + 1) % 4;
-  int opp = (self + 2) % 4;
-  int left = (self + 3) % 4;
-  
-  auto drawPlayer = [&](int posIdx, int cx, int cy, String relName) {
-    uint16_t color = (posIdx == self) ? TFT_GREEN : TFT_WHITE;
+void init_ui() {
+    create_connect_screen();
+    create_waiting_screen();
+    create_game_screen();
+    create_hu_menu();
     
-    // Draw Name (Relative Position)
-    tft.setTextDatum(bottom_center);
-    tft.setTextSize(1);
-    tft.setTextColor(color);
-    tft.drawString(relName, cx, cy - 25);
+    show_screen(scr_connect);
+}
+
+void show_screen(lv_obj_t* scr) {
+    if (scr) lv_scr_load(scr);
+}
+
+void create_connect_screen() {
+    scr_connect = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr_connect, C_SLATE_900, 0);
     
-    // Calculate Score to display
-    int displayScore = gameState.scores[posIdx];
-    uint16_t scoreColor = TFT_WHITE;
+    lv_obj_t * label = lv_label_create(scr_connect);
+    lv_label_set_text(label, "麻将计分板\n\n等待蓝牙连接...");
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_set_style_text_color(label, C_SLATE_200, 0);
+    lv_obj_set_style_text_font(label, &lv_font_sh_bold_22, 0);
     
-    if (diffMode) {
-      if (posIdx == self) {
-        displayScore = 0;
-        scoreColor = TFT_LIGHTGREY;
-      } else {
-        displayScore = gameState.scores[posIdx] - gameState.scores[self];
-        if (displayScore > 0) scoreColor = TFT_RED;
-        else if (displayScore < 0) scoreColor = TFT_GREEN;
-      }
+    lv_obj_t * spinner = lv_spinner_create(scr_connect, 1000, 60);
+    lv_obj_set_size(spinner, 50, 50);
+    lv_obj_align(spinner, LV_ALIGN_CENTER, 0, 50);
+    lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
+}
+
+void create_waiting_screen() {
+    scr_waiting = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr_waiting, C_SLATE_900, 0);
+    
+    lv_obj_t * label = lv_label_create(scr_waiting);
+    lv_label_set_text(label, "蓝牙已连接");
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_style_text_color(label, C_EMERALD_500, 0);
+    lv_obj_set_style_text_font(label, &lv_font_sh_bold_22, 0);
+
+    lv_obj_t * sub = lv_label_create(scr_waiting);
+    lv_label_set_text(sub, "等待开局...");
+    lv_obj_align(sub, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_text_color(sub, C_SLATE_400, 0);
+    lv_obj_set_style_text_font(sub, &lv_font_sh_bold_22, 0);
+}
+
+void create_game_screen() {
+    scr_game = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr_game, C_SLATE_900, 0);
+    lv_obj_clear_flag(scr_game, LV_OBJ_FLAG_SCROLLABLE);
+
+    // --- Main Flex Container (Full Screen) ---
+    lv_obj_t* root_flex = lv_obj_create(scr_game);
+    lv_obj_set_size(root_flex, 480, 320);
+    lv_obj_center(root_flex);
+    lv_obj_set_flex_flow(root_flex, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_all(root_flex, 0, 0);
+    lv_obj_set_style_border_width(root_flex, 0, 0);
+    lv_obj_set_style_bg_opa(root_flex, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_column(root_flex, 0, 0); // No gap between board and sidebar
+
+    // --- Left Side: Board Area (Flex Grow) ---
+    lv_obj_t* cont_board = lv_obj_create(root_flex);
+    lv_obj_set_flex_grow(cont_board, 1);
+    lv_obj_set_height(cont_board, LV_PCT(100));
+    lv_obj_set_style_bg_opa(cont_board, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(cont_board, 0, 0);
+    lv_obj_set_style_pad_all(cont_board, 0, 0);
+    
+    // Position Label (Top Left) - e.g. "EAST"
+    // Using lbl_device_id variable for this purpose to reuse existing pointer
+    lbl_device_id = lv_label_create(cont_board);
+    lv_label_set_text(lbl_device_id, "设备: --"); 
+    lv_obj_align(lbl_device_id, LV_ALIGN_TOP_LEFT, 15, 15);
+    lv_obj_set_style_bg_color(lbl_device_id, C_SLATE_900, 0);
+    lv_obj_set_style_bg_opa(lbl_device_id, LV_OPA_90, 0);
+    lv_obj_set_style_text_color(lbl_device_id, C_SLATE_400, 0);
+    lv_obj_set_style_text_font(lbl_device_id, &lv_font_sh_bold_22, 0); // Monospaced font if possible, bold 22 is fine
+    lv_obj_set_style_pad_all(lbl_device_id, 4, 0);
+    lv_obj_set_style_radius(lbl_device_id, 4, 0);
+
+    // Players Grid Layout
+    // 0:Self(Bottom), 1:Right, 2:Opp(Top), 3:Left
+    // Card Size: 110x74
+    
+    static const int CARD_W = 110;
+    static const int CARD_H = 90;
+    
+    struct { int align; int x; int y; bool is_self; } pos_cfg[] = {
+        {LV_ALIGN_BOTTOM_MID, 0, -30, true},   // Self (Bottom)
+        {LV_ALIGN_RIGHT_MID, -20, 0, false},   // Right
+        {LV_ALIGN_TOP_MID, 0, 30, false},      // Opp (Top)
+        {LV_ALIGN_LEFT_MID, 20, 0, false}      // Left
+    };
+
+    for (int i = 0; i < 4; i++) {
+        cont_players[i] = lv_obj_create(cont_board);
+        lv_obj_set_size(cont_players[i], CARD_W, CARD_H);
+        lv_obj_align(cont_players[i], pos_cfg[i].align, pos_cfg[i].x, pos_cfg[i].y);
+        
+        lv_obj_set_style_radius(cont_players[i], 8, 0);
+        lv_obj_set_style_border_width(cont_players[i], 0, 0);
+        
+        if (pos_cfg[i].is_self) {
+             lv_obj_set_style_bg_color(cont_players[i], C_EMERALD_600, 0);
+             lv_obj_set_style_bg_opa(cont_players[i], LV_OPA_80, 0);
+        } else {
+             lv_obj_set_style_bg_color(cont_players[i], C_SLATE_800, 0);
+             lv_obj_set_style_bg_opa(cont_players[i], LV_OPA_80, 0);
+        }
+        
+        lv_obj_set_flex_flow(cont_players[i], LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(cont_players[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(cont_players[i], 0, 0);
+        lv_obj_set_style_pad_gap(cont_players[i], 8, 0);
+        lv_obj_clear_flag(cont_players[i], LV_OBJ_FLAG_SCROLLABLE);
+
+        // Name Label
+        lbl_names[i] = lv_label_create(cont_players[i]);
+        lv_label_set_text(lbl_names[i], "");
+        lv_obj_set_style_text_font(lbl_names[i], &lv_font_sh_bold_22, 0);
+        if (pos_cfg[i].is_self) {
+            lv_obj_set_style_text_color(lbl_names[i], lv_color_white(), 0);
+        } else {
+            lv_obj_set_style_text_color(lbl_names[i], C_SLATE_300, 0);
+        }
+
+        // Score Label
+        lbl_scores[i] = lv_label_create(cont_players[i]);
+        lv_label_set_text(lbl_scores[i], "0");
+        lv_obj_set_style_text_font(lbl_scores[i], &lv_font_sh_bold_40, 0);
+        if (pos_cfg[i].is_self) {
+             lv_obj_set_style_text_color(lbl_scores[i], lv_color_white(), 0);
+        } else {
+             lv_obj_set_style_text_color(lbl_scores[i], C_SLATE_200, 0);
+        }
+    }
+    
+    // Confirm Button (Bottom Left of Board Area)
+    btn_player_confirm = lv_btn_create(cont_board);
+    lv_obj_set_size(btn_player_confirm, 110, 36);
+    lv_obj_align(btn_player_confirm, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+    lv_obj_set_style_bg_color(btn_player_confirm, C_AMBER_300, 0);
+    lv_obj_set_style_bg_opa(btn_player_confirm, LV_OPA_80, 0); // React has amber-300/80
+    lv_obj_set_style_radius(btn_player_confirm, 18, 0);
+    lv_obj_set_style_shadow_width(btn_player_confirm, 2, 0);
+    lv_obj_set_style_shadow_color(btn_player_confirm, C_SLATE_900, 0);
+    lv_obj_set_style_text_color(btn_player_confirm, C_SLATE_900, 0);
+    lv_obj_add_event_cb(btn_player_confirm, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t* l_conf = lv_label_create(btn_player_confirm);
+    lv_label_set_text(l_conf, "确认成绩");
+    lv_obj_center(l_conf);
+    lv_obj_set_style_text_font(l_conf, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_color(l_conf, C_SLATE_900, 0);
+    
+    lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
+
+    // --- Right Side: Sidebar (Fixed Width) ---
+    lv_obj_t* cont_sidebar = lv_obj_create(root_flex);
+    lv_obj_set_width(cont_sidebar, 130);
+    lv_obj_set_height(cont_sidebar, LV_PCT(100));
+    lv_obj_set_style_bg_color(cont_sidebar, C_SLATE_900, 0);
+    lv_obj_set_style_bg_opa(cont_sidebar, LV_OPA_50, 0);
+    lv_obj_set_style_border_side(cont_sidebar, LV_BORDER_SIDE_LEFT, 0);
+    lv_obj_set_style_border_width(cont_sidebar, 1, 0);
+    lv_obj_set_style_border_color(cont_sidebar, C_SLATE_800, 0);
+    lv_obj_set_style_radius(cont_sidebar, 0, 0);
+    lv_obj_clear_flag(cont_sidebar, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Sidebar Layout: Flex Column Space-Between
+    lv_obj_set_flex_flow(cont_sidebar, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(cont_sidebar, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_ver(cont_sidebar, 15, 0);
+
+    // 1. Game Info Pill (Top)
+    lv_obj_t* pill_info = lv_obj_create(cont_sidebar);
+    lv_obj_set_size(pill_info, 128, 26);
+    lv_obj_set_style_bg_color(pill_info, C_SLATE_800, 0);
+    lv_obj_set_style_radius(pill_info, 13, 0);
+    lv_obj_set_style_border_width(pill_info, 0, 0);
+    
+    lbl_game_info = lv_label_create(pill_info);
+    lv_label_set_text(lbl_game_info, "未开局");
+    lv_obj_center(lbl_game_info);
+    lv_obj_set_style_text_color(lbl_game_info, C_SLATE_400, 0);
+    lv_obj_set_style_text_font(lbl_game_info, &lv_font_sh_bold_22, 0);
+
+    // 2. Center Hu Button
+    btn_hu = lv_btn_create(cont_sidebar);
+    lv_obj_set_size(btn_hu, 76, 76);
+    lv_obj_set_style_radius(btn_hu, 38, 0);
+    lv_obj_set_style_bg_color(btn_hu, C_EMERALD_500, 0);
+    lv_obj_set_style_bg_grad_color(btn_hu, C_EMERALD_600, 0);
+    lv_obj_set_style_bg_grad_dir(btn_hu, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_shadow_width(btn_hu, 20, 0);
+    lv_obj_set_style_shadow_color(btn_hu, lv_color_hex(0x064e3b), 0); // Emerald 900
+    lv_obj_set_style_shadow_opa(btn_hu, LV_OPA_50, 0);
+    lv_obj_add_event_cb(btn_hu, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t* lbl_hu = lv_label_create(btn_hu);
+    lv_label_set_text(lbl_hu, "和");
+    lv_obj_center(lbl_hu);
+    lv_obj_set_style_text_font(lbl_hu, &lv_font_sh_bold_22, 0); // Use 22px as 40px font lacks CJK
+    lv_obj_set_style_text_color(lbl_hu, lv_color_white(), 0);
+
+    // 3. Bottom Buttons (Huang, Diff)
+    lv_obj_t* row_btm = lv_obj_create(cont_sidebar);
+    lv_obj_set_size(row_btm, 110, 44);
+    lv_obj_set_style_bg_opa(row_btm, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row_btm, 0, 0);
+    lv_obj_set_flex_flow(row_btm, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row_btm, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(row_btm, 0, 0);
+
+    // Huang
+    btn_huang = lv_btn_create(row_btm);
+    lv_obj_set_size(btn_huang, 44, 44);
+    lv_obj_set_style_radius(btn_huang, 22, 0);
+    lv_obj_set_style_bg_color(btn_huang, C_AMBER_500, 0);
+    lv_obj_set_style_shadow_width(btn_huang, 10, 0);
+    lv_obj_set_style_shadow_color(btn_huang, lv_color_hex(0x78350f), 0); // Amber 900
+    lv_obj_set_style_shadow_opa(btn_huang, LV_OPA_30, 0);
+    lv_obj_add_event_cb(btn_huang, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    lv_obj_t* l_huang = lv_label_create(btn_huang);
+    lv_label_set_text(l_huang, "荒");
+    lv_obj_center(l_huang);
+    lv_obj_set_style_text_font(l_huang, &lv_font_sh_bold_22, 0);
+    
+    // Diff
+    btn_diff = lv_btn_create(row_btm);
+    lv_obj_set_size(btn_diff, 44, 44);
+    lv_obj_set_style_radius(btn_diff, 22, 0);
+    lv_obj_set_style_bg_color(btn_diff, C_SLATE_700, 0);
+    lv_obj_add_event_cb(btn_diff, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    lv_obj_t* l_diff = lv_label_create(btn_diff);
+    lv_label_set_text(l_diff, "差");
+    lv_obj_center(l_diff);
+    lv_obj_set_style_text_font(l_diff, &lv_font_sh_bold_22, 0);
+}
+
+void create_hu_menu() {
+    scr_hu = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(scr_hu, 480, 320); // Landscape
+    lv_obj_center(scr_hu);
+    lv_obj_set_style_bg_color(scr_hu, C_SLATE_950, 0);
+    lv_obj_set_style_bg_opa(scr_hu, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(scr_hu, 0, 0);
+    lv_obj_set_style_radius(scr_hu, 0, 0);
+    lv_obj_add_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
+    
+    // Top Bar
+    lv_obj_t* btn_back = lv_btn_create(scr_hu);
+    lv_obj_set_size(btn_back, 40, 40);
+    lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 10, 10);
+    lv_obj_set_style_bg_color(btn_back, C_SLATE_800, 0);
+    lv_obj_set_style_radius(btn_back, 20, 0);
+    lv_obj_t* l_back = lv_label_create(btn_back);
+    lv_label_set_text(l_back, "<");
+    lv_obj_center(l_back);
+    lv_obj_add_event_cb(btn_back, event_handler_hu_action, LV_EVENT_CLICKED, (void*)0);
+    
+    lbl_hu_title = lv_label_create(scr_hu);
+    lv_label_set_text(lbl_hu_title, "和牌结算");
+    lv_obj_align(lbl_hu_title, LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_set_style_text_color(lbl_hu_title, C_SLATE_200, 0);
+    lv_obj_set_style_text_font(lbl_hu_title, &lv_font_sh_bold_22, 0);
+    
+    // Content Container (Fit in 480 width)
+    lv_obj_t* cont = lv_obj_create(scr_hu);
+    lv_obj_set_size(cont, 400, 240); // Wider and shorter
+    lv_obj_align(cont, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(cont, 0, 0);
+    lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    // Row 1: Losers (Left, Opp, Right)
+    lv_obj_t* row_losers = lv_obj_create(cont);
+    lv_obj_set_width(row_losers, LV_PCT(100));
+    lv_obj_set_height(row_losers, 50);
+    lv_obj_set_style_bg_opa(row_losers, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row_losers, 0, 0);
+    lv_obj_set_flex_flow(row_losers, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row_losers, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    const char* labels[] = {"上家点", "对家点", "下家点"};
+    for (int i = 0; i < 3; i++) {
+        btn_hu_opts[i] = lv_btn_create(row_losers);
+        lv_obj_set_width(btn_hu_opts[i], 120); // Wider for Landscape
+        lv_obj_set_height(btn_hu_opts[i], 40);
+        lv_obj_set_style_bg_color(btn_hu_opts[i], C_SLATE_700, 0);
+        lv_obj_t* l = lv_label_create(btn_hu_opts[i]);
+        lv_label_set_text(l, labels[i]);
+        lv_obj_center(l);
+        lv_obj_set_style_text_font(l, &lv_font_sh_bold_22, 0);
+        lv_obj_add_event_cb(btn_hu_opts[i], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)(i + 2));
+    }
+
+    // Row 2: Zimo
+    btn_hu_opts[3] = lv_btn_create(cont);
+    lv_obj_set_width(btn_hu_opts[3], LV_PCT(100));
+    lv_obj_set_height(btn_hu_opts[3], 40);
+    lv_obj_set_style_bg_color(btn_hu_opts[3], C_SLATE_700, 0);
+    lv_obj_t* l_zimo = lv_label_create(btn_hu_opts[3]);
+    lv_label_set_text(l_zimo, "自摸");
+    lv_obj_center(l_zimo);
+    lv_obj_set_style_text_font(l_zimo, &lv_font_sh_bold_22, 0);
+    lv_obj_add_event_cb(btn_hu_opts[3], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)5);
+
+    // Row 3: Score Adjust
+    lv_obj_t* row_score = lv_obj_create(cont);
+    lv_obj_set_width(row_score, LV_PCT(100));
+    lv_obj_set_height(row_score, 50);
+    lv_obj_set_style_bg_opa(row_score, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row_score, 0, 0);
+    lv_obj_set_flex_flow(row_score, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row_score, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // -5
+    lv_obj_t* b_m5 = lv_btn_create(row_score);
+    lv_obj_set_size(b_m5, 60, 40);
+    lv_obj_set_style_bg_color(b_m5, C_SLATE_700, 0);
+    lv_obj_t* l_m5 = lv_label_create(b_m5);
+    lv_label_set_text(l_m5, "-5");
+    lv_obj_center(l_m5);
+    lv_obj_add_event_cb(b_m5, event_handler_hu_action, LV_EVENT_CLICKED, (void*)10);
+    
+    // -1
+    lv_obj_t* b_m1 = lv_btn_create(row_score);
+    lv_obj_set_size(b_m1, 60, 40);
+    lv_obj_set_style_bg_color(b_m1, C_SLATE_700, 0);
+    lv_obj_t* l_m1 = lv_label_create(b_m1);
+    lv_label_set_text(l_m1, "-1");
+    lv_obj_center(l_m1);
+    lv_obj_add_event_cb(b_m1, event_handler_hu_action, LV_EVENT_CLICKED, (void*)11);
+
+    // Score Display
+    lv_obj_t* cont_sc = lv_obj_create(row_score);
+    lv_obj_set_size(cont_sc, 80, 40);
+    lv_obj_set_style_bg_color(cont_sc, C_SLATE_800, 0);
+    lv_obj_set_style_border_width(cont_sc, 0, 0);
+    lbl_hu_score = lv_label_create(cont_sc);
+    lv_label_set_text(lbl_hu_score, "8");
+    lv_obj_center(lbl_hu_score);
+    lv_obj_set_style_text_color(lbl_hu_score, C_AMBER_300, 0);
+    lv_obj_set_style_text_font(lbl_hu_score, &lv_font_sh_bold_40, 0);
+
+    // +1
+    lv_obj_t* b_p1 = lv_btn_create(row_score);
+    lv_obj_set_size(b_p1, 60, 40);
+    lv_obj_set_style_bg_color(b_p1, C_SLATE_700, 0);
+    lv_obj_t* l_p1 = lv_label_create(b_p1);
+    lv_label_set_text(l_p1, "+1");
+    lv_obj_center(l_p1);
+    lv_obj_add_event_cb(b_p1, event_handler_hu_action, LV_EVENT_CLICKED, (void*)12);
+
+    // +5
+    lv_obj_t* b_p5 = lv_btn_create(row_score);
+    lv_obj_set_size(b_p5, 60, 40);
+    lv_obj_set_style_bg_color(b_p5, C_SLATE_700, 0);
+    lv_obj_t* l_p5 = lv_label_create(b_p5);
+    lv_label_set_text(l_p5, "+5");
+    lv_obj_center(l_p5);
+    lv_obj_add_event_cb(b_p5, event_handler_hu_action, LV_EVENT_CLICKED, (void*)13);
+
+    // Submit Button
+    btn_hu_submit = lv_btn_create(cont);
+    lv_obj_set_width(btn_hu_submit, LV_PCT(100));
+    lv_obj_set_height(btn_hu_submit, 40);
+    lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
+    lbl_hu_submit = lv_label_create(btn_hu_submit);
+    lv_label_set_text(lbl_hu_submit, "确认并发送到中控");
+    lv_obj_center(lbl_hu_submit);
+    lv_obj_set_style_text_font(lbl_hu_submit, &lv_font_sh_bold_22, 0);
+    lv_obj_add_event_cb(btn_hu_submit, event_handler_hu_action, LV_EVENT_CLICKED, (void*)1);
+}
+
+void update_game_ui() {
+    // Labels: East, South, West, North
+    const char* winds[] = {"东", "南", "西", "北"};
+    
+    // Update Sidebar
+    if (gameState.gameNumber > 0) {
+        int windIndex = (gameState.gameNumber - 1) / 4;
+        int juIndex = ((gameState.gameNumber - 1) % 4) + 1;
+        lv_label_set_text_fmt(lbl_game_info, "%s%d局 %d/16", 
+            (windIndex < 4 ? winds[windIndex] : "?"), juIndex, gameState.gameNumber);
     } else {
-      // Normal mode: highlight score changes if we had animation, but for now static
-      // If negative, use green, positive red? No, absolute score is usually white or by player color
-      if (displayScore < 0) scoreColor = TFT_GREEN; // Debt?
+         lv_label_set_text(lbl_game_info, "未开局");
+    }
+
+    // Update Device ID
+    if (myPositionIndex != -1) {
+         lv_label_set_text_fmt(lbl_device_id, "设备: %s", winds[myPositionIndex]);
+    } else {
+         lv_label_set_text(lbl_device_id, "设备: 未分配");
+    }
+
+    // Confirm Button State
+    if (gameState.mode == "CONFIRM") {
+         lv_obj_clear_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
+         if (isConfirmed) {
+             lv_obj_set_style_bg_color(btn_player_confirm, C_SLATE_500, 0);
+             lv_obj_set_style_text_color(btn_player_confirm, C_SLATE_100, 0);
+             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), "已确认");
+         } else {
+             lv_obj_set_style_bg_color(btn_player_confirm, C_AMBER_300, 0);
+             lv_obj_set_style_text_color(btn_player_confirm, C_SLATE_900, 0);
+             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), "确认成绩");
+         }
+    } else {
+         lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
+         isConfirmed = false;
+    }
+
+    // Diff Mode Button Style
+    if (diffMode) {
+        lv_obj_set_style_bg_color(btn_diff, C_SKY_500, 0);
+        lv_obj_set_style_text_color(btn_diff, lv_color_white(), 0);
+    } else {
+        lv_obj_set_style_bg_color(btn_diff, C_SLATE_700, 0);
+        lv_obj_set_style_text_color(btn_diff, C_SLATE_300, 0);
+    }
+
+    // Update Players
+    // Map: 0:Self, 1:Right, 2:Opp, 3:Left
+    // Absolute indices: myPositionIndex (Self), +1, +2, +3 mod 4.
+    
+    int map[4];
+    if (myPositionIndex != -1) {
+        map[0] = myPositionIndex;
+        map[1] = (myPositionIndex + 1) % 4;
+        map[2] = (myPositionIndex + 2) % 4;
+        map[3] = (myPositionIndex + 3) % 4;
+    } else {
+        for(int i=0; i<4; i++) map[i] = i;
     }
     
-    // Draw Score
-    tft.setTextDatum(top_center);
-    tft.setTextSize(2); // Score uses larger font
-    tft.setTextColor(scoreColor);
-    
-    String scoreStr = String(displayScore);
-    if (diffMode && displayScore > 0) scoreStr = "+" + scoreStr;
-    
-    tft.drawString(scoreStr, cx, cy);
-  };
-  
-  // Layout positions
-  // Top (Opposite)
-  drawPlayer(opp, w/2, 60, "对家");
-  // Left
-  drawPlayer(left, 80, 140, "上家");
-  // Right
-  drawPlayer(right, w-80, 140, "下家");
-  // Bottom (Self)
-  drawPlayer(self, w/2, 180, "本家");
-  
-  // 3. Buttons
-  if (currentMode == MODE_GAME_CONFIRM) {
-    btnConfirm.visible = true;
-    btnConfirm.draw(&tft);
-    btnHuang.visible = false;
-    btnHu.visible = false;
-    btnDiff.visible = true; // Allow diff check during confirm
-    btnDiff.draw(&tft, diffMode);
-  } else {
-    btnConfirm.visible = false;
-    btnHuang.visible = true;
-    btnHu.visible = true;
-    btnDiff.visible = true;
-    
-    btnHuang.draw(&tft);
-    btnHu.draw(&tft);
-    btnDiff.draw(&tft, diffMode);
-  }
+    for (int i = 0; i < 4; i++) {
+        int absIndex = map[i];
+        int score = gameState.scores[absIndex];
+        
+        // Name
+        lv_label_set_text(lbl_names[i], gameState.names[absIndex].c_str());
+        
+        // Score & Color
+        int displayScore = score;
+        lv_color_t txtColor = C_SLATE_200;
+        lv_color_t bgColor = C_SLATE_800;
+        
+        if (i == 0) { // Self
+             if (!diffMode) {
+                 bgColor = C_EMERALD_600; // Self Normal: Green bg
+                 txtColor = lv_color_white();
+             } else {
+                 bgColor = C_SLATE_700; // Self Diff: Slate bg
+                 txtColor = C_SLATE_200;
+                 displayScore = 0;
+             }
+        } else { // Others
+             if (diffMode) {
+                 int selfScore = gameState.scores[map[0]];
+                 displayScore = score - selfScore;
+             }
+             // Color logic
+             if (displayScore > 0) txtColor = C_RED_500;
+             else if (displayScore < 0) txtColor = C_GREEN_500;
+             else txtColor = C_SLATE_200;
+        }
+        
+        lv_label_set_text_fmt(lbl_scores[i], "%d", displayScore);
+        lv_obj_set_style_text_color(lbl_scores[i], txtColor, 0);
+        lv_obj_set_style_bg_color(cont_players[i], bgColor, 0);
+    }
 }
 
-// --- Hu Menu UI ---
-// Buttons for Hu Menu
-Button btnHuLeft = {20, 60, 100, 60, "上家", TFT_DARKGREY, TFT_WHITE, true};
-Button btnHuOpp = {130, 60, 100, 60, "对家", TFT_DARKGREY, TFT_WHITE, true};
-Button btnHuRight = {240, 60, 100, 60, "下家", TFT_DARKGREY, TFT_WHITE, true};
-Button btnHuZimo = {350, 60, 100, 60, "自摸", TFT_DARKGREY, TFT_WHITE, true};
-
-Button btnScoreM5 = {20, 150, 60, 60, "-5", TFT_BLUE, TFT_WHITE, true};
-Button btnScoreM1 = {90, 150, 60, 60, "-1", TFT_BLUE, TFT_WHITE, true};
-// Score Display in middle: 160, 140, 80, 50
-Button btnScoreP1 = {250, 150, 60, 60, "+1", TFT_RED, TFT_WHITE, true};
-Button btnScoreP5 = {320, 150, 60, 60, "+5", TFT_RED, TFT_WHITE, true};
-
-Button btnHuCancel = {20, 240, 120, 60, "取消", TFT_LIGHTGREY, TFT_BLACK, true};
-Button btnHuSubmit = {300, 240, 160, 60, "提交", TFT_GREEN, TFT_BLACK, true};
-
-void drawHuMenu() {
-  // Overlay background
-  tft.fillScreen(TFT_BLACK); 
-  tft.drawRect(0, 0, 480, 320, TFT_RED); // Red border
-  
-  tft.setTextDatum(top_center);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(1.5);
-  tft.drawString("请选择胡牌详情", 240, 15);
-  
-  // 1. Loser Selection
-  // Highlight selected
-  btnHuLeft.draw(&tft, huLoserRelPos == 0);
-  btnHuOpp.draw(&tft, huLoserRelPos == 1);
-  btnHuRight.draw(&tft, huLoserRelPos == 2);
-  btnHuZimo.draw(&tft, huLoserRelPos == 3);
-  
-  // 2. Base Score
-  btnScoreM5.draw(&tft);
-  btnScoreM1.draw(&tft);
-  
-  // Score Value
-  tft.setTextDatum(middle_center);
-  tft.setTextColor(TFT_YELLOW);
-  tft.setTextSize(2.5);
-  tft.drawString(String(huBaseScore), 200, 180);
-  
-  btnScoreP1.draw(&tft);
-  btnScoreP5.draw(&tft);
-  
-  // 3. Actions
-  btnHuCancel.draw(&tft);
-  btnHuSubmit.draw(&tft);
-}
-
-void handleTouch() {
-  int32_t x, y;
-  if (!tft.getTouch(&x, &y)) return;
-  
-  if (inHuMenu) {
-    if (btnHuLeft.contains(x, y)) { huLoserRelPos = 0; needRedraw = true; }
-    else if (btnHuOpp.contains(x, y)) { huLoserRelPos = 1; needRedraw = true; }
-    else if (btnHuRight.contains(x, y)) { huLoserRelPos = 2; needRedraw = true; }
-    else if (btnHuZimo.contains(x, y)) { huLoserRelPos = 3; needRedraw = true; }
-    
-    else if (btnScoreM5.contains(x, y)) { huBaseScore = max(1, huBaseScore - 5); needRedraw = true; }
-    else if (btnScoreM1.contains(x, y)) { huBaseScore = max(1, huBaseScore - 1); needRedraw = true; }
-    else if (btnScoreP1.contains(x, y)) { huBaseScore += 1; needRedraw = true; }
-    else if (btnScoreP5.contains(x, y)) { huBaseScore += 5; needRedraw = true; }
-    
-    else if (btnHuCancel.contains(x, y)) {
-      inHuMenu = false;
-      needRedraw = true;
+void processCommand(String cmd) {
+    // Parse Command
+    if (cmd.startsWith("SETUP:")) {
+        myPositionIndex = cmd.substring(6).toInt();
+        update_game_ui();
+        show_screen(scr_waiting); // Or stay on waiting until state
+    } else if (cmd.startsWith("NAME:")) {
+        // NAME:index:name
+        int firstColon = cmd.indexOf(':');
+        int secondColon = cmd.indexOf(':', firstColon + 1);
+        if (secondColon != -1) {
+            int idx = cmd.substring(firstColon + 1, secondColon).toInt();
+            String name = cmd.substring(secondColon + 1);
+            if (idx >= 0 && idx < 4) {
+                gameState.names[idx] = name;
+                update_game_ui();
+            }
+        }
+    } else if (cmd.startsWith("STATE:")) {
+        // STATE:mode:round:gameNum:s0:s1:s2:s3
+        // Example: STATE:PLAY:east:1:0:0:0:0
+        int parts[8]; // indices of colons
+        int count = 0;
+        int lastIdx = -1;
+        
+        // Manual split to avoid memory issues with vector<String>
+        std::vector<String> tokens;
+        int start = 0;
+        while (start < cmd.length()) {
+            int end = cmd.indexOf(':', start);
+            if (end == -1) end = cmd.length();
+            tokens.push_back(cmd.substring(start, end));
+            start = end + 1;
+        }
+        
+        if (tokens.size() >= 8) {
+             gameState.mode = tokens[1];
+             gameState.round = tokens[2];
+             gameState.gameNumber = tokens[3].toInt();
+             gameState.scores[0] = tokens[4].toInt();
+             gameState.scores[1] = tokens[5].toInt();
+             gameState.scores[2] = tokens[6].toInt();
+             gameState.scores[3] = tokens[7].toInt();
+             
+             update_game_ui();
+             show_screen(scr_game);
+        }
     }
-    else if (btnHuSubmit.contains(x, y)) {
-      if (huLoserRelPos == -1) return; // Must select target
-      
-      String cmd = "";
-      if (huLoserRelPos == 3) { // Zimo
-        cmd = "HE:ZIMO:" + String(huBaseScore);
-      } else { // Ron
-        String rel = "";
-        if (huLoserRelPos == 0) rel = "LEFT";
-        if (huLoserRelPos == 1) rel = "OPPOSITE";
-        if (huLoserRelPos == 2) rel = "RIGHT";
-        cmd = "HE:RON:" + rel + ":" + String(huBaseScore);
-      }
-      sendText(cmd);
-      inHuMenu = false;
-      needRedraw = true;
-    }
-    delay(200); // Debounce
-    return;
-  }
-
-  // Main Game Screen Touches
-  if (currentMode == MODE_GAME_PLAY) {
-    if (btnHu.contains(x, y)) {
-      inHuMenu = true;
-      huBaseScore = 8;
-      huLoserRelPos = -1;
-      needRedraw = true;
-      delay(200);
-    }
-    else if (btnHuang.contains(x, y)) {
-      sendText("BTN:HUANG");
-      delay(200);
-    }
-    else if (btnDiff.contains(x, y)) {
-      diffMode = !diffMode;
-      needRedraw = true;
-      delay(200);
-    }
-  }
-  else if (currentMode == MODE_GAME_CONFIRM) {
-    if (btnConfirm.contains(x, y)) {
-      sendText("BTN:CONFIRM");
-      delay(200);
-    }
-    else if (btnDiff.contains(x, y)) {
-      diffMode = !diffMode;
-      needRedraw = true;
-      delay(200);
-    }
-  }
 }
