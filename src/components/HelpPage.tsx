@@ -25,6 +25,32 @@ export default function HelpPage({ onBack }: HelpPageProps) {
         <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8">
 
           <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-rose-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.2</h2>
+                <p className="text-sm text-gray-500">2026-01-21</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">小屏适配优化：</strong>优化了在小屏设备上的显示效果，确保所有功能按钮都能在屏幕内完整显示，操作更加便捷。
+                </li>
+                <li>
+                  <strong className="text-gray-900">流程简化：</strong>取消了“确认成绩”环节，和牌或流局后直接生效，让比赛节奏更加流畅。
+                </li>
+                <li>
+                  <strong className="text-gray-900">智能硬件支持：</strong>支持蓝牙绑定认证的ESP32设备，实现“一人一屏”的专属显示与交互体验。
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b-2 border-purple-100">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
                 <Sparkles size={20} className="text-white" />

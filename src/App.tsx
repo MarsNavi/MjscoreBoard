@@ -115,6 +115,8 @@ function App() {
     }
   };
 
+  const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
+
   useEffect(() => {
     const initLocalUser = async () => {
       let targetUser = await db.users.where('code').equals('micken').first();
@@ -326,18 +328,20 @@ function App() {
     }
   };
 
-  const handleEarlyEnd = async () => {
-    if (!confirm('确定要提前结束游戏吗?')) return;
-
+  const handleConfirmEndGame = async () => {
     if (game) {
       await db.games.update(game.id, { early_ended: true });
 
-      await db.players.where('game_id').equals(game.id).modify({ confirmed_result: false, confirmed_at: undefined });
-
+      await saveGameResults();
+      
+      setGameStarted(false);
+      setIsConfirmMode(false);
+      setShowEndGameConfirm(false);
+      
       await recalculateAndRefreshPlayers();
+      
+      navigateTo(`/game/${game.id}`);
     }
-
-    setIsConfirmMode(true);
   };
 
   const handleNameChange = (position: Position, name: string) => {
@@ -427,31 +431,7 @@ function App() {
   };
 
   const handleRestart = async () => {
-    if (!isConfirmMode) {
-      handleEarlyEnd();
-      return;
-    }
-
-    if (!confirm('确定要重新开始吗?当前游戏将被结束,已打完的局将被保存。')) return;
-
-    if (game) {
-      await saveGameResults();
-
-      await db.games.update(game.id, { status: 'finished' });
-    }
-
-    setGame(null);
-    setPlayers([]);
-    setGameStarted(false);
-    setGameName('');
-    setIsConfirmMode(false);
-    setCurrentPage('home');
-    setTempPlayerNames({
-      east: '',
-      south: '',
-      west: '',
-      north: '',
-    });
+    setShowEndGameConfirm(true);
   };
 
   const handleHuangzhuang = async (fromDevices = false) => {
@@ -496,17 +476,12 @@ function App() {
         await rotatePlayersForNewRound(nextGame);
       }
       await recalculateAndRefreshPlayers();
-
-      if (nextGame === TOTAL_GAMES + 1) {
-        await db.players.where('game_id').equals(game.id).modify({ confirmed_result: false, confirmed_at: undefined });
-        setIsConfirmMode(true);
-        alert('最后一局已结束!请所有玩家确认成绩');
-      }
     } else {
-      await db.players.where('game_id').equals(game.id).modify({ confirmed_result: false, confirmed_at: undefined });
-      setIsConfirmMode(true);
+      await saveGameResults();
+      setGameStarted(false);
+      setIsConfirmMode(false);
       await recalculateAndRefreshPlayers();
-      alert('最后一局已结束!请所有玩家确认成绩');
+      navigateTo(`/game/${game.id}`);
     }
 
     resetDeviceHuangStates();
@@ -833,15 +808,17 @@ function App() {
       await recalculateAndRefreshPlayers();
 
       if (nextGame === TOTAL_GAMES + 1) {
-        await db.players.where('game_id').equals(game.id).modify({ confirmed_result: false, confirmed_at: undefined });
-        setIsConfirmMode(true);
-        alert('最后一局已结束!请所有玩家确认成绩');
+        await saveGameResults();
+        setGameStarted(false);
+        setIsConfirmMode(false);
+        navigateTo(`/game/${game.id}`);
       }
     } else {
-      await db.players.where('game_id').equals(game.id).modify({ confirmed_result: false, confirmed_at: undefined });
-      setIsConfirmMode(true);
+      await saveGameResults();
+      setGameStarted(false);
+      setIsConfirmMode(false);
       await recalculateAndRefreshPlayers();
-      alert('最后一局已结束!请所有玩家确认成绩');
+      navigateTo(`/game/${game.id}`);
     }
   };
 
@@ -959,7 +936,9 @@ function App() {
               // 2. Send Game State
               let payload = 'STATE:IDLE';
               
-              if (gameStarted) {
+              if (game.is_completed || game.status === 'finished' || game.early_ended) {
+                  payload = 'STATE:GAMEOVER';
+              } else if (gameStarted) {
                  const allScores: Record<Position, number> = {
                     east: 0, south: 0, west: 0, north: 0,
                  };
@@ -1182,6 +1161,33 @@ function App() {
         onClose={() => setShowBleModal(false)} 
       />
 
+      {/* End Game Confirmation Modal */}
+      {showEndGameConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">结束游戏确认</h3>
+              <p className="text-gray-600 mb-6">确定要提前结束游戏吗？<br/>已完成的局数将被保存。</p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowEndGameConfirm(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleConfirmEndGame}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  确认结束
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex items-center justify-center px-4 pt-14 pb-6">
         <div className="relative flex-shrink-0 w-[min(calc(100vw-32px),380px)] h-[min(calc(100vw-32px),380px)] max-[799px]:portrait:w-[min(calc(100vw-32px),min(calc(100vh-260px),380px))] max-[799px]:portrait:h-[min(calc(100vw-32px),min(calc(100vh-260px),380px))] max-[799px]:landscape:w-[min(calc(100vw-160px),min(calc(100vh-180px),300px))] max-[799px]:landscape:h-[min(calc(100vw-160px),min(calc(100vh-180px),300px))] min-[800px]:w-[600px] min-[800px]:h-[600px]">
           <div className="w-full h-full grid grid-rows-[1fr_auto_1fr] grid-cols-[1fr_auto_1fr]">
@@ -1251,17 +1257,17 @@ function App() {
       </div>
 
       <div
-        className="w-full flex justify-center pb-4 pt-20 max-[799px]:portrait:pb-6 max-[799px]:landscape:pb-2 min-[800px]:fixed min-[800px]:bottom-6 min-[800px]:right-6 min-[800px]:w-auto min-[800px]:pb-0 min-[800px]:pt-0 z-50"
+        className="w-full flex justify-center pb-4 pt-20 max-[1023px]:portrait:pb-6 max-[1023px]:landscape:pb-2 min-[1024px]:fixed min-[1024px]:bottom-6 min-[1024px]:right-6 min-[1024px]:w-auto min-[1024px]:pb-0 min-[1024px]:pt-0 z-50"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
       >
-        <div className="grid grid-cols-6 gap-2 w-[min(calc(100vw-32px),360px)] max-[799px]:landscape:w-[min(calc(100vw-32px),320px)] min-[800px]:w-auto min-[800px]:gap-3">
+        <div className="grid grid-cols-6 gap-2 w-[min(calc(100vw-32px),360px)] max-[1023px]:landscape:w-[min(calc(100vw-32px),320px)] min-[1024px]:w-auto min-[1024px]:gap-3">
           {/* Row 1: Huang, History (2 buttons, col-span-2 each, right aligned) */}
           <button
             onClick={() => handleHuangzhuang()}
             disabled={!gameStarted || isConfirmMode}
-            className="col-start-3 col-span-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+            className="col-start-3 col-span-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
-            <Ban size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <Ban size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
             <span className="min-[800px]:hidden">荒</span>
             <span className="hidden min-[800px]:inline">荒庄</span>
           </button>
@@ -1273,9 +1279,9 @@ function App() {
               }
             }}
             disabled={!gameStarted}
-            className="col-span-2 bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+            className="col-span-2 bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
-            <History size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <History size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
             <span className="min-[800px]:hidden">查</span>
             <span className="hidden min-[800px]:inline">明细</span>
           </button>
@@ -1284,9 +1290,9 @@ function App() {
           <button
             onClick={handleUndoLastScore}
             disabled={!gameStarted || game?.current_game === 1}
-            className="col-span-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+            className="col-span-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
-            <Undo size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <Undo size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
             <span className="min-[800px]:hidden">改</span>
             <span className="hidden min-[800px]:inline">修改</span>
           </button>
@@ -1294,18 +1300,18 @@ function App() {
           <button
             onClick={handleOpenPenalty}
             disabled={!gameStarted || isConfirmMode}
-            className="col-span-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+            className="col-span-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
-            <AlertTriangle size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <AlertTriangle size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
             <span className="min-[800px]:hidden">罚</span>
             <span className="hidden min-[800px]:inline">判罚</span>
           </button>
 
           <button
             onClick={handleRestart}
-            className="col-span-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+            className="col-span-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
-            <RotateCcw size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <RotateCcw size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
             <span className="min-[800px]:hidden">完</span>
             <span className="hidden min-[800px]:inline">结束</span>
           </button>

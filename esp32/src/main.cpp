@@ -84,6 +84,7 @@ static lv_obj_t* lbl_device_id; // Device ID (Top Left)
 static lv_obj_t* btn_hu;
 static lv_obj_t* btn_huang;
 static lv_obj_t* btn_diff;
+static lv_obj_t* btn_gameover;
 
 // Hu Menu Elements
 static lv_obj_t* lbl_hu_title;
@@ -383,6 +384,11 @@ static void event_handler_game_btn(lv_event_t * e) {
             }
             
             lv_obj_clear_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
+        } else if (obj == btn_gameover) {
+            // Go to standby
+            gameState.mode = "IDLE";
+            update_game_ui();
+            show_screen(scr_waiting);
         }
     }
 }
@@ -595,6 +601,24 @@ void create_game_screen() {
     lv_obj_set_style_text_color(l_conf, C_SLATE_900, 0);
     
     lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
+
+    // Game Over Button (Center of Board)
+    btn_gameover = lv_btn_create(cont_board);
+    lv_obj_set_size(btn_gameover, 160, 80);
+    lv_obj_center(btn_gameover);
+    lv_obj_set_style_bg_color(btn_gameover, C_RED_500, 0);
+    lv_obj_set_style_shadow_width(btn_gameover, 20, 0);
+    lv_obj_set_style_shadow_color(btn_gameover, lv_color_hex(0x7f1d1d), 0);
+    lv_obj_set_style_shadow_opa(btn_gameover, LV_OPA_50, 0);
+    lv_obj_set_style_radius(btn_gameover, 16, 0);
+    lv_obj_add_event_cb(btn_gameover, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t* l_go = lv_label_create(btn_gameover);
+    lv_label_set_text(l_go, "结束");
+    lv_obj_center(l_go);
+    lv_obj_set_style_text_font(l_go, &lv_font_sh_bold_40, 0);
+    lv_obj_set_style_text_color(l_go, lv_color_white(), 0);
 
     // --- Right Side: Sidebar (Fixed Width) ---
     lv_obj_t* cont_sidebar = lv_obj_create(root_flex);
@@ -877,10 +901,21 @@ void update_game_ui() {
     }
 
     // Huang Button Visibility (Only East)
-    if (myPositionIndex == 0) {
-        lv_obj_clear_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
-    } else {
+    if (gameState.mode == "GAMEOVER") {
         lv_obj_add_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(btn_hu, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(btn_diff, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(btn_hu, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(btn_diff, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
+        
+        if (myPositionIndex == 0) {
+            lv_obj_clear_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 
     // Update Players
