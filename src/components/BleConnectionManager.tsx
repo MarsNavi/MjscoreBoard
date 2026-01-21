@@ -20,35 +20,10 @@ const positions: Position[] = ['east', 'south', 'west', 'north'];
 export default function BleConnectionManager({ onClose, isOpen }: BleConnectionManagerProps) {
   const { bleDevices, isScanning, scannedDevices, bleError, startScan, stopScan, connectToDevice: contextConnect, disconnectBleForPosition, writeData } = useBle();
   const [connectingPosition, setConnectingPosition] = useState<Position | null>(null);
-  const [autoBind, setAutoBind] = useState(false);
 
+  // Safety check to prevent crashes if context isn't fully ready
   if (!isOpen) return null;
-
-  // Auto-bind logic
-  useEffect(() => {
-    if (!autoBind || !isScanning || connectingPosition) return;
-
-    const autoConnect = async () => {
-        // Find first empty position
-        const emptyPos = positions.find(p => !bleDevices[p]);
-        if (!emptyPos) return; // All full
-
-        // Find a device that is NOT bound to any position
-        const boundIds = Object.values(bleDevices).map(d => d?.deviceId).filter(Boolean);
-        
-        const candidate = scannedDevices.find(d => 
-            d.device.name && // Must have name
-            !boundIds.includes(d.device.deviceId) // Not already bound
-        );
-
-        if (candidate) {
-            console.log(`Auto-binding ${candidate.device.name} to ${emptyPos}`);
-            await handleConnect(emptyPos, candidate.device.deviceId, candidate.device.name || 'Unknown');
-        }
-    };
-
-    autoConnect();
-  }, [autoBind, isScanning, scannedDevices, bleDevices, connectingPosition]);
+  if (!bleDevices) return null;
 
   const sendNamesToConnection = async (position: Position, deviceId: string) => {
       // Logic to trigger a name sync if needed immediately, 
@@ -83,7 +58,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -192,19 +167,6 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                >
                  {isScanning ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                  {isScanning ? '停止扫描' : '开始扫描'}
-               </button>
-               
-               <button
-                  onClick={() => setAutoBind(!autoBind)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ml-2 ${
-                      autoBind
-                      ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                      : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-                  }`}
-                  title="自动将扫描到的设备绑定到空闲位置"
-               >
-                  <Zap size={12} className={autoBind ? "fill-purple-700" : ""} />
-                  {autoBind ? '自动配对中' : '自动配对'}
                </button>
             </div>
             

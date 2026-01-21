@@ -48,26 +48,46 @@ export function BleProvider({ children }: { children: ReactNode }) {
   // Ref for the message handler to avoid stale closures in callbacks
   const messageHandlerRef = useRef<((position: Position, message: string) => void) | null>(null);
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Load from LocalStorage on mount
   useEffect(() => {
     const initBle = async () => {
       try {
         await BleClient.initialize();
+        setIsInitialized(true);
         
         const savedDevices = localStorage.getItem('bleDevices');
         if (savedDevices) {
-          const parsed = JSON.parse(savedDevices) as Record<Position, BleConnectionInfo | null>;
-          // Reset status to disconnected on load, as actual connection is lost on reload
-          const resetStatus: Record<Position, BleConnectionInfo | null> = { ...parsed };
-          (Object.keys(resetStatus) as Position[]).forEach(pos => {
-             if (resetStatus[pos]) {
-                resetStatus[pos] = { ...resetStatus[pos]!, status: 'disconnected' };
-             }
-          });
-          setBleDevices(resetStatus);
+          try {
+            const parsed = JSON.parse(savedDevices) as Record<Position, BleConnectionInfo | null>;
+            // Validate structure and reset status
+            const validPositions: Position[] = ['east', 'south', 'west', 'north'];
+            const validatedDevices: Record<Position, BleConnectionInfo | null> = {
+              east: null,
+              south: null,
+              west: null,
+              north: null,
+            };
+
+            validPositions.forEach(pos => {
+              if (parsed[pos] && typeof parsed[pos] === 'object') {
+                validatedDevices[pos] = {
+                  ...parsed[pos]!,
+                  status: 'disconnected' // Always start as disconnected until auto-reconnect kicks in
+                };
+              }
+            });
+            
+            setBleDevices(validatedDevices);
+          } catch (e) {
+            console.error('Failed to parse saved devices:', e);
+            localStorage.removeItem('bleDevices');
+          }
         }
       } catch (error) {
-        console.log('BLE initialize info:', error);
+        console.error('BLE initialize failed:', error);
+        setBleError('蓝牙初始化失败，请检查设备支持情况');
       }
     };
     initBle();
@@ -80,19 +100,25 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
   // Auto-reconnect loop
   useEffect(() => {
+    if (!isInitialized) return;
+
     const intervalId = setInterval(async () => {
       const positions: Position[] = ['east', 'south', 'west', 'north'];
       
       for (const pos of positions) {
         const device = bleDevices[pos];
-        if (device && device.status === 'disconnected' && device.deviceId) {
-           console.log(`Attempting auto-reconnect for ${pos} (${device.name})...`);
+        // Only try to reconnect if we have a device ID and it's currently disconnected
+        // We don't want to interrupt 'connecting' state or 'connected' state
+        if (device && device.deviceId && device.status === 'disconnected') {
+           console.log(`[Auto-Reconnect] Attempting to connect to ${pos} (${device.name})...`);
+           
            try {
-             // We use a simplified connect flow here to avoid setting 'connecting' state which might cause render loop
-             // or we can set it if we want UI feedback.
-             // For now, let's try to connect directly.
+             // Set status to connecting to give UI feedback (optional, but good for "don't disconnect" feeling)
+             // However, doing this inside the loop might cause rapid state updates if it fails quickly.
+             // Let's just try to connect.
+             
              await BleClient.connect(device.deviceId, (disconnectedDeviceId) => {
-                console.log('device disconnected', disconnectedDeviceId);
+                console.log('device disconnected callback', disconnectedDeviceId);
                 setBleDevices((prev) => {
                    const current = prev[pos];
                    if (current && current.deviceId === disconnectedDeviceId) {
@@ -124,22 +150,21 @@ export function BleProvider({ children }: { children: ReactNode }) {
                 [pos]: { ...prev[pos]!, status: 'connected' }
              }));
              
-             console.log(`Auto-reconnect successful for ${pos}`);
-             
-             // Re-send setup command if needed? 
-             // Ideally the device state is persistent or the app syncs it.
-             // We can trigger a sync if we had access to the logic, but BleContext is low level.
+             console.log(`[Auto-Reconnect] Success for ${pos}`);
              
            } catch (err) {
-             console.log(`Auto-reconnect failed for ${pos}:`, err);
-             // Keep status as disconnected, will retry next interval
+             console.log(`[Auto-Reconnect] Failed for ${pos}:`, err);
+             // Verify if it's already connected?
+             // Sometimes connect throws if already connected.
+             // We can try to read RSSI or something to check?
+             // For now, just leave it as disconnected, will retry next loop.
            }
         }
       }
     }, RECONNECT_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [bleDevices]); 
+  }, [bleDevices, isInitialized]); 
 
   const startScan = async () => {
     try {

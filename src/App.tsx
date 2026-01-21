@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Position, Player, Game, PlayerId, User } from './lib/supabase';
 import { db } from './lib/db';
 import PlayerScore from './components/PlayerScore';
@@ -722,6 +722,9 @@ function App() {
       score: playerScores[player.id],
     }));
 
+    // Update DB with calculated scores so syncToDevices can read from DB
+    await db.players.bulkPut(updatedPlayers);
+
     setPlayers(updatedPlayers);
   };
 
@@ -796,8 +799,9 @@ function App() {
 
     const scoreChanges = calculateScoreChanges(winner, loserPosition, baseScore);
 
-    const winnerPlayer = players.find(p => p.position === winner);
-    const loserPlayer = loserPosition ? players.find(p => p.position === loserPosition) : null;
+    const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
+    const winnerPlayer = dbPlayers.find(p => p.position === winner);
+    const loserPlayer = loserPosition ? dbPlayers.find(p => p.position === loserPosition) : null;
 
     try {
       await db.scores.add({
@@ -855,30 +859,9 @@ function App() {
   const handleDeviceHuang = (position: Position) => {
     if (!gameStarted || !game) return;
 
-    setDeviceHuangStates((prev) => {
-      if (prev[position]) {
-        return prev;
-      }
-
-      const next: Record<Position, boolean> = {
-        ...prev,
-        [position]: true,
-      };
-
-      const allConfirmed = next.east && next.south && next.west && next.north;
-
-      if (allConfirmed) {
-        void handleHuangzhuang(true);
-        return {
-          east: false,
-          south: false,
-          west: false,
-          north: false,
-        };
-      }
-
-      return next;
-    });
+    // Immediately trigger Huangzhuang logic without waiting for others
+    // Since only East device has the button, this action is authoritative
+    void handleHuangzhuang(true);
   };
 
   const completeGameFromDeviceConfirm = async () => {
@@ -923,53 +906,101 @@ function App() {
   };
 
   // Sync State Effect
+  const isSyncingRef = useRef(false);
+  const needsSyncRef = useRef(false);
+
   useEffect(() => {
-    const syncToDevices = async () => {
-       const positions: Position[] = ['east', 'south', 'west', 'north'];
-       for (const position of positions) {
-          const connection = bleDevices[position];
-          if (!connection || connection.status !== 'connected') continue;
+    const triggerSync = async () => {
+       // Mark that we need a sync
+       needsSyncRef.current = true;
+       
+       // If already syncing, the loop will pick it up. If not, start the loop.
+       if (isSyncingRef.current) return;
+       
+       isSyncingRef.current = true;
+       
+       try {
+         // Keep syncing as long as there are pending updates
+         while (needsSyncRef.current) {
+           needsSyncRef.current = false; // Clear flag before starting
+           
+           if (!game) break;
 
-          // 1. Send Names
-          const pList = [
-            { pos: 0, name: players.find(p => p.position === 'east')?.name || '' },
-            { pos: 1, name: players.find(p => p.position === 'south')?.name || '' },
-            { pos: 2, name: players.find(p => p.position === 'west')?.name || '' },
-            { pos: 3, name: players.find(p => p.position === 'north')?.name || '' },
-          ];
-          for (const item of pList) {
-            const cmd = `NAME:${item.pos}:${item.name}\n`;
-            const encoder = new TextEncoder();
-            const data = encoder.encode(cmd);
-            try {
-               await writeData(connection.deviceId, new DataView(data.buffer));
-               await new Promise(resolve => setTimeout(resolve, 50)); 
-            } catch (e) {
-               console.error('Sync name error', e);
-            }
-          }
+           // Fetch latest data from DB
+           const dbGame = await db.games.get(game.id);
+           const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
+           
+           if (!dbGame) break;
 
-          // 2. Send Game State
-          let payload = 'STATE:IDLE';
-          const deviceState = buildDeviceDisplayState(position);
-          if (deviceState) {
-            const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
-            const e = deviceState.all_scores.east ?? 0;
-            const s = deviceState.all_scores.south ?? 0;
-            const w = deviceState.all_scores.west ?? 0;
-            const n = deviceState.all_scores.north ?? 0;
-            payload = `STATE:${mode}:${deviceState.round}:${deviceState.game_number}:${e}:${s}:${w}:${n}`;
-          }
-          const encoder = new TextEncoder();
-          const data = encoder.encode(payload + '\n');
-          try {
-             await writeData(connection.deviceId, new DataView(data.buffer));
-          } catch (e) {
-             console.error('Sync state error', e);
-          }
+           const positions: Position[] = ['east', 'south', 'west', 'north'];
+           for (const position of positions) {
+              const connection = bleDevices[position];
+              if (!connection || connection.status !== 'connected') continue;
+
+              // 1. Send Names
+              const pList = [
+                { pos: 0, name: dbPlayers.find(p => p.position === 'east')?.name || '' },
+                { pos: 1, name: dbPlayers.find(p => p.position === 'south')?.name || '' },
+                { pos: 2, name: dbPlayers.find(p => p.position === 'west')?.name || '' },
+                { pos: 3, name: dbPlayers.find(p => p.position === 'north')?.name || '' },
+              ];
+              for (const item of pList) {
+                const cmd = `NAME:${item.pos}:${item.name}\n`;
+                const encoder = new TextEncoder();
+                const data = encoder.encode(cmd);
+                try {
+                   await writeData(connection.deviceId, new DataView(data.buffer));
+                   await new Promise(resolve => setTimeout(resolve, 50)); 
+                } catch (e) {
+                   console.error('Sync name error', e);
+                }
+              }
+
+              // 2. Send Game State
+              let payload = 'STATE:IDLE';
+              
+              if (gameStarted) {
+                 const allScores: Record<Position, number> = {
+                    east: 0, south: 0, west: 0, north: 0,
+                 };
+                 dbPlayers.forEach((player) => {
+                    allScores[player.position as Position] = player.score;
+                 });
+                 
+                 const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
+                 const e = allScores.east ?? 0;
+                 const s = allScores.south ?? 0;
+                 const w = allScores.west ?? 0;
+                 const n = allScores.north ?? 0;
+                 
+                 payload = `STATE:${mode}:${dbGame.current_round}:${dbGame.current_game}:${e}:${s}:${w}:${n}`;
+              }
+              
+              const encoder = new TextEncoder();
+              const data = encoder.encode(payload + '\n');
+              try {
+                 await writeData(connection.deviceId, new DataView(data.buffer));
+              } catch (e) {
+                 console.error('Sync state error', e);
+              }
+           }
+           
+           // Small delay to prevent tight loops if updates are super fast
+           await new Promise(resolve => setTimeout(resolve, 100));
+         }
+       } catch (error) {
+         console.error('Sync loop error:', error);
+       } finally {
+         isSyncingRef.current = false;
        }
     };
-    syncToDevices();
+
+    // Debounce the trigger slightly to batch rapid updates
+    const timer = setTimeout(() => {
+      void triggerSync();
+    }, 500); // Increased debounce to 500ms to avoid conflict with incoming messages
+
+    return () => clearTimeout(timer);
   }, [game, players, gameStarted, isConfirmMode, bleDevices]); // Sync whenever game state or connection changes
 
   // Message Handler Effect
@@ -1029,74 +1060,103 @@ function App() {
     );
   }
 
+  // Always render BleConnectionManager to ensure connection stability
+  const bleManager = (
+    <BleConnectionManager 
+      isOpen={showBleModal} 
+      onClose={() => setShowBleModal(false)} 
+    />
+  );
+
   if (currentPage === 'home') {
     return (
-      <HomePage
-        user={currentUser}
-        onStartNewGame={handleStartNewGameFromHome}
-        onViewHistory={() => navigateTo('/history')}
-        onViewStats={() => navigateTo('/stats')}
-        onViewHelp={() => navigateTo('/help')}
-        gameName={gameName}
-        onGameNameChange={setGameName}
-        tempPlayerNames={tempPlayerNames}
-        onNameChange={handleNameChange}
-      />
+      <>
+        {bleManager}
+        <HomePage
+          user={currentUser}
+          onStartNewGame={handleStartNewGameFromHome}
+          onViewHistory={() => navigateTo('/history')}
+          onViewStats={() => navigateTo('/stats')}
+          onViewHelp={() => navigateTo('/help')}
+          gameName={gameName}
+          onGameNameChange={setGameName}
+          tempPlayerNames={tempPlayerNames}
+          onNameChange={handleNameChange}
+        />
+      </>
     );
   }
 
   if (currentPage === 'admin') {
     return (
-      <AdminPage
-        onBack={() => navigateTo('')}
-        currentUserId={currentUser.id}
-      />
+      <>
+        {bleManager}
+        <AdminPage
+          onBack={() => navigateTo('')}
+          currentUserId={currentUser.id}
+        />
+      </>
     );
   }
 
   if (currentPage === 'help') {
-    return <HelpPage user={currentUser} onBack={() => navigateTo('')} />;
+    return (
+      <>
+        {bleManager}
+        <HelpPage user={currentUser} onBack={() => navigateTo('')} />
+      </>
+    );
   }
 
   if (currentPage === 'history') {
     return (
-      <GameHistoryPage
-        user={currentUser}
-        onBack={() => navigateTo('')}
-        onSelectGame={(gameId) => navigateTo(`/game/${gameId}`)}
-        onContinueGame={handleContinueGame}
-        onDeleteGame={handleDeleteGame}
-      />
+      <>
+        {bleManager}
+        <GameHistoryPage
+          user={currentUser}
+          onBack={() => navigateTo('')}
+          onSelectGame={(gameId) => navigateTo(`/game/${gameId}`)}
+          onContinueGame={handleContinueGame}
+          onDeleteGame={handleDeleteGame}
+        />
+      </>
     );
   }
 
   if (currentPage === 'stats') {
     return (
-      <PlayerStatsPage
-        user={currentUser}
-        onBack={() => navigateTo('')}
-      />
+      <>
+        {bleManager}
+        <PlayerStatsPage
+          user={currentUser}
+          onBack={() => navigateTo('')}
+        />
+      </>
     );
   }
 
   if (currentPage === 'gameDetail' && selectedGameId) {
     return (
-      <GameDetail
-        gameId={selectedGameId}
-        onBack={() => {
-          setSelectedGameId(null);
-          setGame(null);
-          setPlayers([]);
-          setGameStarted(false);
-          setIsConfirmMode(false);
-          navigateTo('');
-        }}
-      />
+      <>
+        {bleManager}
+        <GameDetail
+          gameId={selectedGameId}
+          onBack={() => {
+            setSelectedGameId(null);
+            setGame(null);
+            setPlayers([]);
+            setGameStarted(false);
+            setIsConfirmMode(false);
+            navigateTo('');
+          }}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen w-screen bg-gradient-to-br from-blue-50 to-green-50 relative flex flex-col overflow-x-hidden">
+      {bleManager}
       <button
         onClick={() => {
           if (confirm('确定返回主界面吗？当前比赛进度会保存。')) {
@@ -1191,59 +1251,64 @@ function App() {
       </div>
 
       <div
-        className="w-full flex justify-center pb-4 pt-1 max-[799px]:portrait:pb-6 max-[799px]:landscape:pb-2 min-[800px]:pb-8"
+        className="w-full flex justify-center pb-4 pt-20 max-[799px]:portrait:pb-6 max-[799px]:landscape:pb-2 min-[800px]:fixed min-[800px]:bottom-6 min-[800px]:right-6 min-[800px]:w-auto min-[800px]:pb-0 min-[800px]:pt-0 z-50"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
       >
-        <div className="grid grid-cols-3 gap-1.5 min-[800px]:gap-2 w-[min(calc(100vw-32px),360px)] max-[799px]:landscape:w-[min(calc(100vw-32px),320px)] min-[800px]:w-[280px]">
-          <div></div>
-        <button
-          onClick={() => handleHuangzhuang()}
-          disabled={!gameStarted || isConfirmMode}
-          className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
-        >
-          <Ban size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
-          <span className="min-[800px]:hidden">荒</span>
-          <span className="hidden min-[800px]:inline">荒庄</span>
-        </button>
-        <button
-          onClick={handleRestart}
-          className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
-        >
-          <RotateCcw size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
-          <span className="min-[800px]:hidden">完</span>
-          <span className="hidden min-[800px]:inline">结束</span>
-        </button>
-        <button
-          onClick={() => {
-            if (game) {
-              setSelectedGameId(game.id);
-            }
-          }}
-          disabled={!gameStarted}
-          className="bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
-        >
-          <History size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
-          <span className="min-[800px]:hidden">查</span>
-          <span className="hidden min-[800px]:inline">明细</span>
-        </button>
-        <button
-          onClick={handleUndoLastScore}
-          disabled={!gameStarted || game?.current_game === 1}
-          className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
-        >
-          <Undo size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
-          <span className="min-[800px]:hidden">改</span>
-          <span className="hidden min-[800px]:inline">修改</span>
-        </button>
-        <button
-          onClick={handleOpenPenalty}
-          disabled={!gameStarted || isConfirmMode}
-          className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
-        >
-          <AlertTriangle size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
-          <span className="min-[800px]:hidden">罚</span>
-          <span className="hidden min-[800px]:inline">判罚</span>
-        </button>
+        <div className="grid grid-cols-6 gap-2 w-[min(calc(100vw-32px),360px)] max-[799px]:landscape:w-[min(calc(100vw-32px),320px)] min-[800px]:w-auto min-[800px]:gap-3">
+          {/* Row 1: Huang, History (2 buttons, col-span-2 each, right aligned) */}
+          <button
+            onClick={() => handleHuangzhuang()}
+            disabled={!gameStarted || isConfirmMode}
+            className="col-start-3 col-span-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+          >
+            <Ban size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <span className="min-[800px]:hidden">荒</span>
+            <span className="hidden min-[800px]:inline">荒庄</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              if (game) {
+                setSelectedGameId(game.id);
+              }
+            }}
+            disabled={!gameStarted}
+            className="col-span-2 bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+          >
+            <History size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <span className="min-[800px]:hidden">查</span>
+            <span className="hidden min-[800px]:inline">明细</span>
+          </button>
+
+          {/* Row 2: Undo, Penalty, Restart (3 buttons, col-span-2) */}
+          <button
+            onClick={handleUndoLastScore}
+            disabled={!gameStarted || game?.current_game === 1}
+            className="col-span-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+          >
+            <Undo size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <span className="min-[800px]:hidden">改</span>
+            <span className="hidden min-[800px]:inline">修改</span>
+          </button>
+
+          <button
+            onClick={handleOpenPenalty}
+            disabled={!gameStarted || isConfirmMode}
+            className="col-span-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+          >
+            <AlertTriangle size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <span className="min-[800px]:hidden">罚</span>
+            <span className="hidden min-[800px]:inline">判罚</span>
+          </button>
+
+          <button
+            onClick={handleRestart}
+            className="col-span-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 max-[799px]:landscape:py-1.5 min-[800px]:px-4 min-[800px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[799px]:landscape:gap-1 text-sm max-[799px]:landscape:text-xs font-medium justify-center"
+          >
+            <RotateCcw size={18} className="max-[799px]:landscape:w-4 max-[799px]:landscape:h-4" />
+            <span className="min-[800px]:hidden">完</span>
+            <span className="hidden min-[800px]:inline">结束</span>
+          </button>
         </div>
       </div>
 

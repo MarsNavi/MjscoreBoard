@@ -282,12 +282,67 @@ void sendText(String payload) {
 
 // --- UI Creation ---
 
+// --- Helpers ---
+String getFirst3Chars(String str) {
+    int count = 0;
+    int len = str.length();
+    int i = 0;
+    while (i < len && count < 3) {
+        unsigned char c = str[i];
+        if (c < 0x80) i += 1;
+        else if ((c & 0xE0) == 0xC0) i += 2;
+        else if ((c & 0xF0) == 0xE0) i += 3;
+        else if ((c & 0xF8) == 0xF0) i += 4;
+        else i += 1; // Fallback
+        count++;
+    }
+    return str.substring(0, i);
+}
+
+static void msgbox_huang_event_cb(lv_event_t * e) {
+    lv_obj_t * mbox = lv_event_get_current_target(e);
+    const char* btn_txt = lv_msgbox_get_active_btn_text(mbox);
+    if(btn_txt && strcmp(btn_txt, "确认") == 0) {
+        sendText("BTN:HUANG\n");
+    }
+    lv_msgbox_close(mbox);
+}
+
 static void event_handler_game_btn(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = lv_event_get_target(e);
     if(code == LV_EVENT_CLICKED) {
         if (obj == btn_huang) {
-            sendText("BTN:HUANG\n");
+            // Confirmation for Huangzhuang
+            const char* winds[] = {"东", "南", "西", "北"};
+            int windIndex = (gameState.gameNumber - 1) / 4;
+            int juIndex = ((gameState.gameNumber - 1) % 4) + 1;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%s%d局 %d/16\n记录为荒庄?", 
+                    (windIndex < 4 ? winds[windIndex] : "?"), juIndex, gameState.gameNumber);
+            
+            static const char * btns[] = {"确认", "取消", ""};
+            lv_obj_t * mbox = lv_msgbox_create(lv_layer_top(), "荒庄确认", buf, btns, true);
+            lv_obj_add_event_cb(mbox, msgbox_huang_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+            lv_obj_center(mbox);
+            
+            // Style the message box
+            lv_obj_set_style_bg_color(mbox, C_SLATE_800, 0);
+            lv_obj_set_style_text_color(mbox, C_SLATE_100, 0);
+            lv_obj_set_style_text_font(mbox, &lv_font_sh_bold_22, 0);
+            lv_obj_set_style_border_color(mbox, C_SLATE_600, 0);
+            lv_obj_set_style_border_width(mbox, 2, 0);
+            lv_obj_set_style_shadow_width(mbox, 20, 0);
+            lv_obj_set_style_shadow_color(mbox, lv_color_black(), 0);
+            lv_obj_set_style_shadow_opa(mbox, LV_OPA_50, 0);
+
+            // Style the buttons
+            lv_obj_t * btns_obj = lv_msgbox_get_btns(mbox);
+            lv_obj_set_style_height(btns_obj, 50, 0); // Taller buttons
+            lv_obj_set_style_bg_color(btns_obj, C_SLATE_600, LV_PART_ITEMS);
+            lv_obj_set_style_text_color(btns_obj, lv_color_white(), LV_PART_ITEMS);
+            lv_obj_set_style_text_font(btns_obj, &lv_font_sh_bold_22, 0);
+            
         } else if (obj == btn_player_confirm) {
             sendText("BTN:CONFIRM\n");
             isConfirmed = !isConfirmed;
@@ -314,15 +369,17 @@ static void event_handler_game_btn(lv_event_t * e) {
                  int oppIdx = (myPositionIndex + 2) % 4;
                  int rightIdx = (myPositionIndex + 1) % 4;
                  
-                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[0], 0), "%s 点", gameState.names[leftIdx].c_str());
-                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[1], 0), "%s 点", gameState.names[oppIdx].c_str());
-                 lv_label_set_text_fmt(lv_obj_get_child(btn_hu_opts[2], 0), "%s 点", gameState.names[rightIdx].c_str());
+                 // Update Name Label (Child 1)
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 1), getFirst3Chars(gameState.names[leftIdx]).c_str());
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 1), getFirst3Chars(gameState.names[oppIdx]).c_str());
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 1), getFirst3Chars(gameState.names[rightIdx]).c_str());
                  
             } else {
                  lv_label_set_text(lbl_hu_title, "和牌结算");
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 0), "上家点");
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 0), "对家点");
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 0), "下家点");
+                 // Clear names if not in game
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 1), "--");
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 1), "--");
+                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 1), "--");
             }
             
             lv_obj_clear_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
@@ -354,7 +411,7 @@ static void event_handler_hu_action(lv_event_t * e) {
             // Delay close slightly or just close
             lv_obj_add_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
-            lv_label_set_text(lbl_hu_submit, "确认并发送到中控");
+            lv_label_set_text(lbl_hu_submit, "确认计分");
             
         } else if (user_data >= 2 && user_data <= 5) { // Pos
              huLoserRelPos = user_data - 2;
@@ -661,7 +718,7 @@ void create_hu_menu() {
     // Row 1: Losers (Left, Opp, Right)
     lv_obj_t* row_losers = lv_obj_create(cont);
     lv_obj_set_width(row_losers, LV_PCT(100));
-    lv_obj_set_height(row_losers, 50);
+    lv_obj_set_height(row_losers, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(row_losers, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(row_losers, 0, 0);
     lv_obj_set_flex_flow(row_losers, LV_FLEX_FLOW_ROW);
@@ -671,12 +728,25 @@ void create_hu_menu() {
     for (int i = 0; i < 3; i++) {
         btn_hu_opts[i] = lv_btn_create(row_losers);
         lv_obj_set_width(btn_hu_opts[i], 120); // Wider for Landscape
-        lv_obj_set_height(btn_hu_opts[i], 40);
+        lv_obj_set_height(btn_hu_opts[i], 60); // Increased height for 2 lines
         lv_obj_set_style_bg_color(btn_hu_opts[i], C_SLATE_700, 0);
+        
+        // Flex Layout for Button (Column)
+        lv_obj_set_flex_flow(btn_hu_opts[i], LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(btn_hu_opts[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(btn_hu_opts[i], 0, 0);
+        lv_obj_set_style_pad_row(btn_hu_opts[i], 2, 0);
+
+        // Label 1: Position
         lv_obj_t* l = lv_label_create(btn_hu_opts[i]);
         lv_label_set_text(l, labels[i]);
-        lv_obj_center(l);
         lv_obj_set_style_text_font(l, &lv_font_sh_bold_22, 0);
+        
+        // Label 2: Name
+        lv_obj_t* l_name = lv_label_create(btn_hu_opts[i]);
+        lv_label_set_text(l_name, "--");
+        lv_obj_set_style_text_font(l_name, &lv_font_sh_bold_22, 0);
+
         lv_obj_add_event_cb(btn_hu_opts[i], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)(i + 2));
     }
 
@@ -753,7 +823,7 @@ void create_hu_menu() {
     lv_obj_set_height(btn_hu_submit, 40);
     lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
     lbl_hu_submit = lv_label_create(btn_hu_submit);
-    lv_label_set_text(lbl_hu_submit, "确认并发送到中控");
+    lv_label_set_text(lbl_hu_submit, "确认计分");
     lv_obj_center(lbl_hu_submit);
     lv_obj_set_style_text_font(lbl_hu_submit, &lv_font_sh_bold_22, 0);
     lv_obj_add_event_cb(btn_hu_submit, event_handler_hu_action, LV_EVENT_CLICKED, (void*)1);
@@ -804,6 +874,13 @@ void update_game_ui() {
     } else {
         lv_obj_set_style_bg_color(btn_diff, C_SLATE_700, 0);
         lv_obj_set_style_text_color(btn_diff, C_SLATE_300, 0);
+    }
+
+    // Huang Button Visibility (Only East)
+    if (myPositionIndex == 0) {
+        lv_obj_clear_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(btn_huang, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Update Players
