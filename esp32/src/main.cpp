@@ -371,16 +371,24 @@ static void event_handler_game_btn(lv_event_t * e) {
                  int rightIdx = (myPositionIndex + 1) % 4;
                  
                  // Update Name Label (Child 1)
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 1), getFirst3Chars(gameState.names[leftIdx]).c_str());
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 1), getFirst3Chars(gameState.names[oppIdx]).c_str());
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 1), getFirst3Chars(gameState.names[rightIdx]).c_str());
+                 lv_obj_t* l_left = lv_obj_get_child(btn_hu_opts[0], 1);
+                 lv_obj_t* l_opp = lv_obj_get_child(btn_hu_opts[1], 1);
+                 lv_obj_t* l_right = lv_obj_get_child(btn_hu_opts[2], 1);
+
+                 if (l_left) lv_label_set_text(l_left, getFirst3Chars(gameState.names[leftIdx]).c_str());
+                 if (l_opp) lv_label_set_text(l_opp, getFirst3Chars(gameState.names[oppIdx]).c_str());
+                 if (l_right) lv_label_set_text(l_right, getFirst3Chars(gameState.names[rightIdx]).c_str());
                  
             } else {
                  lv_label_set_text(lbl_hu_title, "和牌结算");
                  // Clear names if not in game
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 1), "--");
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 1), "--");
-                 lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 1), "--");
+                 lv_obj_t* l_left = lv_obj_get_child(btn_hu_opts[0], 1);
+                 lv_obj_t* l_opp = lv_obj_get_child(btn_hu_opts[1], 1);
+                 lv_obj_t* l_right = lv_obj_get_child(btn_hu_opts[2], 1);
+
+                 if (l_left) lv_label_set_text(l_left, "--");
+                 if (l_opp) lv_label_set_text(l_opp, "--");
+                 if (l_right) lv_label_set_text(l_right, "--");
             }
             
             lv_obj_clear_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
@@ -1005,7 +1013,11 @@ void processCommand(String cmd) {
             start = end + 1;
         }
         
-        if (tokens.size() >= 8) {
+        if (tokens.size() >= 2 && tokens[1] == "GAMEOVER") {
+             gameState.mode = "GAMEOVER";
+             update_game_ui();
+             show_screen(scr_game);
+        } else if (tokens.size() >= 8) {
              gameState.mode = tokens[1];
              gameState.round = tokens[2];
              gameState.gameNumber = tokens[3].toInt();

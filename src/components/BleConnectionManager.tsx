@@ -44,7 +44,13 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
 
       // Send Setup Command immediately
       const encoder = new TextEncoder();
-      const setupCmd = `SETUP:${position.toUpperCase()}\n`;
+      const positionMap: Record<Position, number> = {
+        east: 0,
+        south: 1,
+        west: 2,
+        north: 3,
+      };
+      const setupCmd = `SETUP:${positionMap[position]}\n`;
       const cmdData = encoder.encode(setupCmd);
       await writeData(deviceId, new DataView(cmdData.buffer));
 
