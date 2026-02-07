@@ -1,4 +1,4 @@
-import { Position, Player } from '../lib/supabase';
+import { Position, Player } from '../lib/types';
 
 interface PlayerScoreProps {
   player: Player;

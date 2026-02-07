@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Position } from '../lib/supabase';
-import { Scan, RefreshCw, Smartphone, Bluetooth, X, Link, Trash2, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Position } from '../lib/types';
+import { Scan, RefreshCw, Smartphone, Bluetooth, X, Link, Trash2 } from 'lucide-react';
 import { useBle } from '../contexts/BleContext';
 
 interface BleConnectionManagerProps {
@@ -24,17 +24,6 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
   // Safety check to prevent crashes if context isn't fully ready
   if (!isOpen) return null;
   if (!bleDevices) return null;
-
-  const sendNamesToConnection = async (position: Position, deviceId: string) => {
-      // Logic to trigger a name sync if needed immediately, 
-      // but App.tsx handles auto-sync on state changes.
-      // We can just trigger a re-sync via context or just let the user know it's connected.
-      // For now, we rely on App.tsx's useEffect to sync names when devices change.
-  };
-
-  const sendStateToConnection = async (position: Position, deviceId: string) => {
-      // Similar to sendNames, handled by App.tsx
-  };
 
   const handleConnect = async (position: Position, deviceId: string, deviceName: string) => {
     try {
@@ -103,7 +92,6 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
               {positions.map((position) => {
                 const device = bleDevices[position];
                 const isConnected = device?.status === 'connected';
-                const isDisconnected = device?.status === 'disconnected';
                 
                 return (
                   <div 

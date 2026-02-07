@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Position, Player, Game, PlayerId, User } from './lib/supabase';
+import { Position, Player, Game, PlayerId, User } from './lib/types';
 import { db } from './lib/db';
 import PlayerScore from './components/PlayerScore';
 import GameCenter from './components/GameCenter';
@@ -16,11 +16,9 @@ import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth } from 'l
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
 import { useBle } from './contexts/BleContext';
 import BleConnectionManager from './components/BleConnectionManager';
-import { DeviceDisplayState } from './lib/supabase';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 
 const TOTAL_GAMES = 16;
-const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
-const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
 
 type PageView = 'home' | 'game' | 'history' | 'stats' | 'gameDetail' | 'help' | 'admin';
 
@@ -45,47 +43,8 @@ function App() {
   const [isConfirmMode, setIsConfirmMode] = useState(false);
   const [showPenaltyModal, setShowPenaltyModal] = useState(false);
   const [currentPenalties, setCurrentPenalties] = useState<Record<string, number> | undefined>(undefined);
-  const [deviceHuangStates, setDeviceHuangStates] = useState<Record<Position, boolean>>({
-    east: false,
-    south: false,
-    west: false,
-    north: false,
-  });
-  const [deviceConfirmStates, setDeviceConfirmStates] = useState<Record<Position, boolean>>({
-    east: false,
-    south: false,
-    west: false,
-    north: false,
-  });
 
   const { bleDevices, writeData, setMessageHandler } = useBle();
-
-  // Helper to build state for device
-  const buildDeviceDisplayState = (position: Position): DeviceDisplayState | null => {
-    if (!game || !gameStarted) return null;
-
-    const allScores: Record<Position, number> = {
-      east: 0,
-      south: 0,
-      west: 0,
-      north: 0,
-    };
-
-    players.forEach((player) => {
-      allScores[player.position as Position] = player.score;
-    });
-
-    const selfScore = allScores[position];
-
-    return {
-      game_id: game.id,
-      position,
-      round: game.current_round,
-      game_number: game.current_game,
-      self_score: selfScore,
-      all_scores: allScores,
-    };
-  };
 
   const getRelativePositions = (winner: Position): Position[] => {
     const order: Position[] = ['east', 'south', 'west', 'north'];
@@ -118,6 +77,16 @@ function App() {
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
 
   useEffect(() => {
+    // 保持屏幕常亮
+    const keepAwake = async () => {
+      try {
+        await KeepAwake.keepAwake();
+      } catch (err) {
+        console.error('KeepAwake error:', err);
+      }
+    };
+    keepAwake();
+
     const initLocalUser = async () => {
       let targetUser = await db.users.where('code').equals('micken').first();
 
@@ -328,6 +297,30 @@ function App() {
     }
   };
 
+  const handleFinalizeGame = () => {
+    // Navigate to game detail or home after finalizing
+    // But since we want to reset ESP32 to waiting, and the user likely wants to see stats or start new game
+    // We can go to GameDetail
+    if (game) {
+       navigateTo(`/game/${game.id}`);
+    } else {
+       navigateTo('');
+    }
+    
+    setGame(null);
+    setPlayers([]);
+    setGameStarted(false);
+    setGameName('');
+    setIsConfirmMode(false);
+    setShowGameHistory(false);
+    setTempPlayerNames({
+      east: '',
+      south: '',
+      west: '',
+      north: '',
+    });
+  };
+
   const handleConfirmEndGame = async () => {
     if (game) {
       await db.games.update(game.id, { early_ended: true });
@@ -340,7 +333,7 @@ function App() {
       
       await recalculateAndRefreshPlayers();
       
-      navigateTo(`/game/${game.id}`);
+      setGame(prev => prev ? { ...prev, is_completed: true, status: 'finished' } : null);
     }
   };
 
@@ -359,13 +352,54 @@ function App() {
   const saveGameResults = async () => {
     if (!game) return;
 
-    const existingResults = await db.game_results.where('game_id').equals(game.id).first();
+    // 每次保存前先删除旧的 result（如果有），确保重新计算
+    await db.game_results.where('game_id').equals(game.id).delete();
 
-    if (existingResults) {
-      return;
+    // 1. 获取该局所有玩家
+    const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
+    if (!dbPlayers || dbPlayers.length === 0) return;
+
+    // 2. 获取该局所有分数记录
+    const dbScores = await db.scores.where('game_id').equals(game.id).toArray();
+    dbScores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    // 3. 获取罚分记录
+    const dbPenalty = await db.penalties.where('game_id').equals(game.id).first();
+
+    // 4. 重新计算最终得分（Source of Truth）
+    const playerScores: Record<string, number> = {};
+    dbPlayers.forEach((player) => {
+      playerScores[player.id] = 0;
+    });
+
+    if (dbScores.length > 0) {
+      dbScores.forEach((score) => {
+        const scoreChanges = score.score_changes as Record<Position, number>;
+        const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
+
+        dbPlayers.forEach((player) => {
+          const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id, scoreRoundIndex);
+          const change = scoreChanges[playerPositionAtScoreTime] || 0;
+          playerScores[player.id] += change;
+        });
+      });
     }
 
-    const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+    if (dbPenalty) {
+      const penaltyChanges = dbPenalty.penalty_changes as Record<Position, number>;
+      dbPlayers.forEach((player) => {
+        const change = penaltyChanges[player.position] || 0;
+        playerScores[player.id] += change;
+      });
+    }
+
+    const calculatedPlayers = dbPlayers.map((player) => ({
+      ...player,
+      score: playerScores[player.id],
+    }));
+
+    // 5. 排序并计算标准分
+    const sortedPlayers = [...calculatedPlayers].sort((a, b) => b.score - a.score);
 
     const ranks: number[] = [];
     let currentRank = 1;
@@ -404,29 +438,15 @@ function App() {
       };
     });
 
-    await db.game_results.bulkAdd(results);
-
-    await db.games.update(game.id, {
-        is_completed: true,
-        completed_at: new Date().toISOString()
-    });
-  };
-
-  const resetDeviceHuangStates = () => {
-    setDeviceHuangStates({
-      east: false,
-      south: false,
-      west: false,
-      north: false,
-    });
-  };
-
-  const resetDeviceConfirmStates = () => {
-    setDeviceConfirmStates({
-      east: false,
-      south: false,
-      west: false,
-      north: false,
+    await db.transaction('rw', db.game_results, db.games, async () => {
+      // Prevent duplicates by deleting existing results for this game first
+      await db.game_results.where('game_id').equals(game.id).delete();
+      await db.game_results.bulkAdd(results);
+      
+      await db.games.update(game.id, {
+          is_completed: true,
+          completed_at: new Date().toISOString()
+      });
     });
   };
 
@@ -483,8 +503,6 @@ function App() {
       await recalculateAndRefreshPlayers();
       navigateTo(`/game/${game.id}`);
     }
-
-    resetDeviceHuangStates();
   };
 
   const handleOpenPenalty = async () => {
@@ -769,9 +787,6 @@ function App() {
   const submitScoreForWinner = async (winner: Position, loserPosition: Position | null, baseScore: number) => {
     if (!game) return;
 
-    resetDeviceHuangStates();
-    resetDeviceConfirmStates();
-
     const scoreChanges = calculateScoreChanges(winner, loserPosition, baseScore);
 
     const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
@@ -811,14 +826,18 @@ function App() {
         await saveGameResults();
         setGameStarted(false);
         setIsConfirmMode(false);
-        navigateTo(`/game/${game.id}`);
+        // Update local game state to finished to trigger Game Over UI
+        setGame(prev => prev ? { ...prev, is_completed: true, status: 'finished' } : null);
+        // Do not navigate away, stay on board to show Game Over and sync to devices
       }
     } else {
+      // This else block seems to be for when nextGame > TOTAL_GAMES? 
+      // Which shouldn't happen if the logic is correct, but let's handle it same way.
       await saveGameResults();
       setGameStarted(false);
       setIsConfirmMode(false);
       await recalculateAndRefreshPlayers();
-      navigateTo(`/game/${game.id}`);
+      setGame(prev => prev ? { ...prev, is_completed: true, status: 'finished' } : null);
     }
   };
 
@@ -833,7 +852,7 @@ function App() {
     await submitScoreForWinner(winner, loserPosition, baseScore);
   };
 
-  const handleDeviceHuang = (position: Position) => {
+  const handleDeviceHuang = () => {
     if (!gameStarted || !game) return;
 
     // Immediately trigger Huangzhuang logic without waiting for others
@@ -841,46 +860,13 @@ function App() {
     void handleHuangzhuang(true);
   };
 
-  const completeGameFromDeviceConfirm = async () => {
-    if (!game) return;
-
-    await db.players.where('game_id').equals(game.id).modify({
-      confirmed_result: true,
-      confirmed_at: new Date().toISOString(),
-    });
-
-    await saveGameResults();
-
-    setGameStarted(false);
-    setIsConfirmMode(false);
-    resetDeviceConfirmStates();
-    resetDeviceHuangStates();
-
-    navigateTo(`/game/${game.id}`);
-  };
-
-  const handleDeviceConfirm = (position: Position) => {
-    if (!game) return;
-
-    setDeviceConfirmStates((prev) => {
-      if (prev[position]) {
-        return prev;
-      }
-
-      const next: Record<Position, boolean> = {
-        ...prev,
-        [position]: true,
-      };
-
-      const allConfirmed = next.east && next.south && next.west && next.north;
-
-      if (allConfirmed) {
-        void completeGameFromDeviceConfirm();
-      }
-
-      return next;
-    });
-  };
+  /*
+   const handleDeviceConfirm = (position: Position) => {
+     // Legacy function, can be removed if confirmed unused
+     if (!game) return;
+     console.log(`Device ${position} confirmed.`);
+   };
+   */
 
   // Sync State Effect
   const isSyncingRef = useRef(false);
@@ -898,20 +884,37 @@ function App() {
        
        try {
          // Keep syncing as long as there are pending updates
-         while (needsSyncRef.current) {
-           needsSyncRef.current = false; // Clear flag before starting
-           
-           if (!game) break;
+          while (needsSyncRef.current) {
+            needsSyncRef.current = false; // Clear flag before starting
+            
+            const positions: Position[] = ['east', 'south', 'west', 'north'];
 
-           // Fetch latest data from DB
-           const dbGame = await db.games.get(game.id);
-           const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
-           
-           if (!dbGame) break;
+            if (!game) {
+               // If no game is active, send WAITING state to all connected devices
+               for (const position of positions) {
+                  const connection = bleDevices[position];
+                  if (!connection || connection.status !== 'connected') continue;
+                  
+                  const encoder = new TextEncoder();
+                  const payload = 'STATE:WAITING\n';
+                  const data = encoder.encode(payload);
+                  try {
+                     await writeData(connection.deviceId, new DataView(data.buffer));
+                  } catch (e) {
+                     console.error('Sync waiting state error', e);
+                  }
+               }
+               break; 
+            }
 
-           const positions: Position[] = ['east', 'south', 'west', 'north'];
-           for (const position of positions) {
-              const connection = bleDevices[position];
+            // Fetch latest data from DB
+            const dbGame = await db.games.get(game.id);
+            const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
+            
+            if (!dbGame) break;
+
+            for (const position of positions) {
+               const connection = bleDevices[position];
               if (!connection || connection.status !== 'connected') continue;
 
               // 1. Send Names
@@ -935,24 +938,24 @@ function App() {
 
               // 2. Send Game State
               let payload = 'STATE:IDLE';
+
+              const allScores: Record<Position, number> = {
+                 east: 0, south: 0, west: 0, north: 0,
+              };
+              dbPlayers.forEach((player) => {
+                 allScores[player.position as Position] = player.score;
+              });
+
+              const e = allScores.east ?? 0;
+              const s = allScores.south ?? 0;
+              const w = allScores.west ?? 0;
+              const n = allScores.north ?? 0;
               
-              if (game.is_completed || game.status === 'finished' || game.early_ended) {
-                  payload = 'STATE:GAMEOVER';
-              } else if (gameStarted) {
-                 const allScores: Record<Position, number> = {
-                    east: 0, south: 0, west: 0, north: 0,
-                 };
-                 dbPlayers.forEach((player) => {
-                    allScores[player.position as Position] = player.score;
-                 });
-                 
-                 const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
-                 const e = allScores.east ?? 0;
-                 const s = allScores.south ?? 0;
-                 const w = allScores.west ?? 0;
-                 const n = allScores.north ?? 0;
-                 
-                 payload = `STATE:${mode}:${dbGame.current_round}:${dbGame.current_game}:${e}:${s}:${w}:${n}`;
+              if (game && (game.is_completed || game.status === 'finished' || game.early_ended)) {
+                  payload = `STATE:GAMEOVER:${e}:${s}:${w}:${n}`;
+              } else if (game && gameStarted) {
+                  const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
+                  payload = `STATE:${mode}:${dbGame.current_round}:${dbGame.current_game}:${e}:${s}:${w}:${n}`;
               }
               
               const encoder = new TextEncoder();
@@ -988,13 +991,21 @@ function App() {
         const msg = raw.trim();
         if (!msg) return;
         if (msg === 'BTN:HUANG') {
-           handleDeviceHuang(position);
+           handleDeviceHuang();
            return;
         }
+        /*
         if (msg === 'BTN:CONFIRM') {
            handleDeviceConfirm(position);
            return;
         }
+        */
+        /*
+        if (msg === 'BTN:GAMEOVER') {
+           handleFinalizeGame();
+           return;
+        }
+        */
         const parts = msg.split(':');
         if (parts[0] === 'HE') {
            const kind = parts[1];
@@ -1020,7 +1031,7 @@ function App() {
            }
         }
      });
-  }, [game, players, gameStarted, isConfirmMode]); // Re-register when closure vars change
+  }, [game, players, gameStarted, isConfirmMode, setMessageHandler]); // Re-register when closure vars change
 
   const getPlayerByPosition = (position: Position): Player | undefined => {
     return players.find((p) => p.position === position);
@@ -1216,17 +1227,30 @@ function App() {
             </div>
 
             <div className="col-start-2 row-start-2 flex items-center justify-center">
-              <GameCenter
-                currentGame={game?.current_game || 1}
-                totalGames={TOTAL_GAMES}
-                onStartGame={handleStartGame}
-                gameStarted={gameStarted}
-                players={players}
-                onNameChange={handleNameChange}
-                gameName={gameName}
-                onGameNameChange={setGameName}
-                tempPlayerNames={tempPlayerNames}
-              />
+              {game?.is_completed || game?.status === 'finished' ? (
+                 <div className="flex flex-col items-center justify-center gap-4 bg-white/90 p-6 rounded-xl shadow-xl backdrop-blur-sm z-10 animate-in fade-in zoom-in duration-300">
+                    <div className="text-2xl font-black text-gray-800">比赛结束</div>
+                    <div className="text-sm text-gray-500 font-medium">请点击下方按钮退出并查看统计</div>
+                    <button 
+                      onClick={handleFinalizeGame}
+                      className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                    >
+                      查看成绩
+                    </button>
+                 </div>
+              ) : (
+                <GameCenter
+                  currentGame={game?.current_game || 1}
+                  totalGames={TOTAL_GAMES}
+                  onStartGame={handleStartGame}
+                  gameStarted={gameStarted}
+                  players={players}
+                  onNameChange={handleNameChange}
+                  gameName={gameName}
+                  onGameNameChange={setGameName}
+                  tempPlayerNames={tempPlayerNames}
+                />
+              )}
             </div>
 
             <div className="col-start-3 row-start-2 flex items-center justify-end pr-4">

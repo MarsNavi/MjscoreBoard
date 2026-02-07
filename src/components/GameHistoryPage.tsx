@@ -108,27 +108,14 @@ export default function GameHistoryPage({
       const allGameIds = sortedGames.map(g => g.id);
 
       if (allGameIds.length > 0) {
-        const results = await db.game_results
-          .where('game_id')
-          .anyOf(allGameIds)
-          .toArray();
-
         const resultsMap: Record<string, GameResult[]> = {};
 
         await Promise.all(
           allGameIds.map(async (gameId) => {
-            const gameResultRows = results.filter(r => r.game_id === gameId);
-
-            if (gameResultRows.length > 0) {
-              resultsMap[gameId] = gameResultRows.map(r => ({
-                player_name: r.player_name,
-                final_score: r.final_score
-              }));
-            } else {
-              const calculatedResults = await calculateGameScoresFromDetails(gameId);
-              if (calculatedResults && calculatedResults.length > 0) {
-                resultsMap[gameId] = calculatedResults;
-              }
+            // 强制从明细计算，确保数据准确
+            const calculatedResults = await calculateGameScoresFromDetails(gameId);
+            if (calculatedResults && calculatedResults.length > 0) {
+              resultsMap[gameId] = calculatedResults;
             }
           })
         );
@@ -136,39 +123,38 @@ export default function GameHistoryPage({
         setGameResults(resultsMap);
       }
 
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const todayGames = await db.games
+      const recentGames = await db.games
         .where('creator_id')
         .equals(user.id)
-        .filter(g => !!g.is_completed && new Date(g.created_at) >= todayStart && new Date(g.created_at) <= todayEnd)
+        .filter(g => (!!g.is_completed || g.status === 'finished') && new Date(g.created_at) >= twentyFourHoursAgo && new Date(g.created_at) <= now)
         .toArray();
 
-      if (todayGames && todayGames.length > 0) {
-        const todayGameIds = todayGames.map(g => g.id);
-        const todayResults = await db.game_results
-          .where('game_id')
-          .anyOf(todayGameIds)
-          .toArray();
+      if (recentGames && recentGames.length > 0) {
+        const recentGameIds = recentGames.map(g => g.id);
+        const playerTotals: Record<string, number> = {};
 
-        if (todayResults) {
-          const playerTotals: Record<string, number> = {};
-          todayResults.forEach(result => {
-            if (!playerTotals[result.player_name]) {
-              playerTotals[result.player_name] = 0;
+        await Promise.all(
+          recentGameIds.map(async (gameId) => {
+            const results = await calculateGameScoresFromDetails(gameId);
+            if (results) {
+              results.forEach(result => {
+                if (!playerTotals[result.player_name]) {
+                  playerTotals[result.player_name] = 0;
+                }
+                playerTotals[result.player_name] += result.final_score;
+              });
             }
-            playerTotals[result.player_name] += result.final_score;
-          });
+          })
+        );
 
-          const totalsArray: PlayerDailyTotal[] = Object.entries(playerTotals)
-            .map(([player_name, total_score]) => ({ player_name, total_score }))
-            .sort((a, b) => b.total_score - a.total_score);
+        const totalsArray: PlayerDailyTotal[] = Object.entries(playerTotals)
+          .map(([player_name, total_score]) => ({ player_name, total_score }))
+          .sort((a, b) => b.total_score - a.total_score);
 
-          setPlayerDailyTotals(totalsArray);
-        }
+        setPlayerDailyTotals(totalsArray);
       } else {
         setPlayerDailyTotals([]);
       }
@@ -231,13 +217,9 @@ export default function GameHistoryPage({
           {!loading && playerDailyTotals.length > 0 && (
             <div className="mb-4 p-4 bg-gradient-to-r from-orange-100 to-rose-100 rounded-xl border-2 border-orange-200">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">当日累计</span>
+                <span className="text-sm font-semibold text-gray-700">24小时内累计</span>
                 <span className="text-xs text-gray-600">
-                  {new Date().toLocaleDateString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  })}
+                  过去24小时
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">

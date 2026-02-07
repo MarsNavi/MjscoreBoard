@@ -2,6 +2,8 @@ import { User, Position, Game, Player, ScoreRecord, Penalty, GameResult } from '
 import { db } from '../lib/db';
 import { History, TrendingUp, HelpCircle, Download, Upload } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
 interface HomePageProps {
   user: User;
@@ -213,16 +215,46 @@ export default function HomePage({
         game_results
       };
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'mahjong_backup.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert('数据已导出。请妥善保存导出的文件，用于以后恢复或迁移数据。');
+      const jsonString = JSON.stringify(data, null, 2);
+
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // Format: mahjong_backup_YYYY-MM-DD_HH-mm-ss.json
+          const date = new Date();
+          const timestamp = date.getFullYear() + '-' +
+            String(date.getMonth() + 1).padStart(2, '0') + '-' +
+            String(date.getDate()).padStart(2, '0') + '_' +
+            String(date.getHours()).padStart(2, '0') + '-' +
+            String(date.getMinutes()).padStart(2, '0') + '-' +
+            String(date.getSeconds()).padStart(2, '0');
+            
+          const fileName = `mahjong_backup_${timestamp}.json`;
+          
+          await Filesystem.writeFile({
+            path: fileName,
+            data: jsonString,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+          });
+          
+          alert(`数据已导出！\n\n文件保存位置: Documents/${fileName}\n\n(请在文件管理器的“文档”或“Documents”文件夹中查找)`);
+        } catch (e) {
+          console.error('File write failed', e);
+          alert('保存文件失败，请检查存储权限');
+        }
+      } else {
+        // Web fallback
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mahjong_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert('数据已导出。');
+      }
     } catch (error) {
       console.error('Export failed:', error);
       alert('数据导出失败');

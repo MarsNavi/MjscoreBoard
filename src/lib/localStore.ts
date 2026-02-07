@@ -1,4 +1,4 @@
-import { Game, Player } from './supabase';
+import { Game, Player } from './types';
 
 export interface LocalGameSnapshot {
   game: Game;

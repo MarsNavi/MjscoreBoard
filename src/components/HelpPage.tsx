@@ -1,5 +1,5 @@
 import { ArrowLeft, Play, Sparkles } from 'lucide-react';
-import { User } from '../lib/supabase';
+import { User } from '../lib/types';
 
 interface HelpPageProps {
   user: User;
@@ -23,6 +23,32 @@ export default function HelpPage({ onBack }: HelpPageProps) {
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8">
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.3</h2>
+                <p className="text-sm text-gray-500">2026-02-07</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">修正了成绩统计中的bug：</strong>修复了标准分计算逻辑，解决了历史数据计算错误的问题。
+                </li>
+                <li>
+                  <strong className="text-gray-900">增加了和牌数据统计：</strong>在战绩详情中新增了和牌数据的多维统计（和牌数、番数分布、最大番等）。
+                </li>
+                <li>
+                  <strong className="text-gray-900">优化了esp32设备的体验：</strong>改进了与硬件记分牌的交互体验。
+                </li>
+              </ul>
+            </div>
+          </section>
 
           <section className="space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b-2 border-rose-100">

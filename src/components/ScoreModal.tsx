@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Position, Player } from '../lib/supabase';
+import { Position, Player } from '../lib/types';
 import { X, Plus, Minus } from 'lucide-react';
 
 interface ScoreModalProps {

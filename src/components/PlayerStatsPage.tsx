@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Position, PlayerId } from '../lib/types';
+import { User, Position, PlayerId, GameResult } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
 
@@ -22,6 +22,17 @@ interface PlayerDetailStats {
   loser_rate: number;
   avg_win_fan: number;
   avg_loser_fan: number;
+}
+
+interface PlayerWinningStats {
+  player_name: string;
+  total_win_rounds: number;
+  win_8_15: number;
+  win_16_30: number;
+  win_31_63: number;
+  win_64_plus: number;
+  max_fan_rong: number;
+  max_fan_self_draw: number;
 }
 
 interface PlayerStatsPageProps {
@@ -49,7 +60,7 @@ const calculateStandardScore = (rank: number): number => {
 
 const calculateGameResultsFromDetails = async (
   gameId: string
-): Promise<{ player_name: string; final_score: number; standard_score: number }[] | null> => {
+): Promise<{ player_id: string; player_name: string; final_score: number; standard_score: number; rank: number }[] | null> => {
   const players = await db.players.where('game_id').equals(gameId).toArray();
 
   if (!players || players.length === 0) {
@@ -91,7 +102,7 @@ const calculateGameResultsFromDetails = async (
   const playersWithScore = players.map((player) => ({
     player_id: player.player_id as PlayerId,
     name: player.name,
-    score: playerScores[player.id],
+    score: Number(playerScores[player.id]), // Ensure score is a number
   }));
 
   const sortedPlayers = [...playersWithScore].sort((a, b) => b.score - a.score);
@@ -122,9 +133,11 @@ const calculateGameResultsFromDetails = async (
     }
 
     return {
+      player_id: player.player_id,
       player_name: player.name,
       final_score: player.score,
       standard_score: standardScore,
+      rank: rank,
     };
   });
 
@@ -134,6 +147,7 @@ const calculateGameResultsFromDetails = async (
 export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [detailStats, setDetailStats] = useState<PlayerDetailStats[]>([]);
+  const [winningStats, setWinningStats] = useState<PlayerWinningStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>('total_standard_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -168,27 +182,61 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
     setLoading(true);
 
     const games = await db.games.where('creator_id').equals(user.id).toArray();
-
+    // Filter out games that are not fully completed (16 rounds)
+    // Assuming 'finished' or 'is_completed' means full game
+    // If you want to include incomplete games, remove this filter
     const finishedGames = games.filter((g) => g.is_completed || g.status === 'finished');
 
     if (finishedGames.length === 0) {
       setStats([]);
       setDetailStats([]);
+      setWinningStats([]);
       setLoading(false);
       return;
     }
 
     const gameIds = finishedGames.map((g) => g.id);
 
-    const results = await db.game_results
-      .where('game_id')
-      .anyOf(gameIds)
-      .toArray();
+    // Force rebuild game_results cache for all finished games to ensure consistency
+    // This fixes historical data issues where game_results might be incorrect or missing
+    // We calculate first, then use a transaction to delete and add to avoid race conditions causing duplicates
+    
+    const newGameResults: GameResult[] = [];
+    
+    for (const gameId of gameIds) {
+      const calculatedResults = await calculateGameResultsFromDetails(gameId);
+      if (calculatedResults) {
+         calculatedResults.forEach(r => {
+           newGameResults.push({
+             id: crypto.randomUUID(),
+             game_id: gameId,
+             player_id: r.player_id,
+             player_name: r.player_name,
+             final_score: r.final_score,
+             rank: r.rank,
+             standard_score: r.standard_score,
+             created_at: new Date().toISOString()
+           });
+         });
+      }
+    }
+    
+    // Use transaction to atomically delete old and add new results
+    await db.transaction('rw', db.game_results, async () => {
+      await db.game_results.where('game_id').anyOf(gameIds).delete();
+      if (newGameResults.length > 0) {
+        await db.game_results.bulkAdd(newGameResults);
+      }
+    });
+
+    // Use the calculated results directly for stats to avoid another DB query
+    const results = newGameResults;
 
     const playerMap = new Map<string, { totalStandardScore: number; totalGameScore: number; count: number }>();
 
     await Promise.all(
       gameIds.map(async (gameId) => {
+        // Find existing results for this game
         const gameResultRows = results.filter((r) => r.game_id === gameId);
 
         let gameResultsForStats:
@@ -196,12 +244,15 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
           | null = null;
 
         if (gameResultRows.length > 0) {
-          gameResultsForStats = gameResultRows.map((r) => ({
-            player_name: r.player_name,
-            final_score: Number(r.final_score),
-            standard_score: Number(r.standard_score),
-          }));
+            // Since we just rebuilt the cache, we can trust the data in DB.
+            // But we still sort just in case.
+             gameResultsForStats = gameResultRows.map(r => ({
+                player_name: r.player_name,
+                final_score: Number(r.final_score),
+                standard_score: Number(r.standard_score)
+             }));
         } else {
+          // This should ideally not happen if rebuild succeeded, but as a fallback
           gameResultsForStats = await calculateGameResultsFromDetails(gameId);
         }
 
@@ -265,6 +316,13 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
       loserRounds: number;
       totalWinFan: number;
       totalLoserFan: number;
+      // Winning stats
+      win8to15: number;
+      win16to30: number;
+      win31to63: number;
+      win64plus: number;
+      maxFanRong: number;
+      maxFanSelfDraw: number;
     }>();
 
     players.forEach((player) => {
@@ -276,6 +334,12 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
           loserRounds: 0,
           totalWinFan: 0,
           totalLoserFan: 0,
+          win8to15: 0,
+          win16to30: 0,
+          win31to63: 0,
+          win64plus: 0,
+          maxFanRong: 0,
+          maxFanSelfDraw: 0,
         });
       }
     });
@@ -303,9 +367,19 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
 
         if (playerName === winnerName) {
           stats.winRounds++;
-          stats.totalWinFan += score.base_score;
+          const fan = score.base_score;
+          stats.totalWinFan += fan;
+
+          if (fan >= 8 && fan <= 15) stats.win8to15++;
+          else if (fan >= 16 && fan <= 30) stats.win16to30++;
+          else if (fan >= 31 && fan <= 63) stats.win31to63++;
+          else if (fan >= 64) stats.win64plus++;
+
           if (!score.loser_position) {
             stats.selfDrawRounds++;
+            if (fan > stats.maxFanSelfDraw) stats.maxFanSelfDraw = fan;
+          } else {
+             if (fan > stats.maxFanRong) stats.maxFanRong = fan;
           }
         }
 
@@ -331,7 +405,23 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
       }))
       .filter(stat => stat.total_rounds > 0);
 
+    // Re-map to include filtering
+    const validPlayers = new Set(detailStatsArray.map(s => s.player_name));
+    const filteredWinningStats = Array.from(playerStatsMap.entries())
+        .filter(([name]) => validPlayers.has(name))
+        .map(([name, data]) => ({
+            player_name: name,
+            total_win_rounds: data.winRounds,
+            win_8_15: data.win8to15,
+            win_16_30: data.win16to30,
+            win_31_63: data.win31to63,
+            win_64_plus: data.win64plus,
+            max_fan_rong: data.maxFanRong,
+            max_fan_self_draw: data.maxFanSelfDraw,
+        }));
+
     setDetailStats(detailStatsArray);
+    setWinningStats(filteredWinningStats);
   };
 
   return (
@@ -501,6 +591,61 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
                       </tbody>
                     </table>
                   </div>
+
+                  {winningStats.length > 0 && (
+                    <>
+                      <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">和牌数据</h2>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b-2 border-gray-200">
+                              <th className="text-left py-3 px-2 font-bold text-gray-700">选手</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">和牌总盘数</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">8-15番</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">16-30番</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">31-63番</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">64番+</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">点和最大番</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">自摸最大番</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {winningStats.map((stat) => (
+                              <tr
+                                key={stat.player_name}
+                                className="border-b border-gray-100 hover:bg-gray-50"
+                              >
+                                <td className="py-3 px-2 font-medium text-gray-800">
+                                  {stat.player_name}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.total_win_rounds}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.win_8_15}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.win_16_30}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.win_31_63}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.win_64_plus}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.max_fan_rong}
+                                </td>
+                                <td className="py-3 px-2 text-center text-gray-800">
+                                  {stat.max_fan_self_draw}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </>

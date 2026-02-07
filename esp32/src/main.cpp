@@ -397,6 +397,7 @@ static void event_handler_game_btn(lv_event_t * e) {
             gameState.mode = "IDLE";
             update_game_ui();
             show_screen(scr_waiting);
+            sendText("BTN:GAMEOVER\n");
         }
     }
 }
@@ -479,6 +480,12 @@ void create_connect_screen() {
     lv_obj_set_size(spinner, 50, 50);
     lv_obj_align(spinner, LV_ALIGN_CENTER, 0, 50);
     lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
+
+    lv_obj_t * ver = lv_label_create(scr_connect);
+    lv_label_set_text(ver, "v1.3");
+    lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+    lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
+    lv_obj_set_style_text_font(ver, &lv_font_sh_bold_22, 0);
 }
 
 void create_waiting_screen() {
@@ -496,6 +503,12 @@ void create_waiting_screen() {
     lv_obj_align(sub, LV_ALIGN_CENTER, 0, 20);
     lv_obj_set_style_text_color(sub, C_SLATE_400, 0);
     lv_obj_set_style_text_font(sub, &lv_font_sh_bold_22, 0);
+
+    lv_obj_t * ver = lv_label_create(scr_waiting);
+    lv_label_set_text(ver, "v1.3");
+    lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+    lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
+    lv_obj_set_style_text_font(ver, &lv_font_sh_bold_22, 0);
 }
 
 void create_game_screen() {
@@ -610,24 +623,6 @@ void create_game_screen() {
     
     lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
 
-    // Game Over Button (Center of Board)
-    btn_gameover = lv_btn_create(cont_board);
-    lv_obj_set_size(btn_gameover, 160, 80);
-    lv_obj_center(btn_gameover);
-    lv_obj_set_style_bg_color(btn_gameover, C_RED_500, 0);
-    lv_obj_set_style_shadow_width(btn_gameover, 20, 0);
-    lv_obj_set_style_shadow_color(btn_gameover, lv_color_hex(0x7f1d1d), 0);
-    lv_obj_set_style_shadow_opa(btn_gameover, LV_OPA_50, 0);
-    lv_obj_set_style_radius(btn_gameover, 16, 0);
-    lv_obj_add_event_cb(btn_gameover, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_t* l_go = lv_label_create(btn_gameover);
-    lv_label_set_text(l_go, "结束");
-    lv_obj_center(l_go);
-    lv_obj_set_style_text_font(l_go, &lv_font_sh_bold_40, 0);
-    lv_obj_set_style_text_color(l_go, lv_color_white(), 0);
-
     // --- Right Side: Sidebar (Fixed Width) ---
     lv_obj_t* cont_sidebar = lv_obj_create(root_flex);
     lv_obj_set_width(cont_sidebar, 130);
@@ -675,6 +670,24 @@ void create_game_screen() {
     lv_obj_center(lbl_hu);
     lv_obj_set_style_text_font(lbl_hu, &lv_font_sh_bold_22, 0); // Use 22px as 40px font lacks CJK
     lv_obj_set_style_text_color(lbl_hu, lv_color_white(), 0);
+
+    // Game Over Button (Replaces Hu when game over)
+    btn_gameover = lv_btn_create(cont_sidebar);
+    lv_obj_set_size(btn_gameover, 80, 60);
+    lv_obj_set_style_radius(btn_gameover, 12, 0);
+    lv_obj_set_style_bg_color(btn_gameover, C_RED_500, 0);
+    lv_obj_set_style_shadow_width(btn_gameover, 20, 0);
+    lv_obj_set_style_shadow_color(btn_gameover, lv_color_hex(0x7f1d1d), 0);
+    lv_obj_set_style_shadow_opa(btn_gameover, LV_OPA_50, 0);
+    lv_obj_add_event_cb(btn_gameover, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t* l_go = lv_label_create(btn_gameover);
+    lv_label_set_text(l_go, "比赛\n结束");
+    lv_obj_center(l_go);
+    lv_obj_set_style_text_align(l_go, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(l_go, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_color(l_go, lv_color_white(), 0);
 
     // 3. Bottom Buttons (Huang, Diff)
     lv_obj_t* row_btm = lv_obj_create(cont_sidebar);

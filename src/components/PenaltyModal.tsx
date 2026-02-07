@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
-import { Player } from '../lib/supabase';
+import { Player } from '../lib/types';
 
 interface PenaltyModalProps {
   players: Player[];

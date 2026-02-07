@@ -16,11 +16,12 @@
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^7.3.0",
+    "@capacitor-community/keep-awake": "^8.0.0",
     "@capacitor/android": "^8.0.1",
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
+    "@capacitor/filesystem": "^8.1.0",
     "@capacitor/ios": "^8.0.1",
-    "@supabase/supabase-js": "^2.57.4",
     "dexie": "^4.2.1",
     "lucide-react": "^0.344.0",
     "lv_font_conv": "^1.5.3",
