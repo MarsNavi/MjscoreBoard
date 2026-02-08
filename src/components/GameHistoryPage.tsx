@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { User, Game, Position, PlayerId } from '../lib/types';
+import { useCallback, useEffect, useState } from 'react';
+import { User, Game } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft, Calendar, Trophy, Play, Trash2 } from 'lucide-react';
+import { buildPlayersWithCalculatedScores } from '../lib/gameScoring';
 
 interface GameHistoryPageProps {
   user: User;
@@ -21,16 +22,6 @@ interface PlayerDailyTotal {
   total_score: number;
 }
 
-const getPositionForPlayerInRound = (playerId: PlayerId, roundIndex: number): Position => {
-  const rotations: Record<PlayerId, Position[]> = {
-    A: ['east', 'south', 'north', 'west'],
-    B: ['south', 'east', 'west', 'north'],
-    C: ['west', 'north', 'east', 'south'],
-    D: ['north', 'west', 'south', 'east'],
-  };
-  return rotations[playerId][roundIndex % 4];
-};
-
 const calculateGameScoresFromDetails = async (gameId: string): Promise<GameResult[] | null> => {
   const players = await db.players.where('game_id').equals(gameId).toArray();
 
@@ -39,40 +30,11 @@ const calculateGameScoresFromDetails = async (gameId: string): Promise<GameResul
   }
 
   const scores = await db.scores.where('game_id').equals(gameId).toArray();
-  scores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
   const penalty = await db.penalties.where('game_id').equals(gameId).first();
-
-  const playerScores: Record<string, number> = {};
-  players.forEach((player) => {
-    playerScores[player.id] = 0;
-  });
-
-  if (scores && scores.length > 0) {
-    scores.forEach((score) => {
-      const scoreChanges = score.score_changes as Record<Position, number>;
-      const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-      players.forEach((player) => {
-        const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id, scoreRoundIndex);
-        const change = scoreChanges[playerPositionAtScoreTime] || 0;
-        playerScores[player.id] += change;
-      });
-    });
-  }
-
-  if (penalty) {
-    const penaltyChanges = penalty.penalty_changes as Record<Position, number>;
-
-    players.forEach((player) => {
-      const change = penaltyChanges[player.position] || 0;
-      playerScores[player.id] += change;
-    });
-  }
-
-  return players.map((player) => ({
+  const playersWithScores = buildPlayersWithCalculatedScores(players, scores, penalty);
+  return playersWithScores.map((player) => ({
     player_name: player.name,
-    final_score: playerScores[player.id],
+    final_score: player.score,
   }));
 };
 
@@ -89,11 +51,7 @@ export default function GameHistoryPage({
   const [gameResults, setGameResults] = useState<Record<string, GameResult[]>>({});
   const [playerDailyTotals, setPlayerDailyTotals] = useState<PlayerDailyTotal[]>([]);
 
-  useEffect(() => {
-    loadGames();
-  }, [user.id]);
-
-  const loadGames = async () => {
+  const loadGames = useCallback(async () => {
     setLoading(true);
     const data = await db.games.where('creator_id').equals(user.id).toArray();
 
@@ -160,7 +118,11 @@ export default function GameHistoryPage({
       }
     }
     setLoading(false);
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    void loadGames();
+  }, [loadGames]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

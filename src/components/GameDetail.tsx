@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Player, ScoreRecord, Position, Game, Penalty } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft } from 'lucide-react';
+import { buildPlayersWithCalculatedScores, getPositionForPlayerInRound } from '../lib/gameScoring';
 
 interface GameDetailProps {
   gameId: string;
@@ -15,69 +16,27 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
   const [game, setGame] = useState<Game | null>(null);
 
   useEffect(() => {
-    loadGameDetail();
-  }, [gameId]);
+    const loadGameDetail = async () => {
+      const gameData = await db.games.get(gameId);
+      const playersData = await db.players.where('game_id').equals(gameId).toArray();
+      const scoresData = await db.scores.where('game_id').equals(gameId).toArray();
+      scoresData.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const penaltyData = await db.penalties.where('game_id').equals(gameId).first();
 
-  const getPositionForPlayerInRound = (playerId: string, roundIndex: number): Position => {
-    const rotations: Record<string, Position[]> = {
-      A: ['east', 'south', 'north', 'west'],
-      B: ['south', 'east', 'west', 'north'],
-      C: ['west', 'north', 'east', 'south'],
-      D: ['north', 'west', 'south', 'east'],
-    };
-    return rotations[playerId][roundIndex % 4];
-  };
+      if (gameData) setGame(gameData);
+      if (scoresData) setScores(scoresData);
+      if (penaltyData) setPenalty(penaltyData);
 
-  const loadGameDetail = async () => {
-    const gameData = await db.games.get(gameId);
-
-    const playersData = await db.players.where('game_id').equals(gameId).toArray();
-
-    const scoresData = await db.scores.where('game_id').equals(gameId).toArray();
-    scoresData.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-    const penaltyData = await db.penalties.where('game_id').equals(gameId).first();
-
-    if (gameData) setGame(gameData);
-    if (scoresData) setScores(scoresData);
-    if (penaltyData) setPenalty(penaltyData);
-
-    if (playersData && scoresData) {
-      const playerScores: Record<string, number> = {};
-      playersData.forEach((player) => {
-        playerScores[player.id] = 0;
-      });
-
-      scoresData.forEach((score) => {
-        const scoreChanges = score.score_changes as Record<Position, number>;
-        const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-        playersData.forEach((player) => {
-          const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id, scoreRoundIndex);
-          const change = scoreChanges[playerPositionAtScoreTime] || 0;
-          playerScores[player.id] += change;
-        });
-      });
-
-      if (penaltyData) {
-        const penaltyChanges = penaltyData.penalty_changes as Record<Position, number>;
-
-        playersData.forEach((player) => {
-          const change = penaltyChanges[player.position] || 0;
-          playerScores[player.id] += change;
-        });
+      if (playersData && scoresData) {
+        const updatedPlayers = buildPlayersWithCalculatedScores(playersData, scoresData, penaltyData);
+        setPlayers(updatedPlayers);
+      } else if (playersData) {
+        setPlayers(playersData);
       }
+    };
 
-      const updatedPlayers = playersData.map((player) => ({
-        ...player,
-        score: playerScores[player.id],
-      }));
-
-      setPlayers(updatedPlayers);
-    } else if (playersData) {
-      setPlayers(playersData);
-    }
-  };
+    void loadGameDetail();
+  }, [gameId]);
 
   const formatScore = (score: number): string => {
     return score >= 0 ? `+${score}` : `${score}`;

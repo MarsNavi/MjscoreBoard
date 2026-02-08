@@ -1,10 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { Position, Player, Game, PlayerId, User } from './lib/types';
 import { db } from './lib/db';
 import PlayerScore from './components/PlayerScore';
 import GameCenter from './components/GameCenter';
 import ScoreModal from './components/ScoreModal';
-import GameHistoryList from './components/GameHistoryList';
 import GameDetail from './components/GameDetail';
 import PenaltyModal from './components/PenaltyModal';
 import HomePage from './components/HomePage';
@@ -14,9 +13,14 @@ import HelpPage from './components/HelpPage';
 import { AdminPage } from './components/AdminPage';
 import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
-import { useBle } from './contexts/BleContext';
+import { useBle } from './contexts/useBle';
 import BleConnectionManager from './components/BleConnectionManager';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import {
+  buildGameResults,
+  buildPlayersWithCalculatedScores,
+  getPositionForPlayerInRound,
+} from './lib/gameScoring';
 
 const TOTAL_GAMES = 16;
 
@@ -31,7 +35,6 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [winnerPosition, setWinnerPosition] = useState<Position | null>(null);
-  const [showGameHistory, setShowGameHistory] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [gameName, setGameName] = useState('');
   const [tempPlayerNames, setTempPlayerNames] = useState<Record<Position, string>>({
@@ -180,9 +183,9 @@ function App() {
     saveLocalGameSnapshot(currentUser.id, snapshot);
   }, [currentUser, game, players, isConfirmMode, currentPenalties]);
 
-  const navigateTo = (path: string) => {
+  const navigateTo = useCallback((path: string) => {
     window.location.hash = path;
-  };
+  }, []);
 
   const createNewGame = async () => {
     if (!currentUser) return;
@@ -307,18 +310,7 @@ function App() {
        navigateTo('');
     }
     
-    setGame(null);
-    setPlayers([]);
-    setGameStarted(false);
-    setGameName('');
-    setIsConfirmMode(false);
-    setShowGameHistory(false);
-    setTempPlayerNames({
-      east: '',
-      south: '',
-      west: '',
-      north: '',
-    });
+    resetActiveGameState();
   };
 
   const handleConfirmEndGame = async () => {
@@ -337,19 +329,28 @@ function App() {
     }
   };
 
-  const handleNameChange = (position: Position, name: string) => {
+  const handleNameChange = useCallback((position: Position, name: string) => {
     setTempPlayerNames((prev) => ({
       ...prev,
       [position]: name,
     }));
-  };
+  }, []);
 
-  const calculateStandardScore = (rank: number): number => {
-    const scores = [4, 2, 1, 0];
-    return scores[rank - 1];
-  };
+  const resetActiveGameState = useCallback(() => {
+    setGame(null);
+    setPlayers([]);
+    setGameStarted(false);
+    setGameName('');
+    setIsConfirmMode(false);
+    setTempPlayerNames({
+      east: '',
+      south: '',
+      west: '',
+      north: '',
+    });
+  }, []);
 
-  const saveGameResults = async () => {
+  const saveGameResults = useCallback(async () => {
     if (!game) return;
 
     // 每次保存前先删除旧的 result（如果有），确保重新计算
@@ -367,76 +368,10 @@ function App() {
     const dbPenalty = await db.penalties.where('game_id').equals(game.id).first();
 
     // 4. 重新计算最终得分（Source of Truth）
-    const playerScores: Record<string, number> = {};
-    dbPlayers.forEach((player) => {
-      playerScores[player.id] = 0;
-    });
-
-    if (dbScores.length > 0) {
-      dbScores.forEach((score) => {
-        const scoreChanges = score.score_changes as Record<Position, number>;
-        const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-        dbPlayers.forEach((player) => {
-          const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id, scoreRoundIndex);
-          const change = scoreChanges[playerPositionAtScoreTime] || 0;
-          playerScores[player.id] += change;
-        });
-      });
-    }
-
-    if (dbPenalty) {
-      const penaltyChanges = dbPenalty.penalty_changes as Record<Position, number>;
-      dbPlayers.forEach((player) => {
-        const change = penaltyChanges[player.position] || 0;
-        playerScores[player.id] += change;
-      });
-    }
-
-    const calculatedPlayers = dbPlayers.map((player) => ({
-      ...player,
-      score: playerScores[player.id],
-    }));
+    const calculatedPlayers = buildPlayersWithCalculatedScores(dbPlayers, dbScores, dbPenalty);
 
     // 5. 排序并计算标准分
-    const sortedPlayers = [...calculatedPlayers].sort((a, b) => b.score - a.score);
-
-    const ranks: number[] = [];
-    let currentRank = 1;
-    for (let i = 0; i < sortedPlayers.length; i++) {
-      if (i > 0 && sortedPlayers[i].score === sortedPlayers[i - 1].score) {
-        ranks.push(ranks[i - 1]);
-      } else {
-        ranks.push(currentRank);
-      }
-      currentRank++;
-    }
-
-    const results = sortedPlayers.map((player, index) => {
-      const rank = ranks[index];
-      const sameRankCount = ranks.filter(r => r === rank).length;
-
-      let standardScore: number;
-      if (sameRankCount === 1) {
-        standardScore = calculateStandardScore(rank);
-      } else {
-        const startIndex = rank - 1;
-        const endIndex = startIndex + sameRankCount - 1;
-        const totalScore = [4, 2, 1, 0].slice(startIndex, endIndex + 1).reduce((a, b) => a + b, 0);
-        standardScore = totalScore / sameRankCount;
-      }
-
-      return {
-        id: crypto.randomUUID(),
-        game_id: game.id,
-        player_id: player.player_id,
-        player_name: player.name,
-        final_score: player.score,
-        rank: rank,
-        standard_score: standardScore,
-        created_at: new Date().toISOString()
-      };
-    });
+    const results = buildGameResults(game.id, calculatedPlayers);
 
     await db.transaction('rw', db.game_results, db.games, async () => {
       // Prevent duplicates by deleting existing results for this game first
@@ -448,7 +383,7 @@ function App() {
           completed_at: new Date().toISOString()
       });
     });
-  };
+  }, [game]);
 
   const handleRestart = async () => {
     setShowEndGameConfirm(true);
@@ -539,7 +474,6 @@ function App() {
     if (playersData && gameData) {
       setGame(gameData);
       setGameStarted(true);
-      setShowGameHistory(false);
       setSelectedGameId(null);
       setCurrentPage('game');
 
@@ -548,41 +482,8 @@ function App() {
       }
 
       const allScores = await db.scores.where('game_id').equals(gameId).toArray();
-      allScores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
       const penalty = await db.penalties.where('game_id').equals(gameId).first();
-
-      const playerScores: Record<string, number> = {};
-      playersData.forEach((player) => {
-        playerScores[player.id] = 0;
-      });
-
-      if (allScores && allScores.length > 0) {
-        allScores.forEach((score) => {
-          const scoreChanges = score.score_changes as Record<Position, number>;
-          const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-          playersData.forEach((player) => {
-            const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id as PlayerId, scoreRoundIndex);
-            const change = scoreChanges[playerPositionAtScoreTime] || 0;
-            playerScores[player.id] += change;
-          });
-        });
-      }
-
-      if (penalty) {
-        const penaltyChanges = penalty.penalty_changes as Record<Position, number>;
-        playersData.forEach((player) => {
-          const change = penaltyChanges[player.position] || 0;
-          playerScores[player.id] += change;
-        });
-      }
-
-      const updatedPlayers = playersData.map((player) => ({
-        ...player,
-        score: playerScores[player.id],
-      }));
-
+      const updatedPlayers = buildPlayersWithCalculatedScores(playersData, allScores, penalty);
       setPlayers(updatedPlayers);
     }
   };
@@ -603,18 +504,7 @@ function App() {
     }
 
     if (isCurrentGame) {
-      setGame(null);
-      setPlayers([]);
-      setGameStarted(false);
-      setGameName('');
-      setIsConfirmMode(false);
-      setShowGameHistory(false);
-      setTempPlayerNames({
-        east: '',
-        south: '',
-        west: '',
-        north: '',
-      });
+      resetActiveGameState();
     }
   };
 
@@ -671,67 +561,24 @@ function App() {
     await recalculateAndRefreshPlayers();
   };
 
-  const recalculateAndRefreshPlayers = async () => {
+  const recalculateAndRefreshPlayers = useCallback(async () => {
     if (!game) return;
 
     const allPlayers = await db.players.where('game_id').equals(game.id).toArray();
-
     const allScores = await db.scores.where('game_id').equals(game.id).toArray();
-    allScores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
     const penalty = await db.penalties.where('game_id').equals(game.id).first();
 
     if (!allPlayers || allPlayers.length === 0) return;
 
-    const playerScores: Record<string, number> = {};
-    allPlayers.forEach((player) => {
-      playerScores[player.id] = 0;
-    });
-
-    if (allScores && allScores.length > 0) {
-      allScores.forEach((score) => {
-        const scoreChanges = score.score_changes as Record<Position, number>;
-        const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-        allPlayers.forEach((player) => {
-          const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id, scoreRoundIndex);
-          const change = scoreChanges[playerPositionAtScoreTime] || 0;
-          playerScores[player.id] += change;
-        });
-      });
-    }
-
-    if (penalty) {
-      const penaltyChanges = penalty.penalty_changes as Record<Position, number>;
-
-      allPlayers.forEach((player) => {
-        const change = penaltyChanges[player.position] || 0;
-        playerScores[player.id] += change;
-      });
-    }
-
-    const updatedPlayers = allPlayers.map((player) => ({
-      ...player,
-      score: playerScores[player.id],
-    }));
+    const updatedPlayers = buildPlayersWithCalculatedScores(allPlayers, allScores, penalty);
 
     // Update DB with calculated scores so syncToDevices can read from DB
     await db.players.bulkPut(updatedPlayers);
 
     setPlayers(updatedPlayers);
-  };
+  }, [game]);
 
-  const getPositionForPlayerInRound = (playerId: PlayerId, roundIndex: number): Position => {
-    const rotations: Record<PlayerId, Position[]> = {
-      A: ['east', 'south', 'north', 'west'],
-      B: ['south', 'east', 'west', 'north'],
-      C: ['west', 'north', 'east', 'south'],
-      D: ['north', 'west', 'south', 'east'],
-    };
-    return rotations[playerId][roundIndex % 4];
-  };
-
-  const rotatePlayersForNewRound = async (currentGame: number) => {
+  const rotatePlayersForNewRound = useCallback(async (currentGame: number) => {
     if (!game) return;
 
     const roundIndex = Math.floor((currentGame - 1) / 4);
@@ -748,7 +595,7 @@ function App() {
     if (refreshedPlayers) {
       setPlayers(refreshedPlayers);
     }
-  };
+  }, [game, players]);
 
   const calculateScoreChanges = (
     winner: Position,
@@ -821,18 +668,7 @@ function App() {
         await rotatePlayersForNewRound(nextGame);
       }
       await recalculateAndRefreshPlayers();
-
-      if (nextGame === TOTAL_GAMES + 1) {
-        await saveGameResults();
-        setGameStarted(false);
-        setIsConfirmMode(false);
-        // Update local game state to finished to trigger Game Over UI
-        setGame(prev => prev ? { ...prev, is_completed: true, status: 'finished' } : null);
-        // Do not navigate away, stay on board to show Game Over and sync to devices
-      }
     } else {
-      // This else block seems to be for when nextGame > TOTAL_GAMES? 
-      // Which shouldn't happen if the logic is correct, but let's handle it same way.
       await saveGameResults();
       setGameStarted(false);
       setIsConfirmMode(false);
@@ -848,18 +684,6 @@ function App() {
     setWinnerPosition(null);
   };
 
-  const handleDeviceScoreSubmit = async (winner: Position, loserPosition: Position | null, baseScore: number) => {
-    await submitScoreForWinner(winner, loserPosition, baseScore);
-  };
-
-  const handleDeviceHuang = () => {
-    if (!gameStarted || !game) return;
-
-    // Immediately trigger Huangzhuang logic without waiting for others
-    // Since only East device has the button, this action is authoritative
-    void handleHuangzhuang(true);
-  };
-
   /*
    const handleDeviceConfirm = (position: Position) => {
      // Legacy function, can be removed if confirmed unused
@@ -871,6 +695,11 @@ function App() {
   // Sync State Effect
   const isSyncingRef = useRef(false);
   const needsSyncRef = useRef(false);
+  const handleHuangzhuangRef = useRef(handleHuangzhuang);
+  const submitScoreForWinnerRef = useRef(submitScoreForWinner);
+
+  handleHuangzhuangRef.current = handleHuangzhuang;
+  submitScoreForWinnerRef.current = submitScoreForWinner;
 
   useEffect(() => {
     const triggerSync = async () => {
@@ -983,7 +812,7 @@ function App() {
     }, 500); // Increased debounce to 500ms to avoid conflict with incoming messages
 
     return () => clearTimeout(timer);
-  }, [game, players, gameStarted, isConfirmMode, bleDevices]); // Sync whenever game state or connection changes
+  }, [game, players, gameStarted, isConfirmMode, bleDevices, writeData]); // Sync whenever game state or connection changes
 
   // Message Handler Effect
   useEffect(() => {
@@ -991,7 +820,8 @@ function App() {
         const msg = raw.trim();
         if (!msg) return;
         if (msg === 'BTN:HUANG') {
-           handleDeviceHuang();
+           if (!gameStarted || !game) return;
+           void handleHuangzhuangRef.current(true);
            return;
         }
         /*
@@ -1012,7 +842,7 @@ function App() {
            if (kind === 'ZIMO') {
               const base = parseInt(parts[2] || '8', 10);
               if (Number.isNaN(base)) return;
-              handleDeviceScoreSubmit(position, null, base);
+              void submitScoreForWinnerRef.current(position, null, base);
               return;
            }
            if (kind === 'RON') {
@@ -1026,7 +856,7 @@ function App() {
               else if (rel === 'OPPOSITE') loser = opposite;
               
               if (loser) {
-                 handleDeviceScoreSubmit(position, loser, base);
+                 void submitScoreForWinnerRef.current(position, loser, base);
               }
            }
         }
@@ -1166,11 +996,6 @@ function App() {
       >
         <Bluetooth size={20} />
       </button>
-
-      <BleConnectionManager 
-        isOpen={showBleModal} 
-        onClose={() => setShowBleModal(false)} 
-      />
 
       {/* End Game Confirmation Modal */}
       {showEndGameConfirm && (
@@ -1356,22 +1181,10 @@ function App() {
         />
       )}
 
-      {showGameHistory && !selectedGameId && currentUser && (
-        <GameHistoryList
-          onClose={() => setShowGameHistory(false)}
-          onSelectGame={(gameId) => setSelectedGameId(gameId)}
-          onContinueGame={handleContinueGame}
-          onDeleteGame={handleDeleteGame}
-          creatorId={currentUser.id}
-          currentGameId={game?.id}
-        />
-      )}
-
       {selectedGameId && (
         <GameDetail
           gameId={selectedGameId}
           onBack={() => {
-            setShowGameHistory(false);
             setSelectedGameId(null);
           }}
         />

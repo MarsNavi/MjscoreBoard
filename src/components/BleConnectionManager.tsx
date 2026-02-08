@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Position } from '../lib/types';
 import { Scan, RefreshCw, Smartphone, Bluetooth, X, Link, Trash2 } from 'lucide-react';
-import { useBle } from '../contexts/BleContext';
+import { useBle } from '../contexts/useBle';
 
 interface BleConnectionManagerProps {
   onClose: () => void;
