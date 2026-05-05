@@ -1,7 +1,7 @@
 import { User, Position, Game, Player, ScoreRecord, Penalty, GameResult } from '../lib/types';
 import { db } from '../lib/db';
 import { History, TrendingUp, HelpCircle, Download, Upload } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 
@@ -41,25 +41,7 @@ export default function HomePage({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    loadCommonNames();
-    loadLastGameData();
-  }, [user.id]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
-        setFocusedPosition(null);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const loadCommonNames = async () => {
+  const loadCommonNames = useCallback(async () => {
     const games = await db.games.where('creator_id').equals(user.id).toArray();
     const gameIds = games.map(g => g.id);
     
@@ -102,9 +84,9 @@ export default function HomePage({
       .map(([name]) => name);
 
     setCommonNames(sortedNames);
-  };
+  }, [user.id]);
 
-  const loadLastGameData = async () => {
+  const loadLastGameData = useCallback(async () => {
     const games = await db.games.where('creator_id').equals(user.id).toArray();
     const sortedGames = games.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     const lastGame = sortedGames[0];
@@ -122,7 +104,25 @@ export default function HomePage({
         });
       }
     }
-  };
+  }, [onGameNameChange, onNameChange, user.id]);
+
+  useEffect(() => {
+    void loadCommonNames();
+    void loadLastGameData();
+  }, [loadCommonNames, loadLastGameData]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setFocusedPosition(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSelectSuggestion = (position: Position, name: string) => {
     onNameChange(position, name);

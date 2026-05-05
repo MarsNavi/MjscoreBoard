@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { ArrowLeft, Users, Trophy, Hash } from 'lucide-react';
 
@@ -22,30 +22,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, [currentUserId]);
-
-  async function checkAdminAccess() {
-    try {
-      const user = await db.users.get(currentUserId);
-
-      if (user?.code === 'micken') {
-        setIsAdmin(true);
-        loadUserStats();
-      } else {
-        setIsAdmin(false);
-        setError('无权限访问此页面');
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('检查权限失败:', err);
-      setError('检查权限失败');
-      setLoading(false);
-    }
-  }
-
-  async function loadUserStats() {
+  const loadUserStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -97,7 +74,30 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  const checkAdminAccess = useCallback(async () => {
+    try {
+      const user = await db.users.get(currentUserId);
+
+      if (user?.code === 'micken') {
+        setIsAdmin(true);
+        await loadUserStats();
+      } else {
+        setIsAdmin(false);
+        setError('无权限访问此页面');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('检查权限失败:', err);
+      setError('检查权限失败');
+      setLoading(false);
+    }
+  }, [currentUserId, loadUserStats]);
+
+  useEffect(() => {
+    void checkAdminAccess();
+  }, [checkAdminAccess]);
 
   if (loading) {
     return (

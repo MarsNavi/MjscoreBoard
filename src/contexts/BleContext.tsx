@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import { createContext, useState, useRef, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { BleClient, ScanResult } from '@capacitor-community/bluetooth-le';
 
 // Re-export types if needed, or import from central types
@@ -25,7 +25,7 @@ interface BleContextType {
   setMessageHandler: (handler: (position: Position, message: string) => void) => void;
 }
 
-const BleContext = createContext<BleContextType | undefined>(undefined);
+export const BleContext = createContext<BleContextType | undefined>(undefined);
 
 // Constants
 const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
@@ -166,7 +166,16 @@ export function BleProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [bleDevices, isInitialized]); 
 
-  const startScan = async () => {
+  const stopScan = useCallback(async () => {
+    try {
+      await BleClient.stopLEScan();
+      setIsScanning(false);
+    } catch (error) {
+      console.error('Failed to stop scan:', error);
+    }
+  }, []);
+
+  const startScan = useCallback(async () => {
     try {
       await BleClient.stopLEScan().catch(() => {});
       setScannedDevices([]);
@@ -189,7 +198,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
       );
       
       setTimeout(() => {
-        stopScan();
+        void stopScan();
       }, 10000);
 
     } catch (error) {
@@ -197,18 +206,9 @@ export function BleProvider({ children }: { children: ReactNode }) {
       setBleError('无法开始扫描，请检查定位和蓝牙权限');
       setIsScanning(false);
     }
-  };
+  }, [stopScan]);
 
-  const stopScan = async () => {
-    try {
-      await BleClient.stopLEScan();
-      setIsScanning(false);
-    } catch (error) {
-      console.error('Failed to stop scan:', error);
-    }
-  };
-
-  const connectToDevice = async (position: Position, deviceId: string, deviceName: string) => {
+  const connectToDevice = useCallback(async (position: Position, deviceId: string, deviceName: string) => {
     try {
         // Check if device is already connected to another position
         const positions: Position[] = ['east', 'south', 'west', 'north'];
@@ -274,9 +274,9 @@ export function BleProvider({ children }: { children: ReactNode }) {
         }
         throw error; // Re-throw to let caller handle if needed
     }
-  };
+  }, [bleDevices, stopScan]);
 
-  const disconnectBleForPosition = async (position: Position) => {
+  const disconnectBleForPosition = useCallback(async (position: Position) => {
     const current = bleDevices[position];
     if (current && current.deviceId) {
       try {
@@ -289,18 +289,18 @@ export function BleProvider({ children }: { children: ReactNode }) {
       ...prev,
       [position]: null,
     }));
-  };
+  }, [bleDevices]);
 
-  const writeData = async (deviceId: string, data: DataView) => {
+  const writeData = useCallback(async (deviceId: string, data: DataView) => {
       await BleClient.write(deviceId, BLE_SERVICE_UUID, BLE_RX_CHAR_UUID, data);
-  };
+  }, []);
 
-  const setMessageHandler = (handler: (position: Position, message: string) => void) => {
+  const setMessageHandler = useCallback((handler: (position: Position, message: string) => void) => {
       messageHandlerRef.current = handler;
-  };
+  }, []);
 
-  return (
-    <BleContext.Provider value={{
+  const contextValue = useMemo(
+    () => ({
       bleDevices,
       isScanning,
       scannedDevices,
@@ -311,17 +311,25 @@ export function BleProvider({ children }: { children: ReactNode }) {
       disconnectBleForPosition,
       writeData,
       setBleError,
-      setMessageHandler
-    }}>
+      setMessageHandler,
+    }),
+    [
+      bleDevices,
+      isScanning,
+      scannedDevices,
+      bleError,
+      startScan,
+      stopScan,
+      connectToDevice,
+      disconnectBleForPosition,
+      writeData,
+      setMessageHandler,
+    ]
+  );
+
+  return (
+    <BleContext.Provider value={contextValue}>
       {children}
     </BleContext.Provider>
   );
-}
-
-export function useBle() {
-  const context = useContext(BleContext);
-  if (context === undefined) {
-    throw new Error('useBle must be used within a BleProvider');
-  }
-  return context;
 }

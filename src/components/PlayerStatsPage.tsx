@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { User, Position, PlayerId, GameResult } from '../lib/types';
+import { useCallback, useEffect, useState } from 'react';
+import { User, GameResult } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { buildGameResults, buildPlayersWithCalculatedScores } from '../lib/gameScoring';
 
 interface PlayerStats {
   player_name: string;
@@ -43,21 +44,6 @@ interface PlayerStatsPageProps {
 type SortField = 'games_played' | 'total_game_score' | 'total_standard_score' | 'average_standard_score';
 type SortDirection = 'asc' | 'desc';
 
-const getPositionForPlayerInRound = (playerId: PlayerId, roundIndex: number): Position => {
-  const rotations: Record<PlayerId, Position[]> = {
-    A: ['east', 'south', 'north', 'west'],
-    B: ['south', 'east', 'west', 'north'],
-    C: ['west', 'north', 'east', 'south'],
-    D: ['north', 'west', 'south', 'east'],
-  };
-  return rotations[playerId][roundIndex % 4];
-};
-
-const calculateStandardScore = (rank: number): number => {
-  const scores = [4, 2, 1, 0];
-  return scores[rank - 1];
-};
-
 const calculateGameResultsFromDetails = async (
   gameId: string
 ): Promise<{ player_id: string; player_name: string; final_score: number; standard_score: number; rank: number }[] | null> => {
@@ -68,80 +54,16 @@ const calculateGameResultsFromDetails = async (
   }
 
   const scores = await db.scores.where('game_id').equals(gameId).toArray();
-  scores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
   const penalty = await db.penalties.where('game_id').equals(gameId).first();
-
-  const playerScores: Record<string, number> = {};
-  players.forEach((player) => {
-    playerScores[player.id] = 0;
-  });
-
-  if (scores && scores.length > 0) {
-    scores.forEach((score) => {
-      const scoreChanges = score.score_changes as Record<Position, number>;
-      const scoreRoundIndex = Math.floor((score.game_number - 1) / 4);
-
-      players.forEach((player) => {
-        const playerPositionAtScoreTime = getPositionForPlayerInRound(player.player_id as PlayerId, scoreRoundIndex);
-        const change = scoreChanges[playerPositionAtScoreTime] || 0;
-        playerScores[player.id] += change;
-      });
-    });
-  }
-
-  if (penalty) {
-    const penaltyChanges = penalty.penalty_changes as Record<Position, number>;
-
-    players.forEach((player) => {
-      const change = penaltyChanges[player.position] || 0;
-      playerScores[player.id] += change;
-    });
-  }
-
-  const playersWithScore = players.map((player) => ({
-    player_id: player.player_id as PlayerId,
-    name: player.name,
-    score: Number(playerScores[player.id]), // Ensure score is a number
+  const playersWithScores = buildPlayersWithCalculatedScores(players, scores, penalty);
+  const results = buildGameResults(gameId, playersWithScores);
+  return results.map((result) => ({
+    player_id: result.player_id,
+    player_name: result.player_name,
+    final_score: result.final_score,
+    standard_score: result.standard_score,
+    rank: result.rank,
   }));
-
-  const sortedPlayers = [...playersWithScore].sort((a, b) => b.score - a.score);
-
-  const ranks: number[] = [];
-  let currentRank = 1;
-  for (let i = 0; i < sortedPlayers.length; i++) {
-    if (i > 0 && sortedPlayers[i].score === sortedPlayers[i - 1].score) {
-      ranks.push(ranks[i - 1]);
-    } else {
-      ranks.push(currentRank);
-    }
-    currentRank++;
-  }
-
-  const results = sortedPlayers.map((player, index) => {
-    const rank = ranks[index];
-    const sameRankCount = ranks.filter((r) => r === rank).length;
-
-    let standardScore: number;
-    if (sameRankCount === 1) {
-      standardScore = calculateStandardScore(rank);
-    } else {
-      const startIndex = rank - 1;
-      const endIndex = startIndex + sameRankCount - 1;
-      const totalScore = [4, 2, 1, 0].slice(startIndex, endIndex + 1).reduce((a, b) => a + b, 0);
-      standardScore = totalScore / sameRankCount;
-    }
-
-    return {
-      player_id: player.player_id,
-      player_name: player.name,
-      final_score: player.score,
-      standard_score: standardScore,
-      rank: rank,
-    };
-  });
-
-  return results;
 };
 
 export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) {
@@ -151,10 +73,6 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>('total_standard_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  useEffect(() => {
-    loadStats();
-  }, [user.id]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -178,7 +96,139 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
     return comparison;
   });
 
-  const loadStats = async () => {
+  const loadDetailStats = useCallback(async (gameIds: string[]) => {
+    const players = await db.players
+      .where('game_id')
+      .anyOf(gameIds)
+      .toArray();
+
+    if (!players || players.length === 0) {
+      return;
+    }
+
+    const scores = await db.scores
+      .where('game_id')
+      .anyOf(gameIds)
+      .toArray();
+
+    if (!scores) {
+      return;
+    }
+
+    const playerStatsMap = new Map<string, {
+      totalRounds: number;
+      winRounds: number;
+      selfDrawRounds: number;
+      loserRounds: number;
+      totalWinFan: number;
+      totalLoserFan: number;
+      win8to15: number;
+      win16to30: number;
+      win31to63: number;
+      win64plus: number;
+      maxFanRong: number;
+      maxFanSelfDraw: number;
+    }>();
+
+    players.forEach((player) => {
+      if (!playerStatsMap.has(player.name)) {
+        playerStatsMap.set(player.name, {
+          totalRounds: 0,
+          winRounds: 0,
+          selfDrawRounds: 0,
+          loserRounds: 0,
+          totalWinFan: 0,
+          totalLoserFan: 0,
+          win8to15: 0,
+          win16to30: 0,
+          win31to63: 0,
+          win64plus: 0,
+          maxFanRong: 0,
+          maxFanSelfDraw: 0,
+        });
+      }
+    });
+
+    const playerIdToName = new Map<string, Map<string, string>>();
+    players.forEach((player) => {
+      if (!playerIdToName.has(player.game_id)) {
+        playerIdToName.set(player.game_id, new Map());
+      }
+      playerIdToName.get(player.game_id)!.set(player.player_id, player.name);
+    });
+
+    scores.forEach((score) => {
+      const gamePlayerMap = playerIdToName.get(score.game_id);
+      if (!gamePlayerMap) return;
+
+      const winnerName = score.winner_player_id ? gamePlayerMap.get(score.winner_player_id) : null;
+      const loserName = score.loser_player_id ? gamePlayerMap.get(score.loser_player_id) : null;
+
+      gamePlayerMap.forEach((playerName) => {
+        const stats = playerStatsMap.get(playerName);
+        if (!stats) return;
+
+        stats.totalRounds++;
+
+        if (playerName === winnerName) {
+          stats.winRounds++;
+          const fan = score.base_score;
+          stats.totalWinFan += fan;
+
+          if (fan >= 8 && fan <= 15) stats.win8to15++;
+          else if (fan >= 16 && fan <= 30) stats.win16to30++;
+          else if (fan >= 31 && fan <= 63) stats.win31to63++;
+          else if (fan >= 64) stats.win64plus++;
+
+          if (!score.loser_position) {
+            stats.selfDrawRounds++;
+            if (fan > stats.maxFanSelfDraw) stats.maxFanSelfDraw = fan;
+          } else {
+             if (fan > stats.maxFanRong) stats.maxFanRong = fan;
+          }
+        }
+
+        if (playerName === loserName) {
+          stats.loserRounds++;
+          stats.totalLoserFan += score.base_score;
+        }
+      });
+    });
+
+    const detailStatsArray: PlayerDetailStats[] = Array.from(playerStatsMap.entries())
+      .map(([name, data]) => ({
+        player_name: name,
+        total_rounds: data.totalRounds,
+        win_rounds: data.winRounds,
+        self_draw_rounds: data.selfDrawRounds,
+        loser_rounds: data.loserRounds,
+        win_rate: data.totalRounds > 0 ? (data.winRounds / data.totalRounds) * 100 : 0,
+        self_draw_rate: data.winRounds > 0 ? (data.selfDrawRounds / data.winRounds) * 100 : 0,
+        loser_rate: data.totalRounds > 0 ? (data.loserRounds / data.totalRounds) * 100 : 0,
+        avg_win_fan: data.winRounds > 0 ? data.totalWinFan / data.winRounds : 0,
+        avg_loser_fan: data.loserRounds > 0 ? data.totalLoserFan / data.loserRounds : 0,
+      }))
+      .filter(stat => stat.total_rounds > 0);
+
+    const validPlayers = new Set(detailStatsArray.map(s => s.player_name));
+    const filteredWinningStats = Array.from(playerStatsMap.entries())
+      .filter(([name]) => validPlayers.has(name))
+      .map(([name, data]) => ({
+        player_name: name,
+        total_win_rounds: data.winRounds,
+        win_8_15: data.win8to15,
+        win_16_30: data.win16to30,
+        win_31_63: data.win31to63,
+        win_64_plus: data.win64plus,
+        max_fan_rong: data.maxFanRong,
+        max_fan_self_draw: data.maxFanSelfDraw,
+      }));
+
+    setDetailStats(detailStatsArray);
+    setWinningStats(filteredWinningStats);
+  }, []);
+
+  const loadStats = useCallback(async () => {
     setLoading(true);
 
     const games = await db.games.where('creator_id').equals(user.id).toArray();
@@ -288,141 +338,11 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
     await loadDetailStats(gameIds);
 
     setLoading(false);
-  };
+  }, [loadDetailStats, user.id]);
 
-  const loadDetailStats = async (gameIds: string[]) => {
-    const players = await db.players
-      .where('game_id')
-      .anyOf(gameIds)
-      .toArray();
-
-    if (!players || players.length === 0) {
-      return;
-    }
-
-    const scores = await db.scores
-      .where('game_id')
-      .anyOf(gameIds)
-      .toArray();
-
-    if (!scores) {
-      return;
-    }
-
-    const playerStatsMap = new Map<string, {
-      totalRounds: number;
-      winRounds: number;
-      selfDrawRounds: number;
-      loserRounds: number;
-      totalWinFan: number;
-      totalLoserFan: number;
-      // Winning stats
-      win8to15: number;
-      win16to30: number;
-      win31to63: number;
-      win64plus: number;
-      maxFanRong: number;
-      maxFanSelfDraw: number;
-    }>();
-
-    players.forEach((player) => {
-      if (!playerStatsMap.has(player.name)) {
-        playerStatsMap.set(player.name, {
-          totalRounds: 0,
-          winRounds: 0,
-          selfDrawRounds: 0,
-          loserRounds: 0,
-          totalWinFan: 0,
-          totalLoserFan: 0,
-          win8to15: 0,
-          win16to30: 0,
-          win31to63: 0,
-          win64plus: 0,
-          maxFanRong: 0,
-          maxFanSelfDraw: 0,
-        });
-      }
-    });
-
-    const playerIdToName = new Map<string, Map<string, string>>();
-    players.forEach((player) => {
-      if (!playerIdToName.has(player.game_id)) {
-        playerIdToName.set(player.game_id, new Map());
-      }
-      playerIdToName.get(player.game_id)!.set(player.player_id, player.name);
-    });
-
-    scores.forEach((score) => {
-      const gamePlayerMap = playerIdToName.get(score.game_id);
-      if (!gamePlayerMap) return;
-
-      const winnerName = score.winner_player_id ? gamePlayerMap.get(score.winner_player_id) : null;
-      const loserName = score.loser_player_id ? gamePlayerMap.get(score.loser_player_id) : null;
-
-      gamePlayerMap.forEach((playerName) => {
-        const stats = playerStatsMap.get(playerName);
-        if (!stats) return;
-
-        stats.totalRounds++;
-
-        if (playerName === winnerName) {
-          stats.winRounds++;
-          const fan = score.base_score;
-          stats.totalWinFan += fan;
-
-          if (fan >= 8 && fan <= 15) stats.win8to15++;
-          else if (fan >= 16 && fan <= 30) stats.win16to30++;
-          else if (fan >= 31 && fan <= 63) stats.win31to63++;
-          else if (fan >= 64) stats.win64plus++;
-
-          if (!score.loser_position) {
-            stats.selfDrawRounds++;
-            if (fan > stats.maxFanSelfDraw) stats.maxFanSelfDraw = fan;
-          } else {
-             if (fan > stats.maxFanRong) stats.maxFanRong = fan;
-          }
-        }
-
-        if (playerName === loserName) {
-          stats.loserRounds++;
-          stats.totalLoserFan += score.base_score;
-        }
-      });
-    });
-
-    const detailStatsArray: PlayerDetailStats[] = Array.from(playerStatsMap.entries())
-      .map(([name, data]) => ({
-        player_name: name,
-        total_rounds: data.totalRounds,
-        win_rounds: data.winRounds,
-        self_draw_rounds: data.selfDrawRounds,
-        loser_rounds: data.loserRounds,
-        win_rate: data.totalRounds > 0 ? (data.winRounds / data.totalRounds) * 100 : 0,
-        self_draw_rate: data.winRounds > 0 ? (data.selfDrawRounds / data.winRounds) * 100 : 0,
-        loser_rate: data.totalRounds > 0 ? (data.loserRounds / data.totalRounds) * 100 : 0,
-        avg_win_fan: data.winRounds > 0 ? data.totalWinFan / data.winRounds : 0,
-        avg_loser_fan: data.loserRounds > 0 ? data.totalLoserFan / data.loserRounds : 0,
-      }))
-      .filter(stat => stat.total_rounds > 0);
-
-    // Re-map to include filtering
-    const validPlayers = new Set(detailStatsArray.map(s => s.player_name));
-    const filteredWinningStats = Array.from(playerStatsMap.entries())
-        .filter(([name]) => validPlayers.has(name))
-        .map(([name, data]) => ({
-            player_name: name,
-            total_win_rounds: data.winRounds,
-            win_8_15: data.win8to15,
-            win_16_30: data.win16to30,
-            win_31_63: data.win31to63,
-            win_64_plus: data.win64plus,
-            max_fan_rong: data.maxFanRong,
-            max_fan_self_draw: data.maxFanSelfDraw,
-        }));
-
-    setDetailStats(detailStatsArray);
-    setWinningStats(filteredWinningStats);
-  };
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
