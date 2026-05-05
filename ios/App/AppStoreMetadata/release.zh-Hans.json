@@ -1,0 +1,69 @@
+{
+  "appId": "6758918094",
+  "bundleId": "com.mjscoreboard.app",
+  "appInfoId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
+  "appInfoLocalizationId": "12a32098-1406-4e4f-a3e4-eceb5e30c155",
+  "appStoreVersionId": "4fe93cf6-1861-4be7-bb49-cefbc95fba22",
+  "appStoreVersionLocalizationId": "289b6f3c-b60f-44ad-9923-e515d7c653d8",
+  "ageRatingDeclarationId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
+  "buildId": "2a30bd48-a882-4697-86b0-2c5db23af0f6",
+  "primaryCategoryId": "UTILITIES",
+  "screenshotDisplayType": "APP_IPHONE_65",
+  "appInfoLocalization": {
+    "name": "国标麻将实时计分板",
+    "subtitle": "国标麻将比赛计分助手",
+    "privacyPolicyUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-privacy.md"
+  },
+  "version": {
+    "copyright": "2026 Rui Li",
+    "releaseType": "AFTER_APPROVAL",
+    "usesIdfa": false
+  },
+  "versionLocalization": {
+    "promotionalText": "为国标麻将线下比赛设计的实时计分工具，支持16盘制、座位轮换、战绩统计和本地数据备份。",
+    "description": "国标麻将实时计分板是一款面向线下国标麻将比赛的计分工具，适合俱乐部、牌友聚会和训练赛使用。\n\n主要功能：\n- 支持16盘制国标麻将比赛流程\n- 自动处理东南西北座位轮换\n- 支持自摸、点炮、荒庄和裁判判罚记录\n- 实时展示四位选手分数和当前局次\n- 保存比赛历史，便于复盘和继续未完成比赛\n- 提供选手战绩统计，包括标准分、和牌、放铳等数据\n- 支持本地数据导入导出，方便备份和换机\n- 可连接蓝牙ESP32计分设备，实现一人一屏显示\n\n所有比赛数据保存在本机，本应用不需要注册账号，不上传比赛记录，不包含广告和内购。",
+    "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,本地数据,竞技麻将",
+    "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
+    "marketingUrl": null
+  },
+  "reviewDetail": {
+    "contactFirstName": "Rui",
+    "contactLastName": "Li",
+    "contactPhone": "13501165270",
+    "contactEmail": "13501165270@163.com",
+    "demoAccountRequired": false,
+    "demoAccountName": "",
+    "demoAccountPassword": "",
+    "notes": "本应用无需账号登录。主要功能为本地国标麻将比赛计分、历史记录和统计。蓝牙ESP32计分牌为可选外设，审核时不连接外设也可以完整测试核心计分流程：打开应用后填写比赛名称和四位选手姓名，点击“开始比赛”，选择任意玩家的“和”按钮录入自摸或点炮分数，也可以使用“荒庄”“判罚”“修改”“比赛历史”“成绩统计”等功能。"
+  },
+  "ageRating": {
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gambling": false,
+    "gamblingSimulated": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "profanityOrCrudeHumor": "NONE",
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "unrestrictedWebAccess": false,
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "violenceRealistic": "NONE",
+    "kidsAgeBand": null,
+    "messagingAndChat": false,
+    "parentalControls": false,
+    "advertising": false,
+    "healthOrWellnessTopics": false,
+    "lootBox": false,
+    "ageAssurance": false,
+    "userGeneratedContent": false,
+    "gunsOrOtherWeapons": false
+  },
+  "screenshots": [
+    "ios/App/AppStoreScreenshots/zh-Hans/01-home-quick-start-1284x2778.png",
+    "ios/App/AppStoreScreenshots/zh-Hans/02-live-scoreboard-1284x2778.png",
+    "ios/App/AppStoreScreenshots/zh-Hans/03-score-entry-1284x2778.png"
+  ]
+}
