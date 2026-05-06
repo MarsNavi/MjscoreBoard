@@ -6,7 +6,7 @@
   "appStoreVersionId": "4fe93cf6-1861-4be7-bb49-cefbc95fba22",
   "appStoreVersionLocalizationId": "289b6f3c-b60f-44ad-9923-e515d7c653d8",
   "ageRatingDeclarationId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
-  "buildId": "2a30bd48-a882-4697-86b0-2c5db23af0f6",
+  "buildId": "ff8b26ad-1709-4cff-b2a3-fc073f69ee14",
   "primaryCategoryId": "UTILITIES",
   "screenshotDisplayType": "APP_IPHONE_65",
   "appInfoLocalization": {
@@ -29,12 +29,12 @@
   "reviewDetail": {
     "contactFirstName": "Rui",
     "contactLastName": "Li",
-    "contactPhone": "13501165270",
+    "contactPhone": "+8613501165270",
     "contactEmail": "13501165270@163.com",
     "demoAccountRequired": false,
     "demoAccountName": "",
     "demoAccountPassword": "",
-    "notes": "本应用无需账号登录。主要功能为本地国标麻将比赛计分、历史记录和统计。蓝牙ESP32计分牌为可选外设，审核时不连接外设也可以完整测试核心计分流程：打开应用后填写比赛名称和四位选手姓名，点击“开始比赛”，选择任意玩家的“和”按钮录入自摸或点炮分数，也可以使用“荒庄”“判罚”“修改”“比赛历史”“成绩统计”等功能。"
+    "notes": "本应用无需账号登录。主要功能为本地国标麻将比赛计分、历史记录和统计。App 可通过 Bluetooth LE 连接外部 ESP32 计分显示设备：在比赛页面点击右下角蓝色蓝牙按钮，打开“蓝牙设备管理”，点击“开始扫描”，扫描到 ESP32 计分牌后可绑定到东/南/西/北任一座位。手机 App 作为 BLE central 连接 ESP32 peripheral，负责比分计算、数据存储，并向计分牌发送玩家姓名和实时比分；ESP32 也可通过 BLE 通知回传按键事件。声明 bluetooth-central 后台模式是为了比赛进行中用户锁屏或切到后台时，已连接的 ESP32 计分设备仍能维持连接并接收/回传比赛数据。本 App 不作为 BLE peripheral 广播服务。没有外部设备时，审核也可以完整测试核心计分流程：打开应用后填写比赛名称和四位选手姓名，点击“开始比赛”，选择任意玩家的“和”按钮录入自摸或点炮分数，也可以使用“荒庄”“判罚”“修改”“比赛历史”“成绩统计”等功能。"
   },
   "ageRating": {
     "alcoholTobaccoOrDrugUseOrReferences": "NONE",
