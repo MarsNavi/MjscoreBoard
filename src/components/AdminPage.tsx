@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { ArrowLeft, Users, Trophy, Hash } from 'lucide-react';
+import { normalizePlayerName } from '../lib/playerNames';
 
 interface UserStats {
   id: string;
@@ -52,7 +53,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
           totalScores = scoresCount || 0;
 
           uniquePlayerNames = new Set(
-            (players || []).map(p => p.name)
+            (players || []).map(p => normalizePlayerName(p.name, p.player_id))
           ).size;
         }
 

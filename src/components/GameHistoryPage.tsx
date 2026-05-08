@@ -3,6 +3,7 @@ import { User, Game } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft, Calendar, Trophy, Play, Trash2 } from 'lucide-react';
 import { buildPlayersWithCalculatedScores } from '../lib/gameScoring';
+import { normalizePlayerName } from '../lib/playerNames';
 
 interface GameHistoryPageProps {
   user: User;
@@ -33,7 +34,7 @@ const calculateGameScoresFromDetails = async (gameId: string): Promise<GameResul
   const penalty = await db.penalties.where('game_id').equals(gameId).first();
   const playersWithScores = buildPlayersWithCalculatedScores(players, scores, penalty);
   return playersWithScores.map((player) => ({
-    player_name: player.name,
+    player_name: normalizePlayerName(player.name, player.player_id),
     final_score: player.score,
   }));
 };
@@ -99,10 +100,13 @@ export default function GameHistoryPage({
             const results = await calculateGameScoresFromDetails(gameId);
             if (results) {
               results.forEach(result => {
-                if (!playerTotals[result.player_name]) {
-                  playerTotals[result.player_name] = 0;
+                const playerName = normalizePlayerName(result.player_name);
+                if (!playerName) return;
+
+                if (!playerTotals[playerName]) {
+                  playerTotals[playerName] = 0;
                 }
-                playerTotals[result.player_name] += result.final_score;
+                playerTotals[playerName] += result.final_score;
               });
             }
           })

@@ -21,6 +21,7 @@ import {
   buildPlayersWithCalculatedScores,
   getPositionForPlayerInRound,
 } from './lib/gameScoring';
+import { normalizePlayerName } from './lib/playerNames';
 
 const TOTAL_GAMES = 16;
 
@@ -64,7 +65,10 @@ function App() {
     const snapshot = loadLocalGameSnapshot(userId);
     if (!snapshot) return;
     setGame(snapshot.game);
-    setPlayers(snapshot.players);
+    setPlayers(snapshot.players.map((player) => ({
+      ...player,
+      name: normalizePlayerName(player.name, player.player_id),
+    })));
     setGameStarted(true);
     setIsConfirmMode(snapshot.isConfirmMode);
     if (snapshot.currentPenalties) {
@@ -73,7 +77,32 @@ function App() {
       setCurrentPenalties(undefined);
     }
     if (snapshot.game.game_name) {
-      setGameName(snapshot.game.game_name);
+      setGameName(snapshot.game.game_name.trim());
+    }
+  };
+
+  const normalizeStoredPlayerNames = async () => {
+    const allPlayers = await db.players.toArray();
+    const changedPlayers = allPlayers
+      .map((player) => ({
+        ...player,
+        name: normalizePlayerName(player.name, player.player_id),
+      }))
+      .filter((player, index) => player.name !== allPlayers[index].name);
+
+    const allResults = await db.game_results.toArray();
+    const changedResults = allResults
+      .map((result) => ({
+        ...result,
+        player_name: normalizePlayerName(result.player_name, result.player_id),
+      }))
+      .filter((result, index) => result.player_name !== allResults[index].player_name);
+
+    if (changedPlayers.length > 0) {
+      await db.players.bulkPut(changedPlayers);
+    }
+    if (changedResults.length > 0) {
+      await db.game_results.bulkPut(changedResults);
     }
   };
 
@@ -132,6 +161,8 @@ function App() {
 
         await db.users.where('id').anyOf(otherUserIds).delete();
       }
+
+      await normalizeStoredPlayerNames();
 
       setCurrentUser(targetUser);
       localStorage.setItem('mahjong_user_id', targetUser.id);
@@ -196,7 +227,7 @@ function App() {
       current_round: 1,
       current_game: 1,
       status: 'active',
-      game_name: gameName || undefined,
+      game_name: gameName.trim() || undefined,
       creator_id: currentUser.id,
       created_at: new Date().toISOString()
     };
@@ -220,7 +251,7 @@ function App() {
     
     for (const playerId of playerIds) {
       const position = initialMapping[playerId];
-      const playerName = tempPlayerNames[position] || playerId;
+      const playerName = normalizePlayerName(tempPlayerNames[position], playerId);
       const player: Player = {
         id: crypto.randomUUID(),
         game_id: gameId,

@@ -4,6 +4,7 @@ import { History, TrendingUp, HelpCircle, Download, Upload } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
+import { normalizePlayerName } from '../lib/playerNames';
 
 interface HomePageProps {
   user: User;
@@ -59,8 +60,9 @@ export default function HomePage({
 
     if (results && results.length > 0) {
       results.forEach((result) => {
-        if (result.player_name) {
-          nameCounts[result.player_name] = (nameCounts[result.player_name] || 0) + 1;
+        const playerName = normalizePlayerName(result.player_name);
+        if (playerName) {
+          nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
         }
       });
     }
@@ -72,8 +74,9 @@ export default function HomePage({
         .toArray();
 
       players.forEach((player) => {
-        if (player.name) {
-          nameCounts[player.name] = (nameCounts[player.name] || 0) + 1;
+        const playerName = normalizePlayerName(player.name, player.player_id);
+        if (playerName) {
+          nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
         }
       });
     }
@@ -100,7 +103,7 @@ export default function HomePage({
       
       if (players) {
         players.forEach(player => {
-          onNameChange(player.position as Position, player.name);
+          onNameChange(player.position as Position, normalizePlayerName(player.name, player.player_id));
         });
       }
     }
@@ -166,7 +169,10 @@ export default function HomePage({
           await db.games.bulkPut(data.games as Game[]);
         }
         if (data.players && data.players.length > 0) {
-          await db.players.bulkPut(data.players as Player[]);
+          await db.players.bulkPut(data.players.map((player) => ({
+            ...player,
+            name: normalizePlayerName(player.name, player.player_id),
+          })) as Player[]);
         }
         if (data.scores && data.scores.length > 0) {
           await db.scores.bulkPut(data.scores as ScoreRecord[]);
@@ -175,7 +181,10 @@ export default function HomePage({
           await db.penalties.bulkPut(data.penalties as Penalty[]);
         }
         if (data.game_results && data.game_results.length > 0) {
-          await db.game_results.bulkPut(data.game_results as GameResult[]);
+          await db.game_results.bulkPut(data.game_results.map((result) => ({
+            ...result,
+            player_name: normalizePlayerName(result.player_name, result.player_id),
+          })) as GameResult[]);
         }
       });
 
@@ -200,10 +209,16 @@ export default function HomePage({
   const handleExportData = async () => {
     try {
       const games = await db.games.toArray();
-      const players = await db.players.toArray();
+      const players = (await db.players.toArray()).map((player) => ({
+        ...player,
+        name: normalizePlayerName(player.name, player.player_id),
+      }));
       const scores = await db.scores.toArray();
       const penalties = await db.penalties.toArray();
-      const game_results = await db.game_results.toArray();
+      const game_results = (await db.game_results.toArray()).map((result) => ({
+        ...result,
+        player_name: normalizePlayerName(result.player_name, result.player_id),
+      }));
       const users = await db.users.toArray();
 
       const data = {

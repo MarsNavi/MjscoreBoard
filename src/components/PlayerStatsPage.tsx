@@ -3,6 +3,7 @@ import { User, GameResult } from '../lib/types';
 import { db } from '../lib/db';
 import { ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { buildGameResults, buildPlayersWithCalculatedScores } from '../lib/gameScoring';
+import { normalizePlayerName } from '../lib/playerNames';
 
 interface PlayerStats {
   player_name: string;
@@ -131,8 +132,9 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
     }>();
 
     players.forEach((player) => {
-      if (!playerStatsMap.has(player.name)) {
-        playerStatsMap.set(player.name, {
+      const playerName = normalizePlayerName(player.name, player.player_id);
+      if (!playerStatsMap.has(playerName)) {
+        playerStatsMap.set(playerName, {
           totalRounds: 0,
           winRounds: 0,
           selfDrawRounds: 0,
@@ -154,7 +156,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
       if (!playerIdToName.has(player.game_id)) {
         playerIdToName.set(player.game_id, new Map());
       }
-      playerIdToName.get(player.game_id)!.set(player.player_id, player.name);
+      playerIdToName.get(player.game_id)!.set(player.player_id, normalizePlayerName(player.name, player.player_id));
     });
 
     scores.forEach((score) => {
@@ -261,7 +263,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
              id: crypto.randomUUID(),
              game_id: gameId,
              player_id: r.player_id,
-             player_name: r.player_name,
+             player_name: normalizePlayerName(r.player_name, r.player_id),
              final_score: r.final_score,
              rank: r.rank,
              standard_score: r.standard_score,
@@ -297,7 +299,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
             // Since we just rebuilt the cache, we can trust the data in DB.
             // But we still sort just in case.
              gameResultsForStats = gameResultRows.map(r => ({
-                player_name: r.player_name,
+                player_name: normalizePlayerName(r.player_name, r.player_id),
                 final_score: Number(r.final_score),
                 standard_score: Number(r.standard_score)
              }));
@@ -311,12 +313,15 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
         }
 
         gameResultsForStats.forEach((result) => {
-          const existing = playerMap.get(result.player_name) || {
+          const playerName = normalizePlayerName(result.player_name);
+          if (!playerName) return;
+
+          const existing = playerMap.get(playerName) || {
             totalStandardScore: 0,
             totalGameScore: 0,
             count: 0,
           };
-          playerMap.set(result.player_name, {
+          playerMap.set(playerName, {
             totalStandardScore: existing.totalStandardScore + Number(result.standard_score),
             totalGameScore: existing.totalGameScore + Number(result.final_score),
             count: existing.count + 1,

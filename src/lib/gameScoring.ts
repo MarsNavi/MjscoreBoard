@@ -1,4 +1,5 @@
 import { GameResult, Penalty, Player, PlayerId, Position, ScoreRecord } from './types';
+import { normalizePlayerName } from './playerNames';
 
 const STANDARD_SCORES = [4, 2, 1, 0];
 
@@ -95,7 +96,7 @@ export const buildGameResults = (
       id: crypto.randomUUID(),
       game_id: gameId,
       player_id: player.player_id,
-      player_name: player.name,
+      player_name: normalizePlayerName(player.name, player.player_id),
       final_score: player.score,
       rank,
       standard_score: standardScore,
