@@ -1,6 +1,6 @@
 import { User, Position, Game, Player, ScoreRecord, Penalty, GameResult } from '../lib/types';
 import { db } from '../lib/db';
-import { Database, FilePlus, FolderOpen, GitMerge, HelpCircle, History, Pencil, Plus, Trash2, TrendingUp, Upload } from 'lucide-react';
+import { Database, FilePlus, FolderOpen, GitMerge, HelpCircle, History, Pencil, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
@@ -63,6 +63,18 @@ export default function HomePage({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentDataFile = dataFiles.find((file) => file.id === user.id);
+  const activeFileName = currentDataFile?.name || user.code;
+
+  const formatLastGameDate = (dateString?: string) => {
+    if (!dateString) {
+      return '暂无';
+    }
+
+    return new Date(dateString).toLocaleDateString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
 
   const loadCommonNames = useCallback(async () => {
     const games = await db.games.where('creator_id').equals(user.id).toArray();
@@ -276,13 +288,6 @@ export default function HomePage({
             </h1>
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <button
-                onClick={handleExportData}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 sm:px-4 py-2 rounded-xl transition-all backdrop-blur-sm hover:scale-105 shadow-lg"
-              >
-                <Upload size={18} />
-                <span className="text-sm sm:text-base font-semibold">导出当前</span>
-              </button>
-              <button
                 onClick={onViewHelp}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 sm:px-4 py-2 rounded-xl transition-all backdrop-blur-sm hover:scale-105 shadow-lg"
               >
@@ -306,30 +311,38 @@ export default function HomePage({
         <div className="w-full max-w-2xl">
           <div className="bg-white/95 rounded-3xl shadow-xl p-5 sm:p-6 mb-6 border-2 border-amber-100 relative overflow-hidden">
             <div className="absolute -top-16 -right-16 w-36 h-36 bg-gradient-to-br from-amber-200/40 to-orange-200/20 rounded-full"></div>
-            <div className="relative space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center gap-3">
+            <div className="relative space-y-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
                   <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
                     <Database size={22} className="text-white" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-orange-500 uppercase tracking-wider">当前数据文件</div>
-                    <div className="text-xl font-black text-gray-900">{currentDataFile?.name || user.code}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-black text-orange-500 uppercase tracking-wider">数据文件</span>
+                      <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">共 {dataFiles.length} 个</span>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">当前使用</span>
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-gray-900">{activeFileName}</div>
+                    <p className="mt-1 text-sm text-gray-500">历史、统计、常用选手都只读取当前数据文件。</p>
                   </div>
                 </div>
-                <select
-                  value={user.id}
-                  onChange={(event) => {
-                    void onSwitchDataFile(event.target.value);
-                  }}
-                  className="sm:w-56 px-4 py-3 rounded-2xl border-2 border-orange-200 bg-white font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                >
-                  {dataFiles.map((file) => (
-                    <option key={file.id} value={file.id}>
-                      {file.name}（{file.games_count}场）
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full sm:w-60">
+                  <label className="mb-1 block text-xs font-bold text-gray-500">切换数据文件</label>
+                  <select
+                    value={user.id}
+                    onChange={(event) => {
+                      void onSwitchDataFile(event.target.value);
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-orange-200 bg-white font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  >
+                    {dataFiles.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name}（{file.games_count}场）
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -341,61 +354,72 @@ export default function HomePage({
                   <div className="text-lg font-black text-rose-600">{currentDataFile?.finished_games_count ?? 0}</div>
                   <div className="text-xs font-semibold text-gray-500">已完成</div>
                 </div>
-                <div className="bg-amber-50 rounded-2xl px-3 py-2 border border-amber-100">
-                  <div className="text-lg font-black text-amber-700">{dataFiles.length}</div>
-                  <div className="text-xs font-semibold text-gray-500">数据文件</div>
+                <div className="bg-emerald-50 rounded-2xl px-3 py-2 border border-emerald-100">
+                  <div className="text-lg font-black text-emerald-700">{formatLastGameDate(currentDataFile?.last_game_at)}</div>
+                  <div className="text-xs font-semibold text-gray-500">最近比赛</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <button
-                  onClick={() => {
-                    void onCreateDataFile();
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold transition-colors"
-                >
-                  <Plus size={16} />
-                  新建
-                </button>
-                <button
-                  onClick={() => {
-                    void onRenameDataFile();
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold transition-colors"
-                >
-                  <Pencil size={16} />
-                  重命名
-                </button>
-                <button
-                  onClick={() => {
-                    void onDeleteDataFile();
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition-colors"
-                >
-                  <Trash2 size={16} />
-                  删除
-                </button>
-                <button
-                  onClick={() => handleImportClick('open')}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors"
-                >
-                  <FolderOpen size={16} />
-                  打开文件
-                </button>
-                <button
-                  onClick={() => handleImportClick('merge')}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold transition-colors"
-                >
-                  <GitMerge size={16} />
-                  合并文件
-                </button>
-                <button
-                  onClick={handleExportData}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold transition-colors"
-                >
-                  <FilePlus size={16} />
-                  导出文件
-                </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-3">
+                  <div className="mb-2 text-xs font-black tracking-wider text-orange-700">文件管理</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => {
+                        void onCreateDataFile();
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-orange-100 text-orange-700 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <Plus size={15} />
+                      新建
+                    </button>
+                    <button
+                      onClick={() => {
+                        void onRenameDataFile();
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-amber-100 text-amber-700 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <Pencil size={15} />
+                      重命名
+                    </button>
+                    <button
+                      onClick={() => {
+                        void onDeleteDataFile();
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-red-100 text-red-600 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <Trash2 size={15} />
+                      删除
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
+                  <div className="mb-2 text-xs font-black tracking-wider text-blue-700">导入导出</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handleImportClick('open')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-blue-100 text-blue-700 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <FolderOpen size={15} />
+                      打开文件
+                    </button>
+                    <button
+                      onClick={() => handleImportClick('merge')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-emerald-100 text-emerald-700 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <GitMerge size={15} />
+                      合并文件
+                    </button>
+                    <button
+                      onClick={handleExportData}
+                      className="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl bg-white hover:bg-purple-100 text-purple-700 text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                    >
+                      <FilePlus size={15} />
+                      导出文件
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="text-xs text-gray-500 leading-relaxed bg-orange-50/70 rounded-2xl px-4 py-3 border border-orange-100">
