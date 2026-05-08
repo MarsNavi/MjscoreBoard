@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { User, GameResult } from '../lib/types';
 import { db } from '../lib/db';
-import { ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, Loader2, Share2 } from 'lucide-react';
 import { buildGameResults, buildPlayersWithCalculatedScores } from '../lib/gameScoring';
 import { normalizePlayerName } from '../lib/playerNames';
+import { blobToBase64, createStatsShareImage } from '../lib/statsShareImage';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 interface PlayerStats {
   player_name: string;
@@ -72,6 +76,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
   const [detailStats, setDetailStats] = useState<PlayerDetailStats[]>([]);
   const [winningStats, setWinningStats] = useState<PlayerWinningStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [sortField, setSortField] = useState<SortField>('total_standard_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -349,6 +354,71 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
     void loadStats();
   }, [loadStats]);
 
+  const getShareFileName = () => {
+    const now = new Date();
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `mahjong_stats_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.png`;
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareStats = async () => {
+    if (loading || sortedStats.length === 0 || sharing) return;
+
+    setSharing(true);
+    try {
+      const fileName = getShareFileName();
+      const blob = await createStatsShareImage({
+        summaryStats: sortedStats,
+        detailStats,
+        winningStats,
+        generatedAt: new Date(),
+      });
+
+      if (Capacitor.isNativePlatform()) {
+        const data = await blobToBase64(blob);
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: '国标麻将成绩统计',
+          text: '国标麻将比赛成绩统计长图',
+          files: [savedFile.uri],
+          dialogTitle: '分享成绩统计',
+        });
+        return;
+      }
+
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: '国标麻将成绩统计',
+          text: '国标麻将比赛成绩统计长图',
+          files: [file],
+        });
+      } else {
+        downloadBlob(blob, fileName);
+      }
+    } catch (error) {
+      console.error('Share stats failed:', error);
+      alert('分享失败，请稍后重试。');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
       <div className="max-w-3xl mx-auto">
@@ -360,9 +430,17 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
             >
               <ArrowLeft size={24} />
             </button>
-<div className="flex-1">
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-800">成绩统计</h1>
             </div>
+            <button
+              onClick={handleShareStats}
+              disabled={loading || stats.length === 0 || sharing}
+              className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+              <span className="hidden sm:inline">{sharing ? '生成中' : '分享'}</span>
+            </button>
           </div>
 
           {loading ? (

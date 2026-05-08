@@ -23,6 +23,7 @@
     "@capacitor/core": "^8.0.1",
     "@capacitor/filesystem": "^8.1.0",
     "@capacitor/ios": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
     "dexie": "^4.2.1",
     "lucide-react": "^0.344.0",
     "lv_font_conv": "^1.5.3",
