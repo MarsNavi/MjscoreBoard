@@ -41,6 +41,9 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                   <strong className="text-gray-900">成绩统计支持长图分享：</strong>在成绩统计页新增分享按钮，可生成包含战绩一览、详细数据和和牌数据的长图，方便赛后保存和转发。
                 </li>
                 <li>
+                  <strong className="text-gray-900">新增数据文件切换：</strong>支持为不同牌友圈创建独立数据文件，也可以把外部 JSON 打开为新数据文件，或合并到当前数据文件。
+                </li>
+                <li>
                   <strong className="text-gray-900">修正同名选手统计：</strong>自动清理名字前后的空格，避免同一个人因为输入差异被拆成多条统计记录。
                 </li>
                 <li>
