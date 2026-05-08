@@ -6,8 +6,8 @@
 #include "LGFX_SC01Plus.hpp"
 #include <lvgl.h>
 
-LV_FONT_DECLARE(lv_font_sh_bold_22);
 LV_FONT_DECLARE(lv_font_sh_bold_40);
+LV_FONT_DECLARE(lv_font_wqy_20);
 
 // --- Colors (Tailwind Match) ---
 #define C_SLATE_950 lv_color_hex(0x000000)
@@ -330,7 +330,7 @@ static void event_handler_game_btn(lv_event_t * e) {
             // Style the message box
             lv_obj_set_style_bg_color(mbox, C_SLATE_800, 0);
             lv_obj_set_style_text_color(mbox, C_SLATE_100, 0);
-            lv_obj_set_style_text_font(mbox, &lv_font_sh_bold_22, 0);
+            lv_obj_set_style_text_font(mbox, &lv_font_wqy_20, 0);
             lv_obj_set_style_border_color(mbox, C_SLATE_600, 0);
             lv_obj_set_style_border_width(mbox, 2, 0);
             lv_obj_set_style_shadow_width(mbox, 20, 0);
@@ -342,7 +342,7 @@ static void event_handler_game_btn(lv_event_t * e) {
             lv_obj_set_style_height(btns_obj, 50, 0); // Taller buttons
             lv_obj_set_style_bg_color(btns_obj, C_SLATE_600, LV_PART_ITEMS);
             lv_obj_set_style_text_color(btns_obj, lv_color_white(), LV_PART_ITEMS);
-            lv_obj_set_style_text_font(btns_obj, &lv_font_sh_bold_22, 0);
+            lv_obj_set_style_text_font(btns_obj, &lv_font_wqy_20, 0);
             
         } else if (obj == btn_player_confirm) {
             sendText("BTN:CONFIRM\n");
@@ -474,7 +474,7 @@ void create_connect_screen() {
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
     lv_obj_set_style_text_color(label, C_SLATE_200, 0);
-    lv_obj_set_style_text_font(label, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(label, &lv_font_wqy_20, 0);
     
     lv_obj_t * spinner = lv_spinner_create(scr_connect, 1000, 60);
     lv_obj_set_size(spinner, 50, 50);
@@ -482,10 +482,10 @@ void create_connect_screen() {
     lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
 
     lv_obj_t * ver = lv_label_create(scr_connect);
-    lv_label_set_text(ver, "v1.3");
+    lv_label_set_text(ver, "v1.4");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
-    lv_obj_set_style_text_font(ver, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
 }
 
 void create_waiting_screen() {
@@ -496,19 +496,19 @@ void create_waiting_screen() {
     lv_label_set_text(label, "蓝牙已连接");
     lv_obj_align(label, LV_ALIGN_CENTER, 0, -30);
     lv_obj_set_style_text_color(label, C_EMERALD_500, 0);
-    lv_obj_set_style_text_font(label, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(label, &lv_font_wqy_20, 0);
 
     lv_obj_t * sub = lv_label_create(scr_waiting);
     lv_label_set_text(sub, "等待开局...");
     lv_obj_align(sub, LV_ALIGN_CENTER, 0, 20);
     lv_obj_set_style_text_color(sub, C_SLATE_400, 0);
-    lv_obj_set_style_text_font(sub, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
 
     lv_obj_t * ver = lv_label_create(scr_waiting);
-    lv_label_set_text(ver, "v1.3");
+    lv_label_set_text(ver, "v1.4");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
-    lv_obj_set_style_text_font(ver, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
 }
 
 void create_game_screen() {
@@ -542,7 +542,7 @@ void create_game_screen() {
     lv_obj_set_style_bg_color(lbl_device_id, C_SLATE_900, 0);
     lv_obj_set_style_bg_opa(lbl_device_id, LV_OPA_90, 0);
     lv_obj_set_style_text_color(lbl_device_id, C_SLATE_400, 0);
-    lv_obj_set_style_text_font(lbl_device_id, &lv_font_sh_bold_22, 0); // Monospaced font if possible, bold 22 is fine
+    lv_obj_set_style_text_font(lbl_device_id, &lv_font_wqy_20, 0);
     lv_obj_set_style_pad_all(lbl_device_id, 4, 0);
     lv_obj_set_style_radius(lbl_device_id, 4, 0);
 
@@ -585,7 +585,7 @@ void create_game_screen() {
         // Name Label
         lbl_names[i] = lv_label_create(cont_players[i]);
         lv_label_set_text(lbl_names[i], "");
-        lv_obj_set_style_text_font(lbl_names[i], &lv_font_sh_bold_22, 0);
+        lv_obj_set_style_text_font(lbl_names[i], &lv_font_wqy_20, 0);
         if (pos_cfg[i].is_self) {
             lv_obj_set_style_text_color(lbl_names[i], lv_color_white(), 0);
         } else {
@@ -618,7 +618,7 @@ void create_game_screen() {
     lv_obj_t* l_conf = lv_label_create(btn_player_confirm);
     lv_label_set_text(l_conf, "确认成绩");
     lv_obj_center(l_conf);
-    lv_obj_set_style_text_font(l_conf, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(l_conf, &lv_font_wqy_20, 0);
     lv_obj_set_style_text_color(l_conf, C_SLATE_900, 0);
     
     lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
@@ -651,7 +651,7 @@ void create_game_screen() {
     lv_label_set_text(lbl_game_info, "未开局");
     lv_obj_center(lbl_game_info);
     lv_obj_set_style_text_color(lbl_game_info, C_SLATE_400, 0);
-    lv_obj_set_style_text_font(lbl_game_info, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(lbl_game_info, &lv_font_wqy_20, 0);
 
     // 2. Center Hu Button
     btn_hu = lv_btn_create(cont_sidebar);
@@ -668,7 +668,7 @@ void create_game_screen() {
     lv_obj_t* lbl_hu = lv_label_create(btn_hu);
     lv_label_set_text(lbl_hu, "和");
     lv_obj_center(lbl_hu);
-    lv_obj_set_style_text_font(lbl_hu, &lv_font_sh_bold_22, 0); // Use 22px as 40px font lacks CJK
+    lv_obj_set_style_text_font(lbl_hu, &lv_font_wqy_20, 0); // Full CJK font for labels
     lv_obj_set_style_text_color(lbl_hu, lv_color_white(), 0);
 
     // Game Over Button (Replaces Hu when game over)
@@ -686,7 +686,7 @@ void create_game_screen() {
     lv_label_set_text(l_go, "比赛\n结束");
     lv_obj_center(l_go);
     lv_obj_set_style_text_align(l_go, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(l_go, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(l_go, &lv_font_wqy_20, 0);
     lv_obj_set_style_text_color(l_go, lv_color_white(), 0);
 
     // 3. Bottom Buttons (Huang, Diff)
@@ -710,7 +710,7 @@ void create_game_screen() {
     lv_obj_t* l_huang = lv_label_create(btn_huang);
     lv_label_set_text(l_huang, "荒");
     lv_obj_center(l_huang);
-    lv_obj_set_style_text_font(l_huang, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(l_huang, &lv_font_wqy_20, 0);
     
     // Diff
     btn_diff = lv_btn_create(row_btm);
@@ -721,7 +721,7 @@ void create_game_screen() {
     lv_obj_t* l_diff = lv_label_create(btn_diff);
     lv_label_set_text(l_diff, "差");
     lv_obj_center(l_diff);
-    lv_obj_set_style_text_font(l_diff, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(l_diff, &lv_font_wqy_20, 0);
 }
 
 void create_hu_menu() {
@@ -749,7 +749,7 @@ void create_hu_menu() {
     lv_label_set_text(lbl_hu_title, "和牌结算");
     lv_obj_align(lbl_hu_title, LV_ALIGN_TOP_MID, 0, 20);
     lv_obj_set_style_text_color(lbl_hu_title, C_SLATE_200, 0);
-    lv_obj_set_style_text_font(lbl_hu_title, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(lbl_hu_title, &lv_font_wqy_20, 0);
     
     // Content Container (Fit in 480 width)
     lv_obj_t* cont = lv_obj_create(scr_hu);
@@ -785,12 +785,12 @@ void create_hu_menu() {
         // Label 1: Position
         lv_obj_t* l = lv_label_create(btn_hu_opts[i]);
         lv_label_set_text(l, labels[i]);
-        lv_obj_set_style_text_font(l, &lv_font_sh_bold_22, 0);
+        lv_obj_set_style_text_font(l, &lv_font_wqy_20, 0);
         
         // Label 2: Name
         lv_obj_t* l_name = lv_label_create(btn_hu_opts[i]);
         lv_label_set_text(l_name, "--");
-        lv_obj_set_style_text_font(l_name, &lv_font_sh_bold_22, 0);
+        lv_obj_set_style_text_font(l_name, &lv_font_wqy_20, 0);
 
         lv_obj_add_event_cb(btn_hu_opts[i], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)(i + 2));
     }
@@ -803,7 +803,7 @@ void create_hu_menu() {
     lv_obj_t* l_zimo = lv_label_create(btn_hu_opts[3]);
     lv_label_set_text(l_zimo, "自摸");
     lv_obj_center(l_zimo);
-    lv_obj_set_style_text_font(l_zimo, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(l_zimo, &lv_font_wqy_20, 0);
     lv_obj_add_event_cb(btn_hu_opts[3], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)5);
 
     // Row 3: Score Adjust
@@ -870,7 +870,7 @@ void create_hu_menu() {
     lbl_hu_submit = lv_label_create(btn_hu_submit);
     lv_label_set_text(lbl_hu_submit, "确认计分");
     lv_obj_center(lbl_hu_submit);
-    lv_obj_set_style_text_font(lbl_hu_submit, &lv_font_sh_bold_22, 0);
+    lv_obj_set_style_text_font(lbl_hu_submit, &lv_font_wqy_20, 0);
     lv_obj_add_event_cb(btn_hu_submit, event_handler_hu_action, LV_EVENT_CLICKED, (void*)1);
 }
 
