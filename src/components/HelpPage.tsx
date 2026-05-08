@@ -30,6 +30,32 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.4</h2>
+                <p className="text-sm text-gray-500">2026-05-08</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">成绩统计支持长图分享：</strong>在成绩统计页新增分享按钮，可生成包含战绩一览、详细数据和和牌数据的长图，方便赛后保存和转发。
+                </li>
+                <li>
+                  <strong className="text-gray-900">修正同名选手统计：</strong>自动清理名字前后的空格，避免同一个人因为输入差异被拆成多条统计记录。
+                </li>
+                <li>
+                  <strong className="text-gray-900">优化ESP32中文显示：</strong>统一使用完整中文字体资源，降低部分设备中文字显示成方框的概率。
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
                 <h2 className="text-2xl font-bold text-gray-800">v1.3</h2>
                 <p className="text-sm text-gray-500">2026-02-07</p>
               </div>
