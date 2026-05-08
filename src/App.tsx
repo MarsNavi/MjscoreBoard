@@ -22,13 +22,23 @@ import {
   getPositionForPlayerInRound,
 } from './lib/gameScoring';
 import { normalizePlayerName } from './lib/playerNames';
+import {
+  createBlankDataFile,
+  DataFileSummary,
+  deleteDataFile,
+  getDataFileName,
+  loadDataFileSummaries,
+  renameDataFile,
+} from './lib/dataFiles';
 
 const TOTAL_GAMES = 16;
+const DEFAULT_DATA_FILE_ID = 'default-data-file';
 
 type PageView = 'home' | 'game' | 'history' | 'stats' | 'gameDetail' | 'help' | 'admin';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [dataFiles, setDataFiles] = useState<DataFileSummary[]>([]);
   const [currentPage, setCurrentPage] = useState<PageView>('home');
   const [showBleModal, setShowBleModal] = useState(false);
   const [game, setGame] = useState<Game | null>(null);
@@ -120,50 +130,48 @@ function App() {
     keepAwake();
 
     const initLocalUser = async () => {
-      let targetUser = await db.users.where('code').equals('micken').first();
+      const storedUserId = localStorage.getItem('mahjong_user_id');
+      let allUsers = await db.users.toArray();
 
-      if (!targetUser) {
-        const storedUserId = localStorage.getItem('mahjong_user_id');
-        if (storedUserId) {
-          const storedUser = await db.users.get(storedUserId);
-          if (storedUser) {
-            targetUser = storedUser;
-          }
-        }
-      }
-
-      if (!targetUser) {
+      if (allUsers.length === 0) {
         const newUser: User = {
-          id: crypto.randomUUID(),
-          code: 'local',
+          id: DEFAULT_DATA_FILE_ID,
+          code: '默认数据',
           created_at: new Date().toISOString(),
           last_login_at: new Date().toISOString(),
         };
-        await db.users.add(newUser);
-        targetUser = newUser;
+        try {
+          await db.users.add(newUser);
+          allUsers = [newUser];
+        } catch {
+          allUsers = await db.users.toArray();
+        }
       }
 
-      const allUsers = await db.users.toArray();
-      const otherUsers = allUsers.filter((u) => u.id !== targetUser!.id);
+      if (allUsers.length === 1 && ['local', 'micken'].includes(allUsers[0].code)) {
+        await db.users.update(allUsers[0].id, { code: '默认数据' });
+        allUsers = [{ ...allUsers[0], code: '默认数据' }];
+      }
 
-      if (otherUsers.length > 0) {
-        const otherUserIds = otherUsers.map((u) => u.id);
-        const otherGames = await db.games.where('creator_id').anyOf(otherUserIds).toArray();
-        const otherGameIds = otherGames.map((g) => g.id);
-
-        if (otherGameIds.length > 0) {
-          await db.scores.where('game_id').anyOf(otherGameIds).delete();
-          await db.penalties.where('game_id').anyOf(otherGameIds).delete();
-          await db.players.where('game_id').anyOf(otherGameIds).delete();
-          await db.game_results.where('game_id').anyOf(otherGameIds).delete();
-          await db.games.where('id').anyOf(otherGameIds).delete();
+      let targetUser: User | undefined;
+      if (storedUserId) {
+        targetUser = allUsers.find((user) => user.id === storedUserId);
+        if (!targetUser) {
+          const storedUser = await db.users.get(storedUserId);
+          if (storedUser) targetUser = storedUser;
         }
+      }
 
-        await db.users.where('id').anyOf(otherUserIds).delete();
+      if (!targetUser) {
+        targetUser =
+          allUsers.find((user) => ['默认数据', 'micken', 'local'].includes(user.code)) ||
+          allUsers.sort((a, b) => new Date(b.last_login_at || b.created_at).getTime() - new Date(a.last_login_at || a.created_at).getTime())[0];
       }
 
       await normalizeStoredPlayerNames();
 
+      const summaries = await loadDataFileSummaries();
+      setDataFiles(summaries);
       setCurrentUser(targetUser);
       localStorage.setItem('mahjong_user_id', targetUser.id);
       restoreLocalGameSnapshot(targetUser.id);
@@ -380,6 +388,99 @@ function App() {
       north: '',
     });
   }, []);
+
+  const refreshDataFiles = useCallback(async () => {
+    const summaries = await loadDataFileSummaries();
+    setDataFiles(summaries);
+    return summaries;
+  }, []);
+
+  const activateDataFile = useCallback(async (userId: string, skipActiveGameConfirm = false) => {
+    if (currentUser?.id === userId) {
+      await refreshDataFiles();
+      return;
+    }
+
+    if (!skipActiveGameConfirm && gameStarted) {
+      const confirmed = window.confirm('当前数据文件里还有进行中的比赛。切换数据文件会先离开当前比赛，之后仍可从比赛历史继续。确定切换吗？');
+      if (!confirmed) return;
+    }
+
+    const targetUser = await db.users.get(userId);
+    if (!targetUser) {
+      alert('没有找到这个数据文件');
+      return;
+    }
+
+    const updatedUser = {
+      ...targetUser,
+      last_login_at: new Date().toISOString(),
+    };
+    await db.users.update(updatedUser.id, { last_login_at: updatedUser.last_login_at });
+
+    resetActiveGameState();
+    setSelectedGameId(null);
+    setCurrentUser(updatedUser);
+    localStorage.setItem('mahjong_user_id', updatedUser.id);
+    restoreLocalGameSnapshot(updatedUser.id);
+    navigateTo('');
+    await refreshDataFiles();
+  }, [currentUser?.id, gameStarted, navigateTo, refreshDataFiles, resetActiveGameState]);
+
+  const handleCreateDataFile = useCallback(async () => {
+    if (gameStarted) {
+      const confirmed = window.confirm('当前有进行中的比赛。新建并切换数据文件后，可以回到原数据文件继续比赛。确定新建吗？');
+      if (!confirmed) return;
+    }
+
+    const name = window.prompt('给新的数据文件起个名字：', '新牌局数据');
+    if (name === null) return;
+
+    const user = await createBlankDataFile(name);
+    await activateDataFile(user.id, true);
+  }, [activateDataFile, gameStarted]);
+
+  const handleRenameDataFile = useCallback(async () => {
+    if (!currentUser) return;
+
+    const name = window.prompt('修改当前数据文件名称：', getDataFileName(currentUser));
+    if (name === null) return;
+
+    await renameDataFile(currentUser.id, name);
+    const refreshedUser = await db.users.get(currentUser.id);
+    if (refreshedUser) {
+      setCurrentUser(refreshedUser);
+    }
+    await refreshDataFiles();
+  }, [currentUser, refreshDataFiles]);
+
+  const handleDeleteDataFile = useCallback(async () => {
+    if (!currentUser) return;
+    if (dataFiles.length <= 1) {
+      alert('至少需要保留一个数据文件。');
+      return;
+    }
+
+    const confirmed = window.confirm(`确定删除「${getDataFileName(currentUser)}」吗？这个数据文件里的比赛历史、成绩统计都会删除，无法恢复。`);
+    if (!confirmed) return;
+
+    await deleteDataFile(currentUser.id);
+    clearLocalGameSnapshot(currentUser.id);
+
+    const summaries = await refreshDataFiles();
+    const nextFile = summaries.find((file) => file.id !== currentUser.id) || summaries[0];
+    if (nextFile) {
+      await activateDataFile(nextFile.id, true);
+    }
+  }, [activateDataFile, currentUser, dataFiles.length, refreshDataFiles]);
+
+  const handleDataFileChanged = useCallback(async (userId?: string) => {
+    await normalizeStoredPlayerNames();
+    await refreshDataFiles();
+    if (userId) {
+      await activateDataFile(userId, true);
+    }
+  }, [activateDataFile, refreshDataFiles]);
 
   const saveGameResults = useCallback(async () => {
     if (!game) return;
@@ -925,6 +1026,12 @@ function App() {
         {bleManager}
         <HomePage
           user={currentUser}
+          dataFiles={dataFiles}
+          onSwitchDataFile={activateDataFile}
+          onCreateDataFile={handleCreateDataFile}
+          onRenameDataFile={handleRenameDataFile}
+          onDeleteDataFile={handleDeleteDataFile}
+          onDataFileChanged={handleDataFileChanged}
           onStartNewGame={handleStartNewGameFromHome}
           onViewHistory={() => navigateTo('/history')}
           onViewStats={() => navigateTo('/stats')}

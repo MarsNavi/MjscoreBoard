@@ -1,13 +1,27 @@
 import { User, Position, Game, Player, ScoreRecord, Penalty, GameResult } from '../lib/types';
 import { db } from '../lib/db';
-import { History, TrendingUp, HelpCircle, Download, Upload } from 'lucide-react';
+import { Database, FilePlus, FolderOpen, GitMerge, HelpCircle, History, Pencil, Plus, Trash2, TrendingUp, Upload } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { normalizePlayerName } from '../lib/playerNames';
+import {
+  buildExportDataForUser,
+  DataFileSummary,
+  deriveImportDataFileName,
+  importBackupAsNewDataFile,
+  mergeBackupIntoDataFile,
+  normalizeBackupData,
+} from '../lib/dataFiles';
 
 interface HomePageProps {
   user: User;
+  dataFiles: DataFileSummary[];
+  onSwitchDataFile: (userId: string) => Promise<void>;
+  onCreateDataFile: () => Promise<void>;
+  onRenameDataFile: () => Promise<void>;
+  onDeleteDataFile: () => Promise<void>;
+  onDataFileChanged: (userId?: string) => Promise<void>;
   onStartNewGame: () => void;
   onViewHistory: () => void;
   onViewStats: () => void;
@@ -27,6 +41,12 @@ const positionLabels: Record<Position, string> = {
 
 export default function HomePage({
   user,
+  dataFiles,
+  onSwitchDataFile,
+  onCreateDataFile,
+  onRenameDataFile,
+  onDeleteDataFile,
+  onDataFileChanged,
   onStartNewGame,
   onViewHistory,
   onViewStats,
@@ -39,8 +59,10 @@ export default function HomePage({
   const positions: Position[] = ['east', 'south', 'west', 'north'];
   const [commonNames, setCommonNames] = useState<string[]>([]);
   const [focusedPosition, setFocusedPosition] = useState<Position | null>(null);
+  const [importMode, setImportMode] = useState<'open' | 'merge'>('open');
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const currentDataFile = dataFiles.find((file) => file.id === user.id);
 
   const loadCommonNames = useCallback(async () => {
     const games = await db.games.where('creator_id').equals(user.id).toArray();
@@ -132,7 +154,8 @@ export default function HomePage({
     setFocusedPosition(null);
   };
 
-  const handleImportClick = () => {
+  const handleImportClick = (mode: 'open' | 'merge') => {
+    setImportMode(mode);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
       fileInputRef.current.click();
@@ -147,49 +170,32 @@ export default function HomePage({
 
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as {
-        users?: User[];
-        games?: Game[];
-        players?: Player[];
-        scores?: ScoreRecord[];
-        penalties?: Penalty[];
-        game_results?: GameResult[];
-      };
+      const data = normalizeBackupData(JSON.parse(text) as {
+          users?: User[];
+          games?: Game[];
+          players?: Player[];
+          scores?: ScoreRecord[];
+          penalties?: Penalty[];
+          game_results?: GameResult[];
+        });
 
-      const confirmMerge = window.confirm('导入操作会将文件中的数据与当前本地数据进行合并，可能产生重复记录，确定继续吗？');
-      if (!confirmMerge) {
+      if (importMode === 'open') {
+        const defaultName = deriveImportDataFileName(file.name, data);
+        const name = window.prompt('打开为新的数据文件，给它起个名字：', defaultName);
+        if (name === null) return;
+
+        const { user: importedUser, counts } = await importBackupAsNewDataFile(data, name);
+        await onDataFileChanged(importedUser.id);
+        alert(`已打开新的数据文件「${importedUser.code}」。\n\n导入比赛：${counts.games} 场\n导入选手记录：${counts.players} 条`);
         return;
       }
 
-      await db.transaction('rw', [db.users, db.games, db.players, db.scores, db.penalties, db.game_results], async () => {
-        if (data.users && data.users.length > 0) {
-          await db.users.bulkPut(data.users as User[]);
-        }
-        if (data.games && data.games.length > 0) {
-          await db.games.bulkPut(data.games as Game[]);
-        }
-        if (data.players && data.players.length > 0) {
-          await db.players.bulkPut(data.players.map((player) => ({
-            ...player,
-            name: normalizePlayerName(player.name, player.player_id),
-          })) as Player[]);
-        }
-        if (data.scores && data.scores.length > 0) {
-          await db.scores.bulkPut(data.scores as ScoreRecord[]);
-        }
-        if (data.penalties && data.penalties.length > 0) {
-          await db.penalties.bulkPut(data.penalties as Penalty[]);
-        }
-        if (data.game_results && data.game_results.length > 0) {
-          await db.game_results.bulkPut(data.game_results.map((result) => ({
-            ...result,
-            player_name: normalizePlayerName(result.player_name, result.player_id),
-          })) as GameResult[]);
-        }
-      });
+      const confirmMerge = window.confirm('确定要把这个 JSON 文件合并到当前数据文件吗？合并会新增一份独立记录，不会覆盖当前数据。');
+      if (!confirmMerge) return;
 
-      alert('导入完成，应用将自动刷新以加载合并后的数据。');
-      window.location.reload();
+      const counts = await mergeBackupIntoDataFile(data, user.id);
+      await onDataFileChanged(user.id);
+      alert(`合并完成。\n\n合并比赛：${counts.games} 场\n合并选手记录：${counts.players} 条`);
     } catch (error) {
       console.error('Import failed:', error);
       alert('数据导入失败，请检查文件格式是否正确。');
@@ -208,29 +214,11 @@ export default function HomePage({
 
   const handleExportData = async () => {
     try {
-      const games = await db.games.toArray();
-      const players = (await db.players.toArray()).map((player) => ({
-        ...player,
-        name: normalizePlayerName(player.name, player.player_id),
-      }));
-      const scores = await db.scores.toArray();
-      const penalties = await db.penalties.toArray();
-      const game_results = (await db.game_results.toArray()).map((result) => ({
-        ...result,
-        player_name: normalizePlayerName(result.player_name, result.player_id),
-      }));
-      const users = await db.users.toArray();
-
-      const data = {
-        users,
-        games,
-        players,
-        scores,
-        penalties,
-        game_results
-      };
-
+      const data = await buildExportDataForUser(user.id);
       const jsonString = JSON.stringify(data, null, 2);
+      const safeName = (data.data_file?.name || 'mahjong')
+        .replace(/[\\/:*?"<>|]/g, '')
+        .replace(/\s+/g, '_');
 
       if (Capacitor.isNativePlatform()) {
         try {
@@ -243,7 +231,7 @@ export default function HomePage({
             String(date.getMinutes()).padStart(2, '0') + '-' +
             String(date.getSeconds()).padStart(2, '0');
             
-          const fileName = `mahjong_backup_${timestamp}.json`;
+          const fileName = `mahjong_${safeName}_${timestamp}.json`;
           
           await Filesystem.writeFile({
             path: fileName,
@@ -263,7 +251,7 @@ export default function HomePage({
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `mahjong_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `mahjong_${safeName}_${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -288,18 +276,11 @@ export default function HomePage({
             </h1>
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <button
-                onClick={handleImportClick}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 sm:px-4 py-2 rounded-xl transition-all backdrop-blur-sm hover:scale-105 shadow-lg"
-              >
-                <Download size={18} />
-                <span className="text-sm sm:text-base font-semibold">导入数据</span>
-              </button>
-              <button
                 onClick={handleExportData}
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 sm:px-4 py-2 rounded-xl transition-all backdrop-blur-sm hover:scale-105 shadow-lg"
               >
                 <Upload size={18} />
-                <span className="text-sm sm:text-base font-semibold">导出数据</span>
+                <span className="text-sm sm:text-base font-semibold">导出当前</span>
               </button>
               <button
                 onClick={onViewHelp}
@@ -323,6 +304,106 @@ export default function HomePage({
 
       <div className="relative flex-1 flex items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-2xl">
+          <div className="bg-white/95 rounded-3xl shadow-xl p-5 sm:p-6 mb-6 border-2 border-amber-100 relative overflow-hidden">
+            <div className="absolute -top-16 -right-16 w-36 h-36 bg-gradient-to-br from-amber-200/40 to-orange-200/20 rounded-full"></div>
+            <div className="relative space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Database size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-orange-500 uppercase tracking-wider">当前数据文件</div>
+                    <div className="text-xl font-black text-gray-900">{currentDataFile?.name || user.code}</div>
+                  </div>
+                </div>
+                <select
+                  value={user.id}
+                  onChange={(event) => {
+                    void onSwitchDataFile(event.target.value);
+                  }}
+                  className="sm:w-56 px-4 py-3 rounded-2xl border-2 border-orange-200 bg-white font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  {dataFiles.map((file) => (
+                    <option key={file.id} value={file.id}>
+                      {file.name}（{file.games_count}场）
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-orange-50 rounded-2xl px-3 py-2 border border-orange-100">
+                  <div className="text-lg font-black text-orange-600">{currentDataFile?.games_count ?? 0}</div>
+                  <div className="text-xs font-semibold text-gray-500">总比赛</div>
+                </div>
+                <div className="bg-rose-50 rounded-2xl px-3 py-2 border border-rose-100">
+                  <div className="text-lg font-black text-rose-600">{currentDataFile?.finished_games_count ?? 0}</div>
+                  <div className="text-xs font-semibold text-gray-500">已完成</div>
+                </div>
+                <div className="bg-amber-50 rounded-2xl px-3 py-2 border border-amber-100">
+                  <div className="text-lg font-black text-amber-700">{dataFiles.length}</div>
+                  <div className="text-xs font-semibold text-gray-500">数据文件</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button
+                  onClick={() => {
+                    void onCreateDataFile();
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold transition-colors"
+                >
+                  <Plus size={16} />
+                  新建
+                </button>
+                <button
+                  onClick={() => {
+                    void onRenameDataFile();
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold transition-colors"
+                >
+                  <Pencil size={16} />
+                  重命名
+                </button>
+                <button
+                  onClick={() => {
+                    void onDeleteDataFile();
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition-colors"
+                >
+                  <Trash2 size={16} />
+                  删除
+                </button>
+                <button
+                  onClick={() => handleImportClick('open')}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition-colors"
+                >
+                  <FolderOpen size={16} />
+                  打开文件
+                </button>
+                <button
+                  onClick={() => handleImportClick('merge')}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold transition-colors"
+                >
+                  <GitMerge size={16} />
+                  合并文件
+                </button>
+                <button
+                  onClick={handleExportData}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold transition-colors"
+                >
+                  <FilePlus size={16} />
+                  导出文件
+                </button>
+              </div>
+
+              <div className="text-xs text-gray-500 leading-relaxed bg-orange-50/70 rounded-2xl px-4 py-3 border border-orange-100">
+                “打开文件”会创建一个全新的独立数据文件；“合并文件”会把 JSON 里的比赛追加到当前数据文件，不会覆盖原记录。
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 mb-6 border-2 border-orange-100 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-orange-200/30 to-rose-200/30 rounded-full -mr-20 -mt-20"></div>
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-pink-200/30 to-orange-200/30 rounded-full -ml-16 -mb-16"></div>
