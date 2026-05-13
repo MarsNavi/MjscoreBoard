@@ -47,7 +47,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                   <strong className="text-gray-900">修正同名选手统计：</strong>自动清理名字前后的空格，避免同一个人因为输入差异被拆成多条统计记录。
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化ESP32中文显示：</strong>统一使用完整中文字体资源，降低部分设备中文字显示成方框的概率。
+                  <strong className="text-gray-900">优化硬件计分牌中文显示：</strong>统一使用完整中文字体资源，降低部分设备中文字显示成方框的概率。
                 </li>
               </ul>
             </div>
@@ -73,7 +73,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                   <strong className="text-gray-900">增加了和牌数据统计：</strong>在战绩详情中新增了和牌数据的多维统计（和牌数、番数分布、最大番等）。
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化了esp32设备的体验：</strong>改进了与硬件记分牌的交互体验。
+                  <strong className="text-gray-900">优化了硬件计分牌的体验：</strong>改进了与硬件记分牌的交互体验。
                 </li>
               </ul>
             </div>
@@ -99,7 +99,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                   <strong className="text-gray-900">流程简化：</strong>取消了“确认成绩”环节，和牌或流局后直接生效，让比赛节奏更加流畅。
                 </li>
                 <li>
-                  <strong className="text-gray-900">智能硬件支持：</strong>支持蓝牙绑定认证的ESP32设备，实现“一人一屏”的专属显示与交互体验。
+                  <strong className="text-gray-900">智能硬件支持：</strong>支持蓝牙绑定认证的自研 BLE 计分设备，实现“一人一屏”的专属显示与交互体验。
                 </li>
               </ul>
             </div>
@@ -116,7 +116,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">Andriod版本的v1.0正式发布：</p>
+              <p className="text-lg font-semibold text-gray-900">v1.0正式发布：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
                   所有的记录和数据统计均在本地运行，不需要联网也可以使用

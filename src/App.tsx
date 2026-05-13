@@ -341,7 +341,7 @@ function App() {
 
   const handleFinalizeGame = () => {
     // Navigate to game detail or home after finalizing
-    // But since we want to reset ESP32 to waiting, and the user likely wants to see stats or start new game
+    // Reset hardware displays to waiting, then let the user view stats or start a new game.
     // We can go to GameDetail
     if (game) {
        navigateTo(`/game/${game.id}`);

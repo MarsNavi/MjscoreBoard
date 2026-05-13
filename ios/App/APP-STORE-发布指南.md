@@ -1,6 +1,6 @@
 # MjScoreBoard iOS 上架指南
 
-这份指南按当前工程状态写：React/Vite 前端 + Capacitor 8 + Xcode SPM。安卓稳定不需要动，上架 iOS 主要看签名、Archive、App Store Connect 信息和审核说明。
+这份指南按当前工程状态写：React/Vite 前端 + Capacitor 8 + Xcode SPM。上架 iOS 主要看签名、Archive、App Store Connect 信息和审核说明。
 
 ## 当前工程状态
 
@@ -83,10 +83,10 @@ npm run ios:open
 
 ## 审核备注建议
 
-因为 App 需要连接 ESP32 蓝牙计分设备，审核备注里建议写清楚：
+因为 App 需要连接自研 BLE 计分显示设备，审核备注里建议写清楚：
 
 ```text
-本 App 用于国标麻将比赛计分，可通过 Bluetooth LE 连接外部 ESP32 计分显示设备。没有外部设备时，App 仍可在手机上完整完成创建比赛、记录分数、查看历史记录等核心流程。蓝牙权限仅用于发现并连接用户自己的计分显示设备。
+本 App 用于国标麻将比赛计分，可通过 Bluetooth LE 连接自研 BLE 计分显示设备。没有外部设备时，App 仍可在手机上完整完成创建比赛、记录分数、查看历史记录等核心流程。蓝牙权限仅用于发现并连接用户自己的计分显示设备。
 ```
 
 如果审核团队要求演示蓝牙设备，可以补充一段操作路径：
@@ -103,4 +103,4 @@ npm run ios:open
 | Xcode 找不到 `CapApp-SPM` | 先跑 `npm run ios:release-check`；若仍失败，看 `README-XCODE-SPM.md`。 |
 | 蓝牙在 iOS 不工作 | 确认 `@capacitor-community/bluetooth-le` 是 8.x，且 `CapApp-SPM/Package.swift` 包含 `CapacitorCommunityBluetoothLe`。 |
 | 上传后构建版本不出现 | 等待处理；同时查看 Apple 邮件是否有 `Invalid Binary`。 |
-| 审核问蓝牙用途 | 使用上面的审核备注说明外部 ESP32 计分显示设备和无设备可用流程。 |
+| 审核问蓝牙用途 | 使用上面的审核备注说明自研 BLE 计分显示设备和无设备可用流程。 |
