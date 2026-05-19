@@ -274,7 +274,7 @@ await update(
 );
 
 await update(
-  '绑定已上传的 build 1.0 (2)',
+  `绑定已上传的 build ${metadata.buildId}`,
   'PATCH',
   `/v1/appStoreVersions/${metadata.appStoreVersionId}/relationships/build`,
   { data: { type: 'builds', id: metadata.buildId } },

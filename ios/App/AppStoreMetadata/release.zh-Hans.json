@@ -3,10 +3,10 @@
   "bundleId": "com.mjscoreboard.app",
   "appInfoId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
   "appInfoLocalizationId": "12a32098-1406-4e4f-a3e4-eceb5e30c155",
-  "appStoreVersionId": "4fe93cf6-1861-4be7-bb49-cefbc95fba22",
-  "appStoreVersionLocalizationId": "289b6f3c-b60f-44ad-9923-e515d7c653d8",
+  "appStoreVersionId": "752eb8c1-3e8c-4af0-b4cc-84794d80c948",
+  "appStoreVersionLocalizationId": "9ec961b9-f33e-4055-ba0e-d900d104e92f",
   "ageRatingDeclarationId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
-  "buildId": "ff8b26ad-1709-4cff-b2a3-fc073f69ee14",
+  "buildId": "76ec5fa9-d9f2-45e2-951c-d80da77e768e",
   "primaryCategoryId": "UTILITIES",
   "screenshotDisplayType": "APP_IPHONE_65",
   "appInfoLocalization": {
@@ -20,11 +20,12 @@
     "usesIdfa": false
   },
   "versionLocalization": {
-    "promotionalText": "为国标麻将线下比赛设计的实时计分工具，支持16盘制、座位轮换、战绩统计和本地数据备份。",
-    "description": "国标麻将实时计分板是一款面向线下国标麻将比赛的计分工具，适合俱乐部、牌友聚会和训练赛使用。\n\n主要功能：\n- 支持16盘制国标麻将比赛流程\n- 自动处理东南西北座位轮换\n- 支持自摸、点炮、荒庄和裁判判罚记录\n- 实时展示四位选手分数和当前局次\n- 保存比赛历史，便于复盘和继续未完成比赛\n- 提供选手战绩统计，包括标准分、和牌、放铳等数据\n- 支持本地数据导入导出，方便备份和换机\n- 可连接自研 BLE 计分显示设备，实现一人一屏显示\n\n所有比赛数据保存在本机，本应用不需要注册账号，不上传比赛记录，不包含广告和内购。",
-    "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,本地数据,竞技麻将",
+    "promotionalText": "为线下国标麻将比赛设计的实时计分工具，支持16盘制、座位轮换、战绩统计、档案分享和本地备份。",
+    "description": "国标麻将实时计分板是一款面向线下国标麻将比赛的计分工具，适合俱乐部、牌友聚会和训练赛使用。\n\n主要功能：\n- 支持16盘制国标麻将比赛流程\n- 自动处理东南西北座位轮换\n- 支持自摸、点炮、荒庄和裁判判罚记录\n- 实时展示四位选手分数和当前局次\n- 保存比赛历史，便于复盘和继续未完成比赛\n- 提供选手战绩统计，包括标准分、和牌、放铳等数据\n- 支持多个牌局档案，适合不同牌友圈独立记分\n- 支持档案分享、导入、合并和本地备份\n- 可连接自研 BLE 计分显示设备，实现一人一屏显示\n\n所有比赛数据保存在本机，本应用不需要注册账号，不上传比赛记录，不包含广告和内购。",
+    "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,档案分享,本地数据",
     "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
-    "marketingUrl": null
+    "marketingUrl": null,
+    "whatsNew": "- 优化首页结构，开局、历史、统计和档案分区更清晰\n- 改进牌局档案管理，支持不同牌友圈独立记分\n- 优化档案分享与导入，合并时自动跳过重复比赛"
   },
   "reviewDetail": {
     "contactFirstName": "Rui",
@@ -34,7 +35,7 @@
     "demoAccountRequired": false,
     "demoAccountName": "",
     "demoAccountPassword": "",
-    "notes": "本应用无需账号登录。主要功能为本地国标麻将比赛计分、历史记录和统计。App 可通过 Bluetooth LE 连接自研 BLE 计分显示设备：在比赛页面点击右下角蓝色蓝牙按钮，打开“蓝牙设备管理”，点击“开始扫描”，扫描到计分牌后可绑定到东/南/西/北任一座位。手机 App 作为 BLE central 连接自研 BLE 显示外设，负责比分计算、数据存储，并向计分牌发送玩家姓名和实时比分；计分牌也可通过 BLE 通知回传按键事件。声明 bluetooth-central 后台模式是为了比赛进行中用户锁屏或切到后台时，已连接的计分设备仍能维持连接并接收/回传比赛数据。本 App 不作为 BLE peripheral 广播服务。没有外部设备时，审核也可以完整测试核心计分流程：打开应用后填写比赛名称和四位选手姓名，点击“开始比赛”，选择任意玩家的“和”按钮录入自摸或点炮分数，也可以使用“荒庄”“判罚”“修改”“比赛历史”“成绩统计”等功能。"
+    "notes": "本应用无需账号登录。主要功能为本地国标麻将比赛计分、历史记录、统计和牌局档案管理。App 可通过 Bluetooth LE 连接自研 BLE 计分显示设备：在比赛页面点击左上角蓝牙按钮，打开“计分牌连接”，点击“扫描设备”，扫描到计分牌后可绑定到东/南/西/北任一座位。手机 App 作为 BLE central 连接自研 BLE 显示外设，负责比分计算、数据存储，并向计分牌发送玩家姓名和实时比分；计分牌也可通过 BLE 通知回传按键事件。声明 bluetooth-central 后台模式是为了比赛进行中用户锁屏或切到后台时，已连接的计分设备仍能维持连接并接收/回传比赛数据。本 App 不作为 BLE peripheral 广播服务。没有外部设备时，审核也可以完整测试核心计分流程：打开应用后填写比赛名称和四位选手姓名，点击“开始比赛”，选择任意玩家的“和”按钮录入自摸或点炮分数，也可以使用“荒庄”“判罚”“撤销”“明细”“历史”“统计”等功能。"
   },
   "ageRating": {
     "alcoholTobaccoOrDrugUseOrReferences": "NONE",
