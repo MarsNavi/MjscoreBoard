@@ -173,7 +173,7 @@ export const buildExportDataForUser = async (userId: string): Promise<MahjongBac
 
   return {
     exported_at: new Date().toISOString(),
-    app_version: '1.4.1',
+    app_version: '1.5',
     data_file: {
       id: user.id,
       name: getDataFileName(user),

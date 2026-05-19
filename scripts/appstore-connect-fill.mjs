@@ -3,8 +3,11 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const API = 'https://api.appstoreconnect.apple.com';
-const metadataPath = path.resolve(process.argv[2] || 'ios/App/AppStoreMetadata/release.zh-Hans.json');
-const shouldApply = process.argv.includes('--apply');
+const args = process.argv.slice(2);
+const metadataArg = args.find((arg) => !arg.startsWith('--'));
+const metadataPath = path.resolve(metadataArg || 'ios/App/AppStoreMetadata/release.zh-Hans.json');
+const shouldApply = args.includes('--apply');
+const screenshotsOnly = args.includes('--screenshots-only');
 
 const keyId = process.env.ASC_KEY_ID;
 const issuerId = process.env.ASC_ISSUER_ID;
@@ -18,6 +21,11 @@ if (!keyId || !issuerId || !privateKeyPath) {
 
 const metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
 const privateKey = await readFile(privateKeyPath, 'utf8');
+
+const screenshotSets = metadata.screenshotSets || [{
+  screenshotDisplayType: metadata.screenshotDisplayType,
+  screenshots: metadata.screenshots || [],
+}];
 
 const b64url = (value) => Buffer
   .from(typeof value === 'string' ? value : JSON.stringify(value))
@@ -75,6 +83,7 @@ async function update(pathLabel, method, urlPath, payload, okStatuses) {
 }
 
 async function deleteExistingScreenshotSets() {
+  const targetDisplayTypes = new Set(screenshotSets.map((set) => set.screenshotDisplayType));
   const { json } = await api(
     'GET',
     `/v1/appStoreVersionLocalizations/${metadata.appStoreVersionLocalizationId}/appScreenshotSets?include=appScreenshots&limit=50&limit[appScreenshots]=50`,
@@ -90,8 +99,9 @@ async function deleteExistingScreenshotSets() {
   }
 
   for (const set of json.data || []) {
-    if (set.attributes?.screenshotDisplayType !== metadata.screenshotDisplayType) continue;
-    console.log(`- 删除旧截图集 ${metadata.screenshotDisplayType}: ${set.id}`);
+    const displayType = set.attributes?.screenshotDisplayType;
+    if (!targetDisplayTypes.has(displayType)) continue;
+    console.log(`- 删除旧截图集 ${displayType}: ${set.id}`);
     if (!shouldApply) continue;
     for (const screenshotId of screenshotsBySet.get(set.id) || []) {
       await api('DELETE', `/v1/appScreenshots/${screenshotId}`, null, [204, 404]);
@@ -101,70 +111,72 @@ async function deleteExistingScreenshotSets() {
 }
 
 async function uploadScreenshots() {
-  console.log(`- 创建截图集 ${metadata.screenshotDisplayType}`);
-  if (!shouldApply) return;
+  for (const screenshotSet of screenshotSets) {
+    console.log(`- 创建截图集 ${screenshotSet.screenshotDisplayType}`);
+    if (!shouldApply) continue;
 
-  const createSet = await api('POST', '/v1/appScreenshotSets', resource(
-    'appScreenshotSets',
-    null,
-    { screenshotDisplayType: metadata.screenshotDisplayType },
-    {
-      appStoreVersionLocalization: {
-        data: {
-          type: 'appStoreVersionLocalizations',
-          id: metadata.appStoreVersionLocalizationId,
-        },
-      },
-    },
-  ));
-  const setId = createSet.json.data.id;
-
-  for (const screenshotPath of metadata.screenshots) {
-    const absolutePath = path.resolve(screenshotPath);
-    const file = await readFile(absolutePath);
-    const fileInfo = await stat(absolutePath);
-    const fileName = path.basename(absolutePath);
-    console.log(`- 上传截图 ${fileName}`);
-
-    const reservation = await api('POST', '/v1/appScreenshots', resource(
-      'appScreenshots',
+    const createSet = await api('POST', '/v1/appScreenshotSets', resource(
+      'appScreenshotSets',
       null,
-      { fileName, fileSize: fileInfo.size },
+      { screenshotDisplayType: screenshotSet.screenshotDisplayType },
       {
-        appScreenshotSet: {
+        appStoreVersionLocalization: {
           data: {
-            type: 'appScreenshotSets',
-            id: setId,
+            type: 'appStoreVersionLocalizations',
+            id: metadata.appStoreVersionLocalizationId,
           },
         },
       },
     ));
+    const setId = createSet.json.data.id;
 
-    const screenshotId = reservation.json.data.id;
-    const operations = reservation.json.data.attributes.uploadOperations || [];
-    for (const operation of operations) {
-      const chunk = file.subarray(operation.offset, operation.offset + operation.length);
-      const headers = Object.fromEntries(
-        (operation.requestHeaders || []).map((header) => [header.name, header.value]),
-      );
-      const upload = await fetch(operation.url, {
-        method: operation.method,
-        headers,
-        body: chunk,
-      });
-      if (!upload.ok) {
-        throw new Error(`Screenshot part upload failed: ${upload.status} ${await upload.text()}`);
+    for (const screenshotPath of screenshotSet.screenshots) {
+      const absolutePath = path.resolve(screenshotPath);
+      const file = await readFile(absolutePath);
+      const fileInfo = await stat(absolutePath);
+      const fileName = path.basename(absolutePath);
+      console.log(`- 上传截图 ${fileName}`);
+
+      const reservation = await api('POST', '/v1/appScreenshots', resource(
+        'appScreenshots',
+        null,
+        { fileName, fileSize: fileInfo.size },
+        {
+          appScreenshotSet: {
+            data: {
+              type: 'appScreenshotSets',
+              id: setId,
+            },
+          },
+        },
+      ));
+
+      const screenshotId = reservation.json.data.id;
+      const operations = reservation.json.data.attributes.uploadOperations || [];
+      for (const operation of operations) {
+        const chunk = file.subarray(operation.offset, operation.offset + operation.length);
+        const headers = Object.fromEntries(
+          (operation.requestHeaders || []).map((header) => [header.name, header.value]),
+        );
+        const upload = await fetch(operation.url, {
+          method: operation.method,
+          headers,
+          body: chunk,
+        });
+        if (!upload.ok) {
+          throw new Error(`Screenshot part upload failed: ${upload.status} ${await upload.text()}`);
+        }
       }
+
+      const checksum = crypto.createHash('md5').update(file).digest('hex');
+      await api('PATCH', `/v1/appScreenshots/${screenshotId}`, resource(
+        'appScreenshots',
+        screenshotId,
+        { uploaded: true, sourceFileChecksum: checksum },
+      ));
+
+      await waitForScreenshot(screenshotId, fileName);
     }
-
-    const checksum = crypto.createHash('md5').update(file).digest('hex');
-    await api('PATCH', `/v1/appScreenshots/${screenshotId}`, resource(
-      'appScreenshots',
-      screenshotId,
-      { uploaded: true, sourceFileChecksum: checksum },
-    ));
-
-    await waitForScreenshot(screenshotId, fileName);
   }
 }
 
@@ -227,60 +239,63 @@ async function upsertReviewDetail() {
 
 console.log(`App Store Connect release metadata: ${metadataPath}`);
 console.log(shouldApply ? '模式：写入 App Store Connect' : '模式：预览，不写入');
+if (screenshotsOnly) console.log('范围：仅同步截图');
 console.log(`目标 App: ${metadata.appInfoLocalization.name} (${metadata.bundleId})`);
 console.log(`Build: ${metadata.buildId}`);
-console.log(`截图数量: ${metadata.screenshots.length}`);
+console.log(`截图数量: ${screenshotSets.reduce((total, set) => total + set.screenshots.length, 0)}`);
 
-await update(
-  '更新应用名称副标题和隐私政策 URL',
-  'PATCH',
-  `/v1/appInfoLocalizations/${metadata.appInfoLocalizationId}`,
-  resource('appInfoLocalizations', metadata.appInfoLocalizationId, metadata.appInfoLocalization),
-);
+if (!screenshotsOnly) {
+  await update(
+    '更新应用名称副标题和隐私政策 URL',
+    'PATCH',
+    `/v1/appInfoLocalizations/${metadata.appInfoLocalizationId}`,
+    resource('appInfoLocalizations', metadata.appInfoLocalizationId, metadata.appInfoLocalization),
+  );
 
-await update(
-  '设置主分类为 Utilities',
-  'PATCH',
-  `/v1/appInfos/${metadata.appInfoId}/relationships/primaryCategory`,
-  { data: { type: 'appCategories', id: metadata.primaryCategoryId } },
-);
+  await update(
+    '设置主分类为 Utilities',
+    'PATCH',
+    `/v1/appInfos/${metadata.appInfoId}/relationships/primaryCategory`,
+    { data: { type: 'appCategories', id: metadata.primaryCategoryId } },
+  );
 
-await update(
-  '填写年龄分级声明',
-  'PATCH',
-  `/v1/ageRatingDeclarations/${metadata.ageRatingDeclarationId}`,
-  resource('ageRatingDeclarations', metadata.ageRatingDeclarationId, metadata.ageRating),
-);
+  await update(
+    '填写年龄分级声明',
+    'PATCH',
+    `/v1/ageRatingDeclarations/${metadata.ageRatingDeclarationId}`,
+    resource('ageRatingDeclarations', metadata.ageRatingDeclarationId, metadata.ageRating),
+  );
 
-await update(
-  '更新版本发布属性',
-  'PATCH',
-  `/v1/appStoreVersions/${metadata.appStoreVersionId}`,
-  resource('appStoreVersions', metadata.appStoreVersionId, metadata.version),
-);
+  await update(
+    '更新版本发布属性',
+    'PATCH',
+    `/v1/appStoreVersions/${metadata.appStoreVersionId}`,
+    resource('appStoreVersions', metadata.appStoreVersionId, metadata.version),
+  );
 
-await update(
-  '更新中文商店文案',
-  'PATCH',
-  `/v1/appStoreVersionLocalizations/${metadata.appStoreVersionLocalizationId}`,
-  resource('appStoreVersionLocalizations', metadata.appStoreVersionLocalizationId, metadata.versionLocalization),
-);
+  await update(
+    '更新中文商店文案',
+    'PATCH',
+    `/v1/appStoreVersionLocalizations/${metadata.appStoreVersionLocalizationId}`,
+    resource('appStoreVersionLocalizations', metadata.appStoreVersionLocalizationId, metadata.versionLocalization),
+  );
 
-await update(
-  '声明 build 不使用非豁免加密',
-  'PATCH',
-  `/v1/builds/${metadata.buildId}`,
-  resource('builds', metadata.buildId, { usesNonExemptEncryption: false }),
-);
+  await update(
+    '声明 build 不使用非豁免加密',
+    'PATCH',
+    `/v1/builds/${metadata.buildId}`,
+    resource('builds', metadata.buildId, { usesNonExemptEncryption: false }),
+  );
 
-await update(
-  `绑定已上传的 build ${metadata.buildId}`,
-  'PATCH',
-  `/v1/appStoreVersions/${metadata.appStoreVersionId}/relationships/build`,
-  { data: { type: 'builds', id: metadata.buildId } },
-);
+  await update(
+    `绑定已上传的 build ${metadata.buildId}`,
+    'PATCH',
+    `/v1/appStoreVersions/${metadata.appStoreVersionId}/relationships/build`,
+    { data: { type: 'builds', id: metadata.buildId } },
+  );
 
-await upsertReviewDetail();
+  await upsertReviewDetail();
+}
 await deleteExistingScreenshotSets();
 await uploadScreenshots();
 

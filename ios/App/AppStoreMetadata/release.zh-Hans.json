@@ -63,8 +63,32 @@
     "gunsOrOtherWeapons": false
   },
   "screenshots": [
-    "ios/App/AppStoreScreenshots/zh-Hans/01-home-quick-start-1284x2778.png",
+    "ios/App/AppStoreScreenshots/zh-Hans/01-quick-start-1284x2778.png",
     "ios/App/AppStoreScreenshots/zh-Hans/02-live-scoreboard-1284x2778.png",
-    "ios/App/AppStoreScreenshots/zh-Hans/03-score-entry-1284x2778.png"
+    "ios/App/AppStoreScreenshots/zh-Hans/03-score-entry-1284x2778.png",
+    "ios/App/AppStoreScreenshots/zh-Hans/04-stats-1284x2778.png",
+    "ios/App/AppStoreScreenshots/zh-Hans/05-data-files-1284x2778.png"
+  ],
+  "screenshotSets": [
+    {
+      "screenshotDisplayType": "APP_IPHONE_65",
+      "screenshots": [
+        "ios/App/AppStoreScreenshots/zh-Hans/01-quick-start-1284x2778.png",
+        "ios/App/AppStoreScreenshots/zh-Hans/02-live-scoreboard-1284x2778.png",
+        "ios/App/AppStoreScreenshots/zh-Hans/03-score-entry-1284x2778.png",
+        "ios/App/AppStoreScreenshots/zh-Hans/04-stats-1284x2778.png",
+        "ios/App/AppStoreScreenshots/zh-Hans/05-data-files-1284x2778.png"
+      ]
+    },
+    {
+      "screenshotDisplayType": "APP_IPAD_PRO_3GEN_129",
+      "screenshots": [
+        "ios/App/AppStoreScreenshots/zh-Hans-iPad13/01-quick-start-2048x2732.png",
+        "ios/App/AppStoreScreenshots/zh-Hans-iPad13/02-live-scoreboard-2048x2732.png",
+        "ios/App/AppStoreScreenshots/zh-Hans-iPad13/03-score-entry-2048x2732.png",
+        "ios/App/AppStoreScreenshots/zh-Hans-iPad13/04-stats-2048x2732.png",
+        "ios/App/AppStoreScreenshots/zh-Hans-iPad13/05-data-files-2048x2732.png"
+      ]
+    }
   ]
 }
