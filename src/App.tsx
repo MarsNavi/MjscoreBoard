@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import { Position, Player, Game, PlayerId, User } from './lib/types';
 import { db } from './lib/db';
 import PlayerScore from './components/PlayerScore';
@@ -7,11 +7,12 @@ import ScoreModal from './components/ScoreModal';
 import GameDetail from './components/GameDetail';
 import PenaltyModal from './components/PenaltyModal';
 import HomePage from './components/HomePage';
+import DataFilesPage from './components/DataFilesPage';
 import GameHistoryPage from './components/GameHistoryPage';
 import PlayerStatsPage from './components/PlayerStatsPage';
 import HelpPage from './components/HelpPage';
 import { AdminPage } from './components/AdminPage';
-import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth } from 'lucide-react';
+import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Database } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
 import { useBle } from './contexts/useBle';
 import BleConnectionManager from './components/BleConnectionManager';
@@ -34,7 +35,7 @@ import {
 const TOTAL_GAMES = 16;
 const DEFAULT_DATA_FILE_ID = 'default-data-file';
 
-type PageView = 'home' | 'game' | 'history' | 'stats' | 'gameDetail' | 'help' | 'admin';
+type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'admin';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -136,7 +137,7 @@ function App() {
       if (allUsers.length === 0) {
         const newUser: User = {
           id: DEFAULT_DATA_FILE_ID,
-          code: '默认数据',
+          code: '默认档案',
           created_at: new Date().toISOString(),
           last_login_at: new Date().toISOString(),
         };
@@ -148,9 +149,9 @@ function App() {
         }
       }
 
-      if (allUsers.length === 1 && ['local', 'micken'].includes(allUsers[0].code)) {
-        await db.users.update(allUsers[0].id, { code: '默认数据' });
-        allUsers = [{ ...allUsers[0], code: '默认数据' }];
+      if (allUsers.length === 1 && ['local', 'micken', '默认数据'].includes(allUsers[0].code)) {
+        await db.users.update(allUsers[0].id, { code: '默认档案' });
+        allUsers = [{ ...allUsers[0], code: '默认档案' }];
       }
 
       let targetUser: User | undefined;
@@ -164,7 +165,7 @@ function App() {
 
       if (!targetUser) {
         targetUser =
-          allUsers.find((user) => ['默认数据', 'micken', 'local'].includes(user.code)) ||
+          allUsers.find((user) => ['默认档案', '默认数据', 'micken', 'local'].includes(user.code)) ||
           allUsers.sort((a, b) => new Date(b.last_login_at || b.created_at).getTime() - new Date(a.last_login_at || a.created_at).getTime())[0];
       }
 
@@ -189,6 +190,8 @@ function App() {
         setCurrentPage('history');
       } else if (hash === '/stats') {
         setCurrentPage('stats');
+      } else if (hash === '/data') {
+        setCurrentPage('data');
       } else if (hash === '/help') {
         setCurrentPage('help');
       } else if (hash.startsWith('/game/')) {
@@ -224,6 +227,9 @@ function App() {
 
   const navigateTo = useCallback((path: string) => {
     window.location.hash = path;
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, 0);
   }, []);
 
   const createNewGame = async () => {
@@ -243,7 +249,7 @@ function App() {
     try {
       await db.games.add(gameData);
     } catch (gameError) {
-      console.error('创建游戏失败:', gameError);
+      console.error('创建比赛失败:', gameError);
       return;
     }
 
@@ -303,7 +309,7 @@ function App() {
 
   const handleWin = (position: Position) => {
     if (!gameStarted) {
-      alert('请先开局');
+      alert('请先开始比赛。');
       return;
     }
 
@@ -402,13 +408,13 @@ function App() {
     }
 
     if (!skipActiveGameConfirm && gameStarted) {
-      const confirmed = window.confirm('当前数据文件里还有进行中的比赛。切换数据文件会先离开当前比赛，之后仍可从比赛历史继续。确定切换吗？');
+      const confirmed = window.confirm('当前档案有未完成比赛。切换后可在历史中继续，是否切换？');
       if (!confirmed) return;
     }
 
     const targetUser = await db.users.get(userId);
     if (!targetUser) {
-      alert('没有找到这个数据文件');
+      alert('未找到档案。');
       return;
     }
 
@@ -423,17 +429,16 @@ function App() {
     setCurrentUser(updatedUser);
     localStorage.setItem('mahjong_user_id', updatedUser.id);
     restoreLocalGameSnapshot(updatedUser.id);
-    navigateTo('');
     await refreshDataFiles();
-  }, [currentUser?.id, gameStarted, navigateTo, refreshDataFiles, resetActiveGameState]);
+  }, [currentUser?.id, gameStarted, refreshDataFiles, resetActiveGameState]);
 
   const handleCreateDataFile = useCallback(async () => {
     if (gameStarted) {
-      const confirmed = window.confirm('当前有进行中的比赛。新建并切换数据文件后，可以回到原数据文件继续比赛。确定新建吗？');
+      const confirmed = window.confirm('当前有未完成比赛。新建档案后，可回到原档案继续，是否新建？');
       if (!confirmed) return;
     }
 
-    const name = window.prompt('给新的数据文件起个名字：', '新牌局数据');
+    const name = window.prompt('新档案名称：', '新档案');
     if (name === null) return;
 
     const user = await createBlankDataFile(name);
@@ -443,7 +448,7 @@ function App() {
   const handleRenameDataFile = useCallback(async () => {
     if (!currentUser) return;
 
-    const name = window.prompt('修改当前数据文件名称：', getDataFileName(currentUser));
+    const name = window.prompt('档案名称：', getDataFileName(currentUser));
     if (name === null) return;
 
     await renameDataFile(currentUser.id, name);
@@ -457,11 +462,11 @@ function App() {
   const handleDeleteDataFile = useCallback(async () => {
     if (!currentUser) return;
     if (dataFiles.length <= 1) {
-      alert('至少需要保留一个数据文件。');
+      alert('至少保留一个档案。');
       return;
     }
 
-    const confirmed = window.confirm(`确定删除「${getDataFileName(currentUser)}」吗？这个数据文件里的比赛历史、成绩统计都会删除，无法恢复。`);
+    const confirmed = window.confirm(`删除「${getDataFileName(currentUser)}」？此档案内的比赛和统计会一并删除，无法恢复。`);
     if (!confirmed) return;
 
     await deleteDataFile(currentUser.id);
@@ -488,7 +493,7 @@ function App() {
     // 每次保存前先删除旧的 result（如果有），确保重新计算
     await db.game_results.where('game_id').equals(game.id).delete();
 
-    // 1. 获取该局所有玩家
+    // 1. 获取该局所有选手
     const dbPlayers = await db.players.where('game_id').equals(game.id).toArray();
     if (!dbPlayers || dbPlayers.length === 0) return;
 
@@ -525,7 +530,7 @@ function App() {
     if (!game) return;
 
     if (!fromDevices) {
-      if (!confirm('确定要记录荒庄吗？本局四家都将记0分。')) return;
+      if (!confirm('记录荒庄？本盘四家均记 0 分。')) return;
     }
 
     const scoreChanges = {
@@ -621,7 +626,7 @@ function App() {
   };
 
   const handleDeleteGame = async (gameId: string) => {
-    if (!confirm('确定要删除这场比赛吗？此操作不可恢复！')) return;
+    if (!confirm('删除这场比赛？此操作无法恢复。')) return;
 
     const isCurrentGame = game?.id === gameId;
 
@@ -648,11 +653,11 @@ function App() {
     const lastScore = scores[0];
 
     if (!lastScore) {
-      alert('没有可撤销的记录!');
+      alert('没有可撤销的记录。');
       return;
     }
 
-    if (!confirm('确定要撤销上一盘的记录吗?')) return;
+    if (!confirm('撤销上一盘记录？')) return;
 
     await db.scores.delete(lastScore.id);
 
@@ -1007,7 +1012,7 @@ function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
-        <div className="text-gray-600 text-sm">正在准备本地数据...</div>
+        <div className="text-gray-600 text-sm">正在打开当前档案…</div>
       </div>
     );
   }
@@ -1020,28 +1025,62 @@ function App() {
     />
   );
 
+  const mainTabs = [
+    { page: 'home' as const, path: '', label: '开局', Icon: Home },
+    { page: 'history' as const, path: '/history', label: '历史', Icon: History },
+    { page: 'stats' as const, path: '/stats', label: '统计', Icon: BarChart3 },
+    { page: 'data' as const, path: '/data', label: '档案', Icon: Database },
+  ];
+
+  const mainNavigation = (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 px-4 pt-3 bg-gradient-to-t from-white via-white/95 to-white/0"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
+    >
+      <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-3xl border border-orange-100 bg-white/95 p-1.5 shadow-2xl backdrop-blur">
+        {mainTabs.map(({ page, path, label, Icon }) => {
+          const active = currentPage === page;
+          return (
+            <button
+              key={page}
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => navigateTo(path)}
+              className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 text-xs font-black transition-all ${
+                active
+                  ? 'bg-gradient-to-br from-orange-500 to-rose-600 text-white shadow-lg'
+                  : 'text-gray-500 hover:bg-orange-50 hover:text-orange-700'
+              }`}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+
+  const renderMainPage = (content: ReactNode) => (
+    <>
+      {bleManager}
+      <div className="pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]">
+        {content}
+      </div>
+      {mainNavigation}
+    </>
+  );
+
   if (currentPage === 'home') {
-    return (
-      <>
-        {bleManager}
+    return renderMainPage(
         <HomePage
           user={currentUser}
-          dataFiles={dataFiles}
-          onSwitchDataFile={activateDataFile}
-          onCreateDataFile={handleCreateDataFile}
-          onRenameDataFile={handleRenameDataFile}
-          onDeleteDataFile={handleDeleteDataFile}
-          onDataFileChanged={handleDataFileChanged}
           onStartNewGame={handleStartNewGameFromHome}
-          onViewHistory={() => navigateTo('/history')}
-          onViewStats={() => navigateTo('/stats')}
-          onViewHelp={() => navigateTo('/help')}
           gameName={gameName}
           onGameNameChange={setGameName}
           tempPlayerNames={tempPlayerNames}
           onNameChange={handleNameChange}
         />
-      </>
     );
   }
 
@@ -1067,29 +1106,40 @@ function App() {
   }
 
   if (currentPage === 'history') {
-    return (
-      <>
-        {bleManager}
+    return renderMainPage(
         <GameHistoryPage
           user={currentUser}
           onBack={() => navigateTo('')}
           onSelectGame={(gameId) => navigateTo(`/game/${gameId}`)}
           onContinueGame={handleContinueGame}
           onDeleteGame={handleDeleteGame}
+          showBack={false}
         />
-      </>
     );
   }
 
   if (currentPage === 'stats') {
-    return (
-      <>
-        {bleManager}
+    return renderMainPage(
         <PlayerStatsPage
           user={currentUser}
           onBack={() => navigateTo('')}
+          showBack={false}
         />
-      </>
+    );
+  }
+
+  if (currentPage === 'data') {
+    return renderMainPage(
+      <DataFilesPage
+        user={currentUser}
+        dataFiles={dataFiles}
+        onSwitchDataFile={activateDataFile}
+        onCreateDataFile={handleCreateDataFile}
+        onRenameDataFile={handleRenameDataFile}
+        onDeleteDataFile={handleDeleteDataFile}
+        onDataFileChanged={handleDataFileChanged}
+        onViewHelp={() => navigateTo('/help')}
+      />
     );
   }
 
@@ -1105,7 +1155,7 @@ function App() {
             setPlayers([]);
             setGameStarted(false);
             setIsConfirmMode(false);
-            navigateTo('');
+            navigateTo('/history');
           }}
         />
       </>
@@ -1117,12 +1167,12 @@ function App() {
       {bleManager}
       <button
         onClick={() => {
-          if (confirm('确定返回主界面吗？当前比赛进度会保存。')) {
-            setCurrentPage('home');
+          if (confirm('返回开局页？当前比赛会自动保存。')) {
+            navigateTo('');
           }
         }}
         className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-2 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-gray-600 hover:text-gray-800"
-        title="返回主界面"
+        title="返回开局页"
       >
         <Home size={20} />
       </button>
@@ -1130,7 +1180,7 @@ function App() {
       <button
         onClick={() => setShowBleModal(true)}
         className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-14 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-blue-600 hover:text-blue-800"
-        title="蓝牙设备管理"
+        title="计分牌连接"
       >
         <Bluetooth size={20} />
       </button>
@@ -1140,8 +1190,8 @@ function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 text-center">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">结束游戏确认</h3>
-              <p className="text-gray-600 mb-6">确定要提前结束游戏吗？<br/>已完成的局数将被保存。</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">提前结束比赛</h3>
+              <p className="text-gray-600 mb-6">已完成的盘数会保存，可在历史中查看。</p>
               
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -1154,7 +1204,7 @@ function App() {
                   onClick={handleConfirmEndGame}
                   className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
                 >
-                  确认结束
+                  结束比赛
                 </button>
               </div>
             </div>
@@ -1192,8 +1242,8 @@ function App() {
             <div className="col-start-2 row-start-2 flex items-center justify-center">
               {game?.is_completed || game?.status === 'finished' ? (
                  <div className="flex flex-col items-center justify-center gap-4 bg-white/90 p-6 rounded-xl shadow-xl backdrop-blur-sm z-10 animate-in fade-in zoom-in duration-300">
-                    <div className="text-2xl font-black text-gray-800">比赛结束</div>
-                    <div className="text-sm text-gray-500 font-medium">请点击下方按钮退出并查看统计</div>
+                    <div className="text-2xl font-black text-gray-800">比赛已结束</div>
+                    <div className="text-sm text-gray-500 font-medium">查看本场成绩，或从历史继续回看。</div>
                     <button 
                       onClick={handleFinalizeGame}
                       className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
@@ -1255,8 +1305,7 @@ function App() {
             className="col-start-3 col-span-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <Ban size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span className="min-[800px]:hidden">荒</span>
-            <span className="hidden min-[800px]:inline">荒庄</span>
+            <span>荒庄</span>
           </button>
           
           <button
@@ -1269,8 +1318,7 @@ function App() {
             className="col-span-2 bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <History size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span className="min-[800px]:hidden">查</span>
-            <span className="hidden min-[800px]:inline">明细</span>
+            <span>明细</span>
           </button>
 
           {/* Row 2: Undo, Penalty, Restart (3 buttons, col-span-2) */}
@@ -1280,8 +1328,7 @@ function App() {
             className="col-span-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <Undo size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span className="min-[800px]:hidden">改</span>
-            <span className="hidden min-[800px]:inline">修改</span>
+            <span>撤销</span>
           </button>
 
           <button
@@ -1290,8 +1337,7 @@ function App() {
             className="col-span-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <AlertTriangle size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span className="min-[800px]:hidden">罚</span>
-            <span className="hidden min-[800px]:inline">判罚</span>
+            <span>判罚</span>
           </button>
 
           <button
@@ -1299,8 +1345,7 @@ function App() {
             className="col-span-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <RotateCcw size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span className="min-[800px]:hidden">完</span>
-            <span className="hidden min-[800px]:inline">结束</span>
+            <span>结束</span>
           </button>
         </div>
       </div>

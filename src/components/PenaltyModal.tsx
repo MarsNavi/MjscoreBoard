@@ -69,11 +69,11 @@ export default function PenaltyModal({
           >
             <X size={24} />
           </button>
-        </div>
+          </div>
 
         <div className="p-6 space-y-4">
           <p className="text-sm text-gray-600 mb-4">
-            输入每位玩家的判罚分数（正数为加分，负数为减分）
+            为每位选手填写调整分。加分填正数，扣分填负数。
           </p>
 
           {(['east', 'south', 'west', 'north'] as const).map((position) => {
@@ -81,7 +81,7 @@ export default function PenaltyModal({
             return (
               <div key={position} className="flex items-center gap-3">
                 <div className="w-20 font-medium text-gray-700">
-                  {positionNames[position]} - {player?.name || 'N/A'}
+                  {positionNames[position]} - {player?.name || '未命名'}
                 </div>
                 <input
                   type="number"
@@ -97,8 +97,7 @@ export default function PenaltyModal({
           {totalPenalty !== 0 && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                注意：判罚总和为 <span className="font-bold">{totalPenalty}</span> 分，
-                通常判罚应该总和为0（有人加分就有人减分）
+                当前合计为 <span className="font-bold">{totalPenalty}</span> 分。通常应为 0，请确认是否有遗漏。
               </p>
             </div>
           )}
@@ -115,7 +114,7 @@ export default function PenaltyModal({
             onClick={handleSubmit}
             className="flex-1 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors shadow-lg"
           >
-            提交
+            保存判罚
           </button>
         </div>
       </div>

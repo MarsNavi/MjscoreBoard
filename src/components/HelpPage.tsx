@@ -30,6 +30,32 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.5</h2>
+                <p className="text-sm text-gray-500">2026-05-19</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">首页结构升级：</strong>开局、历史、统计和档案分区更清晰，常用操作更容易找到。
+                </li>
+                <li>
+                  <strong className="text-gray-900">档案管理优化：</strong>当前档案、切换、备份、改名和删除集中管理，适合不同牌友圈独立记分。
+                </li>
+                <li>
+                  <strong className="text-gray-900">分享导入优化：</strong>分享档案后，对方可另存为新档案，也可合并到已有档案；合并时自动跳过重复比赛。
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
                 <h2 className="text-2xl font-bold text-gray-800">v1.4</h2>
                 <p className="text-sm text-gray-500">2026-05-08</p>
               </div>
@@ -38,16 +64,19 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               <p className="text-lg font-semibold text-gray-900">更新内容：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">成绩统计支持长图分享：</strong>在成绩统计页新增分享按钮，可生成包含战绩一览、详细数据和和牌数据的长图，方便赛后保存和转发。
+                  <strong className="text-gray-900">成绩统计支持长图分享：</strong>在成绩统计页新增分享按钮，可生成包含战绩一览、攻守数据和和牌数据的长图，方便赛后保存和转发。
                 </li>
                 <li>
-                  <strong className="text-gray-900">新增数据文件切换：</strong>支持为不同牌友圈创建独立数据文件，也可以把外部 JSON 打开为新数据文件，或合并到当前数据文件。
+                  <strong className="text-gray-900">新增牌局档案切换：</strong>支持为不同牌友圈创建独立档案，也可以把别人分享的档案另存或合并。
+                </li>
+                <li>
+                  <strong className="text-gray-900">新增牌局档案分享：</strong>可以把当前档案直接分享给其他人，对方可导入成新档案，也可以合并到自己的档案里。
                 </li>
                 <li>
                   <strong className="text-gray-900">修正同名选手统计：</strong>自动清理名字前后的空格，避免同一个人因为输入差异被拆成多条统计记录。
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化硬件计分牌中文显示：</strong>统一使用完整中文字体资源，降低部分设备中文字显示成方框的概率。
+                  <strong className="text-gray-900">优化硬件计分牌中文显示：</strong>统一使用完整中文字体资源，修复部分计分牌中文字显示成方框的问题。
                 </li>
               </ul>
             </div>
@@ -67,13 +96,13 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               <p className="text-lg font-semibold text-gray-900">更新内容：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">修正了成绩统计中的bug：</strong>修复了标准分计算逻辑，解决了历史数据计算错误的问题。
+                  <strong className="text-gray-900">修复成绩统计：</strong>修正标准分计算逻辑，历史数据统计更准确。
                 </li>
                 <li>
-                  <strong className="text-gray-900">增加了和牌数据统计：</strong>在战绩详情中新增了和牌数据的多维统计（和牌数、番数分布、最大番等）。
+                  <strong className="text-gray-900">新增和牌统计：</strong>增加和牌数、番数分布、最大番等统计。
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化了硬件计分牌的体验：</strong>改进了与硬件记分牌的交互体验。
+                  <strong className="text-gray-900">优化硬件计分牌：</strong>改进硬件计分牌的连接与显示体验。
                 </li>
               </ul>
             </div>
@@ -116,13 +145,13 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">v1.0正式发布：</p>
+              <p className="text-lg font-semibold text-gray-900">v1.0 正式发布：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  所有的记录和数据统计均在本地运行，不需要联网也可以使用
+                  所有记录和统计均在本地运行，不需要联网也可以使用
                 </li>
                 <li>
-                  支持数据的导入导出，方便切换设备或数据备份
+                  支持牌局档案分享、导入和备份，方便换设备或与牌友同步记录
                 </li>
               </ul>
             </div>
@@ -145,13 +174,13 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                   <strong className="text-gray-900">快速开局智能记忆：</strong>开局时自动读取上次比赛的名称和选手名单，无需重复输入。
                 </li>
                 <li>
-                  <strong className="text-gray-900">选手输入优化：</strong>修复了常用选手名字显示问题，点击输入框可正确显示历史常用选手供快速选择。
+                  <strong className="text-gray-900">选手输入优化：</strong>常用选手列表更稳定，开局时可快速选择历史姓名。
                 </li>
                 <li>
-                  <strong className="text-gray-900">比赛历史改进：</strong>在比赛页面历史上可以快速查看历史比赛结果，并且有查询当日的小计便于当日结算。
+                  <strong className="text-gray-900">比赛历史改进：</strong>历史页支持查看比赛结果，并提供近 24 小时小计，方便结算。
                 </li>
                 <li>
-                  <strong className="text-gray-900">成绩统计优化：</strong>在成绩统计中增加了详细数据的展示，统计了和牌、自摸和放铳的情况。
+                  <strong className="text-gray-900">成绩统计优化：</strong>在成绩统计中增加攻守数据，统计和牌、自摸和放铳情况。
                 </li>
               </ul>
             </div>
@@ -177,9 +206,9 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                     如何开局
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>填写比赛名称（选填）</li>
-                    <li>输入四位选手的姓名（东、南、西、北）</li>
-                    <li>点击"开始比赛"创建16盘国标麻将比赛</li>
+                    <li>填写比赛名称（可选）</li>
+                    <li>填写四位选手姓名（东、南、西、北）</li>
+                    <li>点按“开始比赛”，创建 16 盘国标麻将比赛</li>
                     <li>系统自动进行座位轮换</li>
                   </ul>
                 </div>
@@ -190,10 +219,10 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                     如何计分
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>和牌选手点击"和"按钮录入分数</li>
+                    <li>和牌选手点按“和”录入番数</li>
                     <li>支持自摸和点炮两种情况</li>
                     <li>系统自动计算分数变化</li>
-                    <li>比赛结束后需所有选手确认成绩</li>
+                    <li>第 16 盘结束后自动保存比赛成绩</li>
                   </ul>
                 </div>
 
@@ -203,7 +232,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                     荒庄和裁判判罚
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>流局时可点击"荒庄"按钮</li>
+                    <li>荒庄时点按“荒庄”</li>
                     <li>支持裁判判罚功能（加分/扣分）</li>
                     <li>可处理错和、诈和等违规情况</li>
                   </ul>
@@ -238,7 +267,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
 
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-center space-y-2 text-sm text-gray-500">
-              <p>本程序由四川熊猫俱乐部赞助</p>
+              <p>本应用由四川熊猫俱乐部赞助</p>
               <p>作者 李睿 13501165270（微信同号）</p>
             </div>
           </div>

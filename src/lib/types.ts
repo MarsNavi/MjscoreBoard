@@ -24,6 +24,9 @@ export interface Game {
   early_ended?: boolean;
   completed_at?: string;
   creator_id?: string;
+  source_game_id?: string;
+  source_data_file_id?: string;
+  source_imported_at?: string;
 }
 
 export interface User {

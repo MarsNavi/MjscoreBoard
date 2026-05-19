@@ -44,6 +44,7 @@ interface PlayerWinningStats {
 interface PlayerStatsPageProps {
   user: User;
   onBack: () => void;
+  showBack?: boolean;
 }
 
 type SortField = 'games_played' | 'total_game_score' | 'total_standard_score' | 'average_standard_score';
@@ -71,7 +72,7 @@ const calculateGameResultsFromDetails = async (
   }));
 };
 
-export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) {
+export default function PlayerStatsPage({ user, onBack, showBack = true }: PlayerStatsPageProps) {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [detailStats, setDetailStats] = useState<PlayerDetailStats[]>([]);
   const [winningStats, setWinningStats] = useState<PlayerWinningStats[]>([]);
@@ -394,7 +395,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
 
         await Share.share({
           title: '国标麻将成绩统计',
-          text: '国标麻将比赛成绩统计长图',
+          text: '成绩统计长图',
           files: [savedFile.uri],
           dialogTitle: '分享成绩统计',
         });
@@ -405,7 +406,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: '国标麻将成绩统计',
-          text: '国标麻将比赛成绩统计长图',
+          text: '成绩统计长图',
           files: [file],
         });
       } else {
@@ -424,12 +425,14 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft size={24} />
-            </button>
+            {showBack && (
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={24} />
+              </button>
+            )}
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-800">成绩统计</h1>
             </div>
@@ -439,15 +442,15 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
               className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
             >
               {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-              <span className="hidden sm:inline">{sharing ? '生成中' : '分享'}</span>
+              <span>{sharing ? '生成中…' : '分享长图'}</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-gray-500">加载中...</div>
+            <div className="text-center py-8 text-gray-500">正在加载…</div>
           ) : stats.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              暂无已完成的比赛数据
+              完成比赛后，这里会显示统计。
             </div>
           ) : (
             <>
@@ -530,7 +533,7 @@ export default function PlayerStatsPage({ user, onBack }: PlayerStatsPageProps) 
 
               {detailStats.length > 0 && (
                 <>
-                  <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">详细数据</h2>
+                  <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">攻守数据</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>

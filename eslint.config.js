@@ -11,6 +11,7 @@ export default tseslint.config(
       'android/**/build/**',
       'ios/App/App/public/**',
       'esp32/.pio/**',
+      'release/**',
     ],
   },
   {

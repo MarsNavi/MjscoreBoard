@@ -196,7 +196,7 @@ const drawHeader = (ctx: CanvasRenderingContext2D, y: number, generatedAt: Date)
 
   text(ctx, '国标麻将成绩统计', PAD, y + 62, { size: 52, weight: 900, color: COLORS.ink });
   text(ctx, `生成时间：${formatDate(generatedAt)}`, PAD, y + 108, { size: 24, weight: 500, color: COLORS.muted });
-  text(ctx, '实时计分板 · 长图分享', PAD, y + 148, { size: 28, weight: 800, color: COLORS.orange });
+  text(ctx, '赛后长图 · 可保存分享', PAD, y + 148, { size: 28, weight: 800, color: COLORS.orange });
 
   return y + 210;
 };
@@ -208,7 +208,7 @@ const drawOverview = (ctx: CanvasRenderingContext2D, y: number, stats: ShareSumm
   const leaderScore = stats[0] ? fixed1(stats[0].total_standard_score) : '-';
   const cards = [
     ['选手数', String(totalPlayers), COLORS.orange],
-    ['已完成比赛', String(totalGames), COLORS.rose],
+    ['完成比赛', String(totalGames), COLORS.rose],
     ['当前领先', leader, COLORS.green],
     ['领先标准分', leaderScore, COLORS.blue],
   ];
@@ -364,7 +364,7 @@ export async function createStatsShareImage(input: StatsShareImageInput): Promis
   ], input.summaryStats);
 
   if (detailStats.length > 0) {
-    y = drawSectionTitle(ctx, '详细数据', y + 8);
+    y = drawSectionTitle(ctx, '攻守数据', y + 8);
     detailStats.forEach((stat) => {
       y = drawMetricCards(ctx, y, stat.player_name, [
         { label: '总盘数', value: String(stat.total_rounds) },

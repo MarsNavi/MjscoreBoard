@@ -11,6 +11,7 @@ interface GameHistoryPageProps {
   onSelectGame: (gameId: string) => void;
   onContinueGame: (gameId: string) => void;
   onDeleteGame: (gameId: string) => void;
+  showBack?: boolean;
 }
 
 interface GameResult {
@@ -45,6 +46,7 @@ export default function GameHistoryPage({
   onSelectGame,
   onContinueGame,
   onDeleteGame,
+  showBack = true,
 }: GameHistoryPageProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +148,7 @@ export default function GameHistoryPage({
     if (game.status === 'finished') {
       return '已结束';
     }
-    return `进行中 (${game.current_game}/16)`;
+    return `进行中 ${game.current_game}/16`;
   };
 
   const handleDelete = async (gameId: string) => {
@@ -168,12 +170,14 @@ export default function GameHistoryPage({
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft size={24} />
-            </button>
+            {showBack && (
+              <button
+                onClick={onBack}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={24} />
+              </button>
+            )}
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <Trophy className="text-yellow-500" />
               比赛历史
@@ -183,9 +187,9 @@ export default function GameHistoryPage({
           {!loading && playerDailyTotals.length > 0 && (
             <div className="mb-4 p-4 bg-gradient-to-r from-orange-100 to-rose-100 rounded-xl border-2 border-orange-200">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">24小时内累计</span>
+                <span className="text-sm font-semibold text-gray-700">近 24 小时小计</span>
                 <span className="text-xs text-gray-600">
-                  过去24小时
+                  按比赛创建时间统计
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -202,9 +206,9 @@ export default function GameHistoryPage({
           )}
 
           {loading ? (
-            <div className="text-center py-8 text-gray-500">加载中...</div>
+            <div className="text-center py-8 text-gray-500">正在加载…</div>
           ) : games.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">暂无比赛记录</div>
+            <div className="text-center py-8 text-gray-500">还没有比赛记录</div>
           ) : (
             <div className="space-y-3">
               {games.map((game) => {
@@ -248,7 +252,7 @@ export default function GameHistoryPage({
                             className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-sm"
                           >
                             <Play size={14} />
-                            继续
+                            继续比赛
                           </button>
                         )}
                         <button
@@ -281,7 +285,7 @@ export default function GameHistoryPage({
                     {isDeleting && (
                       <div className="mt-2 flex items-center gap-1 text-red-600 text-xs font-medium">
                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                        删除中...
+                        正在删除…
                       </div>
                     )}
                   </div>

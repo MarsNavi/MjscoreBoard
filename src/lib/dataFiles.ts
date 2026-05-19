@@ -33,20 +33,21 @@ interface ImportedDataCounts {
   scores: number;
   penalties: number;
   game_results: number;
+  skipped_games?: number;
 }
 
-const LEGACY_DEFAULT_CODES = new Set(['local', 'micken']);
+const LEGACY_DEFAULT_CODES = new Set(['local', 'micken', '默认数据']);
 
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value as T[] : []);
 
 export const getDataFileName = (user: User | null | undefined): string => {
-  if (!user) return '默认数据';
+  if (!user) return '默认档案';
   const name = String(user.code || '').trim();
-  if (!name || LEGACY_DEFAULT_CODES.has(name)) return '默认数据';
+  if (!name || LEGACY_DEFAULT_CODES.has(name)) return '默认档案';
   return name;
 };
 
-export const normalizeDataFileName = (name: string | null | undefined, fallback = '未命名数据'): string => {
+export const normalizeDataFileName = (name: string | null | undefined, fallback = '未命名档案'): string => {
   const normalized = String(name || '')
     .replace(/\.[^.]+$/, '')
     .replace(/[_-]+/g, ' ')
@@ -56,7 +57,7 @@ export const normalizeDataFileName = (name: string | null | undefined, fallback 
 
 export const normalizeBackupData = (value: unknown): MahjongBackupData => {
   if (!value || typeof value !== 'object') {
-    throw new Error('不是有效的数据文件');
+    throw new Error('不是有效的牌局档案');
   }
 
   const raw = value as MahjongBackupData;
@@ -80,14 +81,14 @@ export const deriveImportDataFileName = (fileName: string, data: MahjongBackupDa
   const fromUser = normalizeDataFileName(data.users?.[0]?.code, '');
   if (fromUser && !LEGACY_DEFAULT_CODES.has(fromUser)) return fromUser;
 
-  return normalizeDataFileName(fileName, '导入数据');
+  return normalizeDataFileName(fileName, '导入档案');
 };
 
 export const createBlankDataFile = async (name: string): Promise<User> => {
   const now = new Date().toISOString();
   const user: User = {
     id: crypto.randomUUID(),
-    code: normalizeDataFileName(name, '新数据文件'),
+    code: normalizeDataFileName(name, '新档案'),
     created_at: now,
     last_login_at: now,
   };
@@ -97,7 +98,7 @@ export const createBlankDataFile = async (name: string): Promise<User> => {
 
 export const renameDataFile = async (userId: string, name: string): Promise<void> => {
   await db.users.update(userId, {
-    code: normalizeDataFileName(name, '未命名数据'),
+    code: normalizeDataFileName(name, '未命名档案'),
     last_login_at: new Date().toISOString(),
   });
 };
@@ -146,9 +147,13 @@ export const deleteDataFile = async (userId: string): Promise<void> => {
 
 export const buildExportDataForUser = async (userId: string): Promise<MahjongBackupData> => {
   const user = await db.users.get(userId);
-  if (!user) throw new Error('数据文件不存在');
+  if (!user) throw new Error('档案不存在');
 
-  const games = await db.games.where('creator_id').equals(userId).toArray();
+  const games = (await db.games.where('creator_id').equals(userId).toArray()).map((game) => ({
+    ...game,
+    source_game_id: game.source_game_id || game.id,
+    source_data_file_id: game.source_data_file_id || user.id,
+  }));
   const gameIds = games.map((game) => game.id);
 
   const players = gameIds.length > 0
@@ -168,7 +173,7 @@ export const buildExportDataForUser = async (userId: string): Promise<MahjongBac
 
   return {
     exported_at: new Date().toISOString(),
-    app_version: '1.4.0',
+    app_version: '1.4.1',
     data_file: {
       id: user.id,
       name: getDataFileName(user),
@@ -182,8 +187,31 @@ export const buildExportDataForUser = async (userId: string): Promise<MahjongBac
   };
 };
 
+const getGameSourceKey = (game: Game): string | null => {
+  return game.source_game_id || game.id || null;
+};
+
+const getGameFingerprint = (game: Game, players: Player[] = []): string => {
+  const playerNames = players
+    .map((player) => normalizePlayerName(player.name, player.player_id))
+    .filter(Boolean)
+    .sort()
+    .join(',');
+
+  return [
+    game.created_at || '',
+    game.completed_at || '',
+    game.game_name || '',
+    String(game.current_round || ''),
+    String(game.current_game || ''),
+    game.status || '',
+    playerNames,
+  ].join('|');
+};
+
 const remapBackupIntoUser = (data: MahjongBackupData, targetUserId: string) => {
   const originalGames = data.games || [];
+  const importedAt = new Date().toISOString();
   const gameIdMap = new Map<string, string>();
 
   originalGames.forEach((game) => {
@@ -198,6 +226,9 @@ const remapBackupIntoUser = (data: MahjongBackupData, targetUserId: string) => {
       ...game,
       id: gameIdMap.get(game.id)!,
       creator_id: targetUserId,
+      source_game_id: getGameSourceKey(game) || game.id,
+      source_data_file_id: game.source_data_file_id || data.data_file?.id,
+      source_imported_at: game.source_imported_at || importedAt,
       created_at: game.created_at || new Date().toISOString(),
     }));
 
@@ -249,7 +280,7 @@ export const importBackupAsNewDataFile = async (
   const now = new Date().toISOString();
   const user: User = {
     id: crypto.randomUUID(),
-    code: normalizeDataFileName(name, '导入数据'),
+    code: normalizeDataFileName(name, '导入档案'),
     created_at: now,
     last_login_at: now,
   };
@@ -280,7 +311,64 @@ export const mergeBackupIntoDataFile = async (
   data: MahjongBackupData,
   targetUserId: string
 ): Promise<ImportedDataCounts> => {
-  const mapped = remapBackupIntoUser(data, targetUserId);
+  const incomingGames = data.games || [];
+  const existingGames = await db.games.where('creator_id').equals(targetUserId).toArray();
+  const existingGameIds = existingGames.map((game) => game.id);
+  const existingPlayers = existingGameIds.length > 0
+    ? await db.players.where('game_id').anyOf(existingGameIds).toArray()
+    : [];
+  const incomingPlayers = data.players || [];
+
+  const playersByGameId = (players: Player[]) => {
+    const map = new Map<string, Player[]>();
+    players.forEach((player) => {
+      const list = map.get(player.game_id) || [];
+      list.push(player);
+      map.set(player.game_id, list);
+    });
+    return map;
+  };
+
+  const existingPlayersByGameId = playersByGameId(existingPlayers);
+  const incomingPlayersByGameId = playersByGameId(incomingPlayers);
+  const existingKeys = new Set<string>();
+
+  existingGames.forEach((game) => {
+    const sourceKey = getGameSourceKey(game);
+    if (sourceKey) existingKeys.add(`source:${sourceKey}`);
+    existingKeys.add(`fingerprint:${getGameFingerprint(game, existingPlayersByGameId.get(game.id) || [])}`);
+  });
+
+  const uniqueGames: Game[] = [];
+  let skippedGames = 0;
+
+  incomingGames.forEach((game) => {
+    const sourceKey = getGameSourceKey(game);
+    const fingerprint = getGameFingerprint(game, incomingPlayersByGameId.get(game.id) || []);
+    const isDuplicate = (sourceKey && existingKeys.has(`source:${sourceKey}`)) ||
+      existingKeys.has(`fingerprint:${fingerprint}`);
+
+    if (isDuplicate) {
+      skippedGames += 1;
+      return;
+    }
+
+    uniqueGames.push(game);
+    if (sourceKey) existingKeys.add(`source:${sourceKey}`);
+    existingKeys.add(`fingerprint:${fingerprint}`);
+  });
+
+  const uniqueGameIds = new Set(uniqueGames.map((game) => game.id));
+  const uniqueData: MahjongBackupData = {
+    ...data,
+    games: uniqueGames,
+    players: (data.players || []).filter((player) => uniqueGameIds.has(player.game_id)),
+    scores: (data.scores || []).filter((score) => uniqueGameIds.has(score.game_id)),
+    penalties: (data.penalties || []).filter((penalty) => uniqueGameIds.has(penalty.game_id)),
+    game_results: (data.game_results || []).filter((result) => uniqueGameIds.has(result.game_id)),
+  };
+
+  const mapped = remapBackupIntoUser(uniqueData, targetUserId);
 
   await db.transaction('rw', [db.games, db.players, db.scores, db.penalties, db.game_results], async () => {
     if (mapped.games.length > 0) await db.games.bulkAdd(mapped.games);
@@ -296,5 +384,6 @@ export const mergeBackupIntoDataFile = async (
     scores: mapped.scores.length,
     penalties: mapped.penalties.length,
     game_results: mapped.game_results.length,
+    skipped_games: skippedGames,
   };
 };

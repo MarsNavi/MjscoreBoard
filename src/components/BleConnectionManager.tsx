@@ -60,9 +60,9 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
           <div>
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               <Bluetooth className="text-blue-500" size={20} />
-              蓝牙设备管理
+              计分牌连接
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">扫描并绑定计分板设备</p>
+            <p className="text-xs text-gray-500 mt-0.5">为东、南、西、北绑定对应计分牌。</p>
           </div>
           <button
             onClick={onClose}
@@ -86,7 +86,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Link size={16} />
-              已绑定设备
+              已绑定
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {positions.map((position) => {
@@ -104,8 +104,8 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                         : 'border-dashed border-gray-300 bg-gray-50'
                     }`}
                   >
-                    <div className="absolute top-3 right-3 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      {positionLabels[position]} ({position})
+                    <div className="absolute top-3 right-3 text-xs font-bold text-gray-400 tracking-wider">
+                      {positionLabels[position]}家
                     </div>
                     
                     <div className="flex flex-col h-full justify-between gap-2">
@@ -114,12 +114,12 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                           <div>
                             <div className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
                               <Smartphone size={14} className={isConnected ? "text-green-600" : "text-orange-500"} />
-                              {device.name || 'Unknown Device'}
+                              {device.name || '未命名设备'}
                             </div>
                             <div className="text-[10px] text-gray-500 font-mono mt-0.5">{device.deviceId}</div>
                             {!isConnected && (
                                 <div className="mt-1 text-[10px] text-orange-600 font-medium animate-pulse">
-                                    {device.status === 'connecting' ? '正在连接...' : '连接断开，正在尝试重连...'}
+                                    {device.status === 'connecting' ? '正在连接…' : '连接断开，正在重连…'}
                                 </div>
                             )}
                           </div>
@@ -149,7 +149,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                  <Scan size={16} />
-                 扫描设备 ({scannedDevices.length})
+                 发现设备 ({scannedDevices.length})
                </h3>
                <button 
                  onClick={isScanning ? stopScan : startScan}
@@ -167,7 +167,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
             <div className="max-h-[300px] overflow-y-auto p-2">
                {scannedDevices.length === 0 ? (
                   <div className="text-center py-8 text-gray-400 text-xs">
-                     {isScanning ? '正在搜索附近的蓝牙设备...' : '点击"开始扫描"查找设备'}
+                     {isScanning ? '正在搜索附近计分牌…' : '点按“开始扫描”查找附近计分牌'}
                   </div>
                ) : (
                   <div className="space-y-2">
@@ -178,7 +178,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                                 <Bluetooth size={16} />
                               </div>
                               <div>
-                                 <div className="font-medium text-gray-800 text-sm">{result.device.name || 'Unknown Device'}</div>
+                                 <div className="font-medium text-gray-800 text-sm">{result.device.name || '未命名设备'}</div>
                                  <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
                                    <span>ID: {result.device.deviceId}</span>
                                    <span className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">RSSI: {result.rssi}</span>
@@ -187,14 +187,14 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                            </div>
                            
                            <div className="flex items-center gap-1.5 pl-11 sm:pl-0 flex-wrap">
-                              <span className="text-[10px] text-gray-400 mr-1">绑定至:</span>
+                              <span className="text-[10px] text-gray-400 mr-1">绑定到</span>
                               {positions.map(pos => {
                                 const isBound = !!bleDevices[pos];
                                 return (
                                   <button
                                      key={pos}
                                      disabled={isBound || connectingPosition !== null}
-                                     onClick={() => handleConnect(pos, result.device.deviceId, result.device.name || 'Unknown')}
+                                     onClick={() => handleConnect(pos, result.device.deviceId, result.device.name || '未命名设备')}
                                      className={`px-2 py-1 rounded text-[10px] border transition-all ${
                                        isBound 
                                          ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'

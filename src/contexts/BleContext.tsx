@@ -32,6 +32,12 @@ const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
 const BLE_TX_CHAR_UUID = '0000fff1-0000-1000-8000-00805f9b34fb';
 const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
 const RECONNECT_INTERVAL = 2000; // 2 seconds
+const POSITION_LABELS: Record<Position, string> = {
+  east: '东',
+  south: '南',
+  west: '西',
+  north: '北',
+};
 
 export function BleProvider({ children }: { children: ReactNode }) {
   const [bleDevices, setBleDevices] = useState<Record<Position, BleConnectionInfo | null>>({
@@ -87,7 +93,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('BLE initialize failed:', error);
-        setBleError('蓝牙初始化失败，请检查设备支持情况');
+        setBleError('蓝牙不可用。请确认手机支持蓝牙，并已授权蓝牙权限。');
       }
     };
     initBle();
@@ -203,7 +209,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error('Failed to start scan:', error);
-      setBleError('无法开始扫描，请检查定位和蓝牙权限');
+      setBleError('无法扫描。请开启蓝牙，并允许定位或附近设备权限。');
       setIsScanning(false);
     }
   }, [stopScan]);
@@ -214,7 +220,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         const positions: Position[] = ['east', 'south', 'west', 'north'];
         for (const pos of positions) {
             if (bleDevices[pos]?.deviceId === deviceId) {
-                setBleError(`设备 ${deviceName} 已经绑定到 ${pos}家`);
+                setBleError(`${deviceName} 已绑定到${POSITION_LABELS[pos]}家。请先解除原绑定。`);
                 return;
             }
         }
@@ -251,7 +257,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
         const connection: BleConnectionInfo = {
             deviceId: deviceId,
-            name: deviceName || 'Unknown Device',
+            name: deviceName || '未命名设备',
             status: 'connected',
         };
 
@@ -270,7 +276,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         } else if (typeof error === 'string') {
             setBleError(error);
         } else {
-            setBleError('蓝牙连接失败');
+            setBleError('连接失败。请确认计分牌已开机并靠近手机。');
         }
         throw error; // Re-throw to let caller handle if needed
     }

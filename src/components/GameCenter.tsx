@@ -83,14 +83,14 @@ export default function GameCenter({
 
       {!gameStarted && (
         <div className="flex flex-col items-center gap-2 min-[800px]:gap-3 bg-white p-3 min-[800px]:p-4 rounded-xl shadow-lg min-w-[240px] max-w-[280px] min-[800px]:min-w-[280px] min-[800px]:max-w-[320px]">
-          <div className="text-sm min-[800px]:text-base font-medium text-gray-700">请输入比赛信息</div>
+          <div className="text-sm min-[800px]:text-base font-medium text-gray-700">比赛设置</div>
           <div className="w-full">
-            <label className="text-xs min-[800px]:text-sm font-medium text-gray-600 block mb-1">比赛名称</label>
+            <label className="text-xs min-[800px]:text-sm font-medium text-gray-600 block mb-1">比赛名称（可选）</label>
             <input
               type="text"
               value={gameName}
               onChange={(e) => onGameNameChange(e.target.value)}
-              placeholder="输入比赛名称(选填)"
+              placeholder="周末友谊赛"
               className="w-full px-2 py-1.5 min-[800px]:py-2 text-center text-xs min-[800px]:text-sm border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             />
           </div>
@@ -109,7 +109,7 @@ export default function GameCenter({
                     type="text"
                     value={displayName}
                     onChange={(e) => onNameChange(position, e.target.value)}
-                    placeholder="输入姓名"
+                    placeholder="姓名"
                     className="px-2 py-1.5 min-[800px]:py-2 text-center text-xs min-[800px]:text-sm border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   />
                 </div>
@@ -120,7 +120,7 @@ export default function GameCenter({
             onClick={onStartGame}
             className="mt-1 px-6 py-2 min-[800px]:px-8 min-[800px]:py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-base min-[800px]:text-lg font-bold rounded-lg transition-colors shadow-lg"
           >
-            开局
+            开始比赛
           </button>
         </div>
       )}

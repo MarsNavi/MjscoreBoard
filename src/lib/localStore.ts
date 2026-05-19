@@ -25,7 +25,7 @@ export function saveLocalGameSnapshot(userId: string, snapshot: LocalGameSnapsho
   try {
     window.localStorage.setItem(STORAGE_PREFIX + userId, JSON.stringify(snapshot));
   } catch (error) {
-    console.error('保存本地对局快照失败', error);
+    console.error('保存本地比赛快照失败', error);
   }
 }
 
@@ -34,6 +34,6 @@ export function clearLocalGameSnapshot(userId: string): void {
   try {
     window.localStorage.removeItem(STORAGE_PREFIX + userId);
   } catch (error) {
-    console.error('清除本地对局快照失败', error);
+    console.error('清除本地比赛快照失败', error);
   }
 }

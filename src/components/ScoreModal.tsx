@@ -83,7 +83,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
     if (isSubmitting) return;
 
     if (selectedLoser === null && selectedLoser !== winnerPosition) {
-      alert('请选择点炮者或自摸');
+      alert('请选择点炮方，或选择自摸。');
       return;
     }
 
@@ -109,7 +109,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
               </h2>
               {winnerPlayer && (
                 <p className="text-base text-gray-600 mt-1">
-                  玩家: {winnerPlayer.name || winnerPlayer.player_id}
+                  选手：{winnerPlayer.name || winnerPlayer.player_id}
                 </p>
               )}
             </div>
@@ -123,7 +123,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
 
           <div className="space-y-4">
             <p className="text-center text-lg text-gray-700">
-              请确认最终成绩
+              确认后将保存本场成绩。
             </p>
             <button
               onClick={() => {
@@ -132,7 +132,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
               }}
               className="w-full py-3 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-lg transition-colors shadow-md"
             >
-              确认
+              确认成绩
             </button>
           </div>
         </div>
@@ -146,11 +146,11 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
-              {positionLabels[winnerPosition]} 和牌
+              {positionLabels[winnerPosition]}家和牌
             </h2>
             {winnerPlayer && (
               <p className="text-base text-gray-600 mt-1">
-                玩家: {winnerPlayer.name || winnerPlayer.player_id}
+                选手：{winnerPlayer.name || winnerPlayer.player_id}
               </p>
             )}
           </div>
@@ -177,7 +177,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    <div>{positionLabels[pos]} 点</div>
+                    <div>{positionLabels[pos]}家点炮</div>
                     {player && (
                       <div className="text-xs font-normal mt-0.5">
                         ({player.name || player.player_id})
@@ -201,7 +201,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
           </div>
 
           <div className="space-y-2">
-            <label className="block text-base font-medium text-gray-700">基本分数</label>
+            <label className="block text-base font-medium text-gray-700">番数</label>
 
             <div className="flex items-center gap-2">
               <button
@@ -272,7 +272,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
                 : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
             }`}
           >
-            {isSubmitting ? '提交中...' : '确认计分'}
+            {isSubmitting ? '正在记录…' : '记录本盘'}
           </button>
         </div>
       </div>

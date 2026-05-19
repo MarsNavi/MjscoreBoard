@@ -56,10 +56,10 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
             </button>
             <div>
               <h2 className="text-2xl font-bold text-gray-800">
-                {game?.game_name || '游戏详情'}
+                {game?.game_name || '比赛详情'}
               </h2>
               {game?.game_name && (
-                <div className="text-sm text-gray-500 mt-1">游戏详情</div>
+                <div className="text-sm text-gray-500 mt-1">比赛详情</div>
               )}
             </div>
           </div>
@@ -90,12 +90,12 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">记分明细</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">计分明细</h3>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-4 py-2 text-center">局数</th>
+                    <th className="border border-gray-300 px-4 py-2 text-center">盘数</th>
                     {[...players].sort((a, b) => a.player_id.localeCompare(b.player_id)).map((player) => (
                       <th
                         key={player.id}

@@ -9,7 +9,7 @@ interface UserStats {
   created_at: string;
   total_games: number;
   total_scores: number;
-  unique_game_names: number;
+  unique_player_names: number;
 }
 
 interface AdminPageProps {
@@ -63,7 +63,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
           created_at: user.created_at,
           total_games: totalGames,
           total_scores: totalScores,
-          unique_game_names: uniquePlayerNames,
+          unique_player_names: uniquePlayerNames,
         };
       });
 
@@ -103,7 +103,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
-        <div className="text-lg text-gray-600">加载中...</div>
+        <div className="text-lg text-gray-600">正在加载…</div>
       </div>
     );
   }
@@ -157,19 +157,19 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
                     <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                       <div className="flex items-center justify-center gap-1">
                         <Trophy size={16} />
-                        <span>总盘数</span>
+                        <span>比赛数</span>
                       </div>
                     </th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                       <div className="flex items-center justify-center gap-1">
                         <Hash size={16} />
-                        <span>总局数</span>
+                        <span>计分盘数</span>
                       </div>
                     </th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                       <div className="flex items-center justify-center gap-1">
                         <Users size={16} />
-                        <span>不同比赛名</span>
+                        <span>选手数</span>
                       </div>
                     </th>
                   </tr>
@@ -202,7 +202,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
                         {user.total_scores}
                       </td>
                       <td className="px-4 py-3 text-sm text-center font-semibold text-purple-600">
-                        {user.unique_game_names}
+                        {user.unique_player_names}
                       </td>
                     </tr>
                   ))}
