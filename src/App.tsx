@@ -181,34 +181,43 @@ function App() {
     initLocalUser();
   }, []);
 
+  const applyRoute = useCallback((hash: string) => {
+    if (hash === '/admin') {
+      setSelectedGameId(null);
+      setCurrentPage('admin');
+    } else if (hash === '/history') {
+      setSelectedGameId(null);
+      setCurrentPage('history');
+    } else if (hash === '/stats') {
+      setSelectedGameId(null);
+      setCurrentPage('stats');
+    } else if (hash === '/data') {
+      setSelectedGameId(null);
+      setCurrentPage('data');
+    } else if (hash === '/help') {
+      setSelectedGameId(null);
+      setCurrentPage('help');
+    } else if (hash.startsWith('/game/')) {
+      const gameId = hash.split('/')[2];
+      if (gameId) {
+        setSelectedGameId(gameId);
+        setCurrentPage('gameDetail');
+      }
+    } else {
+      setSelectedGameId(null);
+      setCurrentPage('home');
+    }
+  }, []);
+
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      if (hash === '/admin') {
-        setCurrentPage('admin');
-      } else if (hash === '/history') {
-        setCurrentPage('history');
-      } else if (hash === '/stats') {
-        setCurrentPage('stats');
-      } else if (hash === '/data') {
-        setCurrentPage('data');
-      } else if (hash === '/help') {
-        setCurrentPage('help');
-      } else if (hash.startsWith('/game/')) {
-        const gameId = hash.split('/')[2];
-        if (gameId) {
-          setSelectedGameId(gameId);
-          setCurrentPage('gameDetail');
-        }
-      } else {
-        setCurrentPage('home');
-      }
+      applyRoute(window.location.hash.slice(1));
     };
 
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [applyRoute]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -226,11 +235,16 @@ function App() {
   }, [currentUser, game, players, isConfirmMode, currentPenalties]);
 
   const navigateTo = useCallback((path: string) => {
-    window.location.hash = path;
+    const currentHash = window.location.hash.slice(1);
+    if (currentHash === path) {
+      applyRoute(path);
+    } else {
+      window.location.hash = path;
+    }
     window.setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }, 0);
-  }, []);
+  }, [applyRoute]);
 
   const createNewGame = async () => {
     if (!currentUser) return;
