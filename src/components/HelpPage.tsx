@@ -30,21 +30,15 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">v1.5</h2>
-                <p className="text-sm text-gray-500">2026-05-19</p>
+                <h2 className="text-2xl font-bold text-gray-800">v1.5.1</h2>
+                <p className="text-sm text-gray-500">2026-05-22</p>
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
               <p className="text-lg font-semibold text-gray-900">更新内容：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">首页结构升级：</strong>开局、历史、统计和档案分区更清晰，常用操作更容易找到。
-                </li>
-                <li>
-                  <strong className="text-gray-900">档案管理优化：</strong>当前档案、切换、备份、改名和删除集中管理，适合不同牌友圈独立记分。
-                </li>
-                <li>
-                  <strong className="text-gray-900">分享导入优化：</strong>分享档案后，对方可另存为新档案，也可合并到已有档案；合并时自动跳过重复比赛。
+                  <strong className="text-gray-900">修复返回首页：</strong>计分页点按返回首页并确认后，能够正确回到首页。
                 </li>
               </ul>
             </div>

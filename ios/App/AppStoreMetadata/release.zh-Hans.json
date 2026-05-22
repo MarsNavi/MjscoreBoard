@@ -1,12 +1,12 @@
 {
   "appId": "6758918094",
   "bundleId": "com.mjscoreboard.app",
-  "appInfoId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
-  "appInfoLocalizationId": "12a32098-1406-4e4f-a3e4-eceb5e30c155",
-  "appStoreVersionId": "752eb8c1-3e8c-4af0-b4cc-84794d80c948",
-  "appStoreVersionLocalizationId": "9ec961b9-f33e-4055-ba0e-d900d104e92f",
-  "ageRatingDeclarationId": "67db2429-6518-4871-be9c-74da3ad5e5a9",
-  "buildId": "76ec5fa9-d9f2-45e2-951c-d80da77e768e",
+  "appInfoId": "4a11aa6e-f146-4497-971e-d439fafc558a",
+  "appInfoLocalizationId": "b21fbb3f-24b0-486a-bf94-64755b222d79",
+  "appStoreVersionId": "65de800d-485f-4c44-aab1-0d0b5cc5b6fe",
+  "appStoreVersionLocalizationId": "1fa9e32d-0f1d-48ca-8b36-a06312f51268",
+  "ageRatingDeclarationId": "4a11aa6e-f146-4497-971e-d439fafc558a",
+  "buildId": "f89ac193-77be-4358-9768-41c6d45cc829",
   "primaryCategoryId": "UTILITIES",
   "screenshotDisplayType": "APP_IPHONE_65",
   "appInfoLocalization": {
@@ -25,7 +25,7 @@
     "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,档案分享,本地数据",
     "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
     "marketingUrl": null,
-    "whatsNew": "- 优化首页结构，开局、历史、统计和档案分区更清晰\n- 改进牌局档案管理，支持不同牌友圈独立记分\n- 优化档案分享与导入，合并时自动跳过重复比赛"
+    "whatsNew": "修复计分页点按返回首页并确认后未正确跳转的问题。"
   },
   "reviewDetail": {
     "contactFirstName": "Rui",
@@ -60,7 +60,7 @@
     "lootBox": false,
     "ageAssurance": false,
     "userGeneratedContent": false,
-    "gunsOrOtherWeapons": false
+    "gunsOrOtherWeapons": "NONE"
   },
   "screenshots": [
     "ios/App/AppStoreScreenshots/zh-Hans/01-quick-start-1284x2778.png",
