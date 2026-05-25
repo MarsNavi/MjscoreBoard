@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Player, ScoreRecord, Position, Game, Penalty } from '../lib/types';
 import { db } from '../lib/db';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Share2, Loader2 } from 'lucide-react';
 import { buildPlayersWithCalculatedScores, getPositionForPlayerInRound } from '../lib/gameScoring';
+import { createGameDetailShareImage } from '../lib/gameDetailShareImage';
+import { blobToBase64 } from '../lib/statsShareImage';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 interface GameDetailProps {
   gameId: string;
@@ -14,6 +19,7 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
   const [scores, setScores] = useState<ScoreRecord[]>([]);
   const [penalty, setPenalty] = useState<Penalty | null>(null);
   const [game, setGame] = useState<Game | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     const loadGameDetail = async () => {
@@ -42,6 +48,72 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
     return score >= 0 ? `+${score}` : `${score}`;
   };
 
+  const getShareFileName = () => {
+    const now = new Date();
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `mahjong_detail_${game?.game_name || 'game'}_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.png`;
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareDetail = async () => {
+    if (!game || scores.length === 0 || sharing) return;
+
+    setSharing(true);
+    try {
+      const fileName = getShareFileName();
+      const blob = await createGameDetailShareImage({
+        game,
+        players,
+        scores,
+        penalty,
+        generatedAt: new Date(),
+      });
+
+      if (Capacitor.isNativePlatform()) {
+        const data = await blobToBase64(blob);
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: `国标麻将对局明细 - ${game.game_name || '比赛详情'}`,
+          text: '对局明细长图',
+          files: [savedFile.uri],
+          dialogTitle: '分享对局明细',
+        });
+        return;
+      }
+
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: `国标麻将对局明细 - ${game.game_name || '比赛详情'}`,
+          text: '对局明细长图',
+          files: [file],
+        });
+      } else {
+        downloadBlob(blob, fileName);
+      }
+    } catch (error) {
+      console.error('Share detail failed:', error);
+      alert('分享对局明细失败，请稍后重试。');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
@@ -63,6 +135,15 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
               )}
             </div>
           </div>
+
+          <button
+            onClick={handleShareDetail}
+            disabled={!game || scores.length === 0 || sharing}
+            className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+          >
+            {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+            <span>{sharing ? '生成中…' : '分享对局明细'}</span>
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
