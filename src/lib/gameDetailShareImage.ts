@@ -125,20 +125,72 @@ const fitText = (
   text(ctx, fitted, x, y, options);
 };
 
+// Elegant capsule tag drawing helper
+const drawTag = (
+  ctx: CanvasRenderingContext2D,
+  textStr: string,
+  centerX: number,
+  y: number,
+  bgColor: string,
+  textColor: string
+) => {
+  ctx.save();
+  setFont(ctx, 13, 800);
+  const textWidth = ctx.measureText(textStr).width;
+  const w = textWidth + 18;
+  const h = 24;
+  const x = centerX - w / 2;
+  fillRoundRect(ctx, x, y, w, h, h / 2, bgColor);
+  text(ctx, textStr, centerX, y + h / 2 + 1, {
+    size: 13,
+    weight: 800,
+    color: textColor,
+    align: 'center',
+    baseline: 'middle',
+  });
+  ctx.restore();
+};
+
+// Explosion drawing helper for self-draw wins over 64 fans
+const drawExplosion = (
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rOuter: number,
+  rInner: number,
+  points: number
+) => {
+  ctx.save();
+  const gradient = ctx.createRadialGradient(cx, cy, rInner, cx, cy, rOuter);
+  gradient.addColorStop(0, '#fef08a'); // yellow-200
+  gradient.addColorStop(0.3, '#f97316'); // orange-500
+  gradient.addColorStop(1, '#dc2626'); // red-600
+  ctx.fillStyle = gradient;
+  
+  ctx.beginPath();
+  const angle = Math.PI / points;
+  for (let i = 0; i < 2 * points; i++) {
+    const r = i % 2 === 0 ? rOuter : rInner;
+    const currAngle = i * angle;
+    const x = cx + Math.cos(currAngle) * r;
+    const y = cy + Math.sin(currAngle) * r;
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+};
+
 const formatDate = (date: Date) => {
   const pad = (num: number) => String(num).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const getChineseRoundName = (gameNumber: number) => {
-  const rounds = ['东', '南', '西', '北'];
-  const hands = ['一', '二', '三', '四'];
-  const rIdx = Math.floor((gameNumber - 1) / 4);
-  const hIdx = (gameNumber - 1) % 4;
-  return `${rounds[rIdx] || '东'}${hands[hIdx] || '一'}局`;
-};
-
-const drawHeader = (ctx: CanvasRenderingContext2D, y: number, game: Game, generatedAt: Date) => {
+const drawHeader = (ctx: CanvasRenderingContext2D, y: number, game: Game, generatedAt: Date, scores: ScoreRecord[]) => {
   // Linear gradient top header card
   const gradient = ctx.createLinearGradient(0, 0, WIDTH, 280);
   gradient.addColorStop(0, '#ea580c');
@@ -164,18 +216,20 @@ const drawHeader = (ctx: CanvasRenderingContext2D, y: number, game: Game, genera
   const gameNameStr = game.game_name ? `比赛名称：${game.game_name}` : '标准 16 盘比赛对局';
   text(ctx, gameNameStr, PAD, y + 112, { size: 26, weight: 600, color: 'rgba(255,255,255,0.9)' });
   
-  const timeStr = `生成时间：${formatDate(generatedAt)}  |  局数：${game.current_game - 1 || 16}/16`;
+  // Use exact scores.length to avoid 15/16 display bug for finished games
+  const timeStr = `生成时间：${formatDate(generatedAt)}  |  局数：${scores.length}/16`;
   text(ctx, timeStr, PAD, y + 154, { size: 21, weight: 500, color: 'rgba(255,255,255,0.8)' });
 
   return y + 210;
 };
 
-// Draw elegant rank overview cards (podium style side-by-side or styled cards)
-const drawOverview = (ctx: CanvasRenderingContext2D, y: number, gameId: string, players: Player[]) => {
+// Draw elegant rank overview cards (podium style side-by-side or styled cards) with stats badges
+const drawOverview = (ctx: CanvasRenderingContext2D, y: number, gameId: string, players: Player[], scores: ScoreRecord[]) => {
   const sortedResults = buildGameResults(gameId, players);
 
   const gap = 16;
   const cardWidth = (CONTENT_WIDTH - gap * 3) / 4;
+  const cardHeight = 250; // Increased height to beautifully house fun badges
   
   // Custom badges for ranks
   const rankBadges = [
@@ -185,12 +239,46 @@ const drawOverview = (ctx: CanvasRenderingContext2D, y: number, gameId: string, 
     { label: '第四名', gradient: ['#f3f4f6', '#9ca3af'], text: '#374151' }
   ];
 
+  // Calculate statistics for badges
+  const winCounts: Record<string, number> = {};
+  const discardCounts: Record<string, number> = {};
+  players.forEach(p => {
+    winCounts[p.player_id] = 0;
+    discardCounts[p.player_id] = 0;
+  });
+
+  let maxSingleFan = 0;
+  let maxFanPlayerId = '';
+
+  scores.forEach(s => {
+    if (s.winner_player_id) {
+      winCounts[s.winner_player_id] = (winCounts[s.winner_player_id] || 0) + 1;
+      if (s.base_score > maxSingleFan) {
+        maxSingleFan = s.base_score;
+        maxFanPlayerId = s.winner_player_id;
+      }
+    }
+    if (s.loser_player_id) {
+      discardCounts[s.loser_player_id] = (discardCounts[s.loser_player_id] || 0) + 1;
+    }
+  });
+
+  const maxWins = Math.max(...Object.values(winCounts), 0);
+  const maxDiscards = Math.max(...Object.values(discardCounts), 0);
+
+  const playersWithMaxWins = maxWins > 0 
+    ? Object.keys(winCounts).filter(id => winCounts[id] === maxWins)
+    : [];
+  const playersWithMaxDiscards = maxDiscards > 0 
+    ? Object.keys(discardCounts).filter(id => discardCounts[id] === maxDiscards)
+    : [];
+
   sortedResults.forEach((result, index) => {
     const x = PAD + index * (cardWidth + gap);
     
     // Draw background card
-    fillRoundRect(ctx, x, y, cardWidth, 196, 24, COLORS.white);
-    strokeRoundRect(ctx, x, y, cardWidth, 196, 24, '#fed7aa', 2);
+    fillRoundRect(ctx, x, y, cardWidth, cardHeight, 24, COLORS.white);
+    strokeRoundRect(ctx, x, y, cardWidth, cardHeight, 24, '#fed7aa', 2);
 
     // Draw rank badge
     const badge = rankBadges[index] || rankBadges[3];
@@ -201,18 +289,33 @@ const drawOverview = (ctx: CanvasRenderingContext2D, y: number, gameId: string, 
     text(ctx, badge.label, x + cardWidth / 2, y + 40, { size: 18, weight: 800, color: badge.text, align: 'center' });
 
     // Draw Player Name
-    fitText(ctx, result.player_name, x + cardWidth / 2, y + 96, cardWidth - 24, { size: 26, weight: 900, color: COLORS.ink, align: 'center' });
+    fitText(ctx, result.player_name, x + cardWidth / 2, y + 84, cardWidth - 24, { size: 26, weight: 900, color: COLORS.ink, align: 'center' });
 
     // Draw Score
     const formattedScore = result.final_score > 0 ? `+${result.final_score}` : String(result.final_score);
     const scoreColor = result.final_score > 0 ? COLORS.green : (result.final_score < 0 ? COLORS.red : COLORS.ink);
-    fitText(ctx, formattedScore, x + cardWidth / 2, y + 142, cardWidth - 24, { size: 32, weight: 900, color: scoreColor, align: 'center' });
+    fitText(ctx, formattedScore, x + cardWidth / 2, y + 130, cardWidth - 24, { size: 32, weight: 900, color: scoreColor, align: 'center' });
 
     // Draw Standard Score
-    text(ctx, `标准分 ${result.standard_score.toFixed(1)}`, x + cardWidth / 2, y + 174, { size: 16, weight: 700, color: COLORS.muted, align: 'center' });
+    text(ctx, `标准分 ${result.standard_score.toFixed(1)}`, x + cardWidth / 2, y + 162, { size: 16, weight: 700, color: COLORS.muted, align: 'center' });
+
+    // Draw fun tags centered beautifully inside the card bottom area
+    let tagY = y + 182;
+
+    if (playersWithMaxWins.includes(result.player_id) && maxWins > 0) {
+      drawTag(ctx, `🔥 和牌最多 (${winCounts[result.player_id]}局)`, x + cardWidth / 2, tagY, '#ffedd5', '#ea580c');
+      tagY += 28;
+    }
+    if (playersWithMaxDiscards.includes(result.player_id) && maxDiscards > 0 && tagY < y + cardHeight - 20) {
+      drawTag(ctx, `🎯 点炮最多 (${discardCounts[result.player_id]}局)`, x + cardWidth / 2, tagY, '#f3e8ff', '#7c3aed');
+      tagY += 28;
+    }
+    if (result.player_id === maxFanPlayerId && maxSingleFan >= 24 && tagY < y + cardHeight - 20) {
+      drawTag(ctx, `👑 斩获大番 (${maxSingleFan}番)`, x + cardWidth / 2, tagY, '#ffe4e6', '#e11d48');
+    }
   });
 
-  return y + 230;
+  return y + cardHeight + 30;
 };
 
 const drawSectionTitle = (ctx: CanvasRenderingContext2D, title: string, y: number) => {
@@ -239,13 +342,13 @@ const drawDetailTable = (
   fillRoundRect(ctx, PAD, y, CONTENT_WIDTH, height, CARD_RADIUS, COLORS.white);
   strokeRoundRect(ctx, PAD, y, CONTENT_WIDTH, height, CARD_RADIUS, '#fed7aa', 2);
 
-  // Column Widths: 盘数 (184px), Columns 1-4 (200px each)
+  // Column Widths: 局数 (184px), Columns 1-4 (200px each)
   const colWidths = [184, 200, 200, 200, 200];
   
   // 1. Draw Table Header
   let headerX = PAD;
   
-  // 盘数 Header
+  // 局数 Header
   text(ctx, '局数', headerX + colWidths[0] / 2, y + 43, { size: 22, weight: 800, color: COLORS.muted, align: 'center' });
   headerX += colWidths[0];
 
@@ -280,8 +383,8 @@ const drawDetailTable = (
       fillRoundRect(ctx, PAD + 8, rowY + 6, CONTENT_WIDTH - 16, rowHeight - 12, 14, '#fffbeb');
     }
 
-    // Hand/Round label
-    const handLabel = getChineseRoundName(score.game_number);
+    // Round label with Arabic numerals (e.g. 第 1 局) as requested
+    const handLabel = `第 ${score.game_number} 局`;
     text(ctx, handLabel, PAD + colWidths[0] / 2, rowY + rowHeight / 2 + 6, {
       size: 20,
       weight: 700,
@@ -300,59 +403,101 @@ const drawDetailTable = (
       const isWinner = player.player_id === score.winner_player_id;
       const isLoser = player.player_id === score.loser_player_id;
 
-      // Draw cell decoration if won or lost
       const cellCenterX = currentX + colWidth / 2;
       const cellCenterY = rowY + rowHeight / 2;
 
-      if (isWinner) {
-        // Red background for winner
-        fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#fef2f2');
-        strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(239, 68, 68, 0.2)', 1.5);
-        
-        // Winner text
-        const changeStr = change >= 0 ? `+${change}` : String(change);
-        text(ctx, changeStr, cellCenterX, cellCenterY + 6, {
-          size: 22,
-          weight: 900,
-          color: COLORS.red,
-          align: 'center',
-          baseline: 'middle',
-        });
+      const fanCount = score.base_score || 0;
 
-        // Draw a tiny "和" or "自摸" indicator badge in the corner
-        const badgeLabel = !score.loser_position ? '自摸' : '点和';
-        fillRoundRect(ctx, cellCenterX + 34, cellCenterY - 28, 42, 20, 6, COLORS.red);
-        text(ctx, badgeLabel, cellCenterX + 55, cellCenterY - 14, {
-          size: 11,
-          weight: 800,
-          color: COLORS.white,
-          align: 'center',
-          baseline: 'middle',
-        });
+      if (isWinner) {
+        // High Fan styling rules
+        if (fanCount >= 64) {
+          if (!score.loser_player_id) {
+            // A. Self-draw win >= 64 fans: EXPLOSION MARKER!
+            drawExplosion(ctx, cellCenterX, cellCenterY, 44, 20, 14);
+            text(ctx, `+${change}`, cellCenterX, cellCenterY + 7, {
+              size: 22,
+              weight: 900,
+              color: COLORS.white,
+              align: 'center',
+              baseline: 'middle',
+            });
+            drawTag(ctx, `💥 爆自摸 ${fanCount}番`, cellCenterX, cellCenterY - 34, '#fecdd3', '#e11d48');
+          } else {
+            // B. Discard win >= 64 fans: Royal Crimson-Gold card
+            fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#fff7ed');
+            strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#ea580c', 2.5);
+            text(ctx, `+${change}`, cellCenterX, cellCenterY + 6, {
+              size: 22,
+              weight: 900,
+              color: '#ea580c',
+              align: 'center',
+              baseline: 'middle',
+            });
+            drawTag(ctx, `👑 狂轰 ${fanCount}番`, cellCenterX, cellCenterY - 34, '#ffedd5', '#ea580c');
+          }
+        } else if (fanCount >= 32) {
+          // C. Win with 32-63 fans: Golden Amber card
+          fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#fffbeb');
+          strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#d97706', 1.5);
+          text(ctx, `+${change}`, cellCenterX, cellCenterY + 6, {
+            size: 22,
+            weight: 900,
+            color: '#d97706',
+            align: 'center',
+            baseline: 'middle',
+          });
+          drawTag(ctx, `🔥 大牌 ${fanCount}番`, cellCenterX, cellCenterY - 34, '#fef3c7', '#d97706');
+        } else {
+          // D. Regular win (under 32 fans): clean red cell with absolutely NO corner symbols/text
+          fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#fef2f2');
+          strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(239, 68, 68, 0.15)', 1);
+          text(ctx, `+${change}`, cellCenterX, cellCenterY + 6, {
+            size: 22,
+            weight: 900,
+            color: COLORS.red,
+            align: 'center',
+            baseline: 'middle',
+          });
+        }
 
       } else if (isLoser) {
-        // Purple background for loser (discarder)
-        fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#faf5ff');
-        strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(124, 58, 237, 0.2)', 1.5);
-
-        // Loser text
-        text(ctx, String(change), cellCenterX, cellCenterY + 6, {
-          size: 22,
-          weight: 900,
-          color: COLORS.purple,
-          align: 'center',
-          baseline: 'middle',
-        });
-
-        // Draw a tiny "放铳" indicator badge
-        fillRoundRect(ctx, cellCenterX + 34, cellCenterY - 28, 42, 20, 6, COLORS.purple);
-        text(ctx, '点炮', cellCenterX + 55, cellCenterY - 14, {
-          size: 11,
-          weight: 800,
-          color: COLORS.white,
-          align: 'center',
-          baseline: 'middle',
-        });
+        // Discarder styling rules
+        if (fanCount >= 64) {
+          // A. Discarded >= 64 fans: Heavy defeat deep purple & border + Skull badge
+          fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#faf5ff');
+          strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#7c3aed', 2.5);
+          text(ctx, String(change), cellCenterX, cellCenterY + 6, {
+            size: 22,
+            weight: 900,
+            color: '#7c3aed',
+            align: 'center',
+            baseline: 'middle',
+          });
+          drawTag(ctx, `💀 痛击点炮 ${fanCount}番`, cellCenterX, cellCenterY - 34, '#f3e8ff', '#7c3aed');
+        } else if (fanCount >= 32) {
+          // B. Discarded 32-63 fans: Mid danger card
+          fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#faf5ff');
+          strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(124, 58, 237, 0.5)', 1.5);
+          text(ctx, String(change), cellCenterX, cellCenterY + 6, {
+            size: 22,
+            weight: 900,
+            color: COLORS.purple,
+            align: 'center',
+            baseline: 'middle',
+          });
+          drawTag(ctx, `🎯 放铳 ${fanCount}番`, cellCenterX, cellCenterY - 34, '#f3e8ff', '#7c3aed');
+        } else {
+          // C. Regular discard (under 32 fans): clean purple cell with NO corner tags
+          fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#faf5ff');
+          strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(124, 58, 237, 0.15)', 1);
+          text(ctx, String(change), cellCenterX, cellCenterY + 6, {
+            size: 22,
+            weight: 900,
+            color: COLORS.purple,
+            align: 'center',
+            baseline: 'middle',
+          });
+        }
 
       } else {
         // Regular cell
@@ -379,7 +524,6 @@ const drawDetailTable = (
     const rowY = y + headerHeight + scores.length * rowHeight;
     const penaltyChanges = penalty.penalty_changes as Record<Position, number>;
 
-    // Zebra striping
     if (scores.length % 2 === 1) {
       fillRoundRect(ctx, PAD + 8, rowY + 6, CONTENT_WIDTH - 16, rowHeight - 12, 14, '#fffbeb');
     }
@@ -418,6 +562,121 @@ const drawDetailTable = (
   return y + height + 30;
 };
 
+// Draw "牌局花絮 / Fun Highlights" Card below table
+const drawHighlights = (
+  ctx: CanvasRenderingContext2D,
+  y: number,
+  players: Player[],
+  scores: ScoreRecord[]
+) => {
+  const height = 180;
+  fillRoundRect(ctx, PAD, y, CONTENT_WIDTH, height, CARD_RADIUS, COLORS.white);
+  strokeRoundRect(ctx, PAD, y, CONTENT_WIDTH, height, CARD_RADIUS, '#fed7aa', 2);
+
+  // Calculate statistics
+  const winCounts: Record<string, number> = {};
+  const discardCounts: Record<string, number> = {};
+  players.forEach(p => {
+    winCounts[p.player_id] = 0;
+    discardCounts[p.player_id] = 0;
+  });
+
+  let maxSingleFan = 0;
+  let maxFanPlayerId = '';
+
+  scores.forEach(s => {
+    if (s.winner_player_id) {
+      winCounts[s.winner_player_id] = (winCounts[s.winner_player_id] || 0) + 1;
+      if (s.base_score > maxSingleFan) {
+        maxSingleFan = s.base_score;
+        maxFanPlayerId = s.winner_player_id;
+      }
+    }
+    if (s.loser_player_id) {
+      discardCounts[s.loser_player_id] = (discardCounts[s.loser_player_id] || 0) + 1;
+    }
+  });
+
+  const maxWins = Math.max(...Object.values(winCounts), 0);
+  const maxDiscards = Math.max(...Object.values(discardCounts), 0);
+
+  const winNames = players.filter(p => winCounts[p.player_id] === maxWins).map(p => p.name).join(' & ');
+  const discardNames = players.filter(p => discardCounts[p.player_id] === maxDiscards).map(p => p.name).join(' & ');
+  const maxFanPlayer = players.find(p => p.player_id === maxFanPlayerId)?.name || '无';
+
+  const selfDrawCount = scores.filter(s => s.winner_player_id && !s.loser_player_id).length;
+  const drawCount = scores.filter(s => !s.winner_player_id).length;
+
+  const colWidth = CONTENT_WIDTH / 4;
+
+  const cols = [
+    {
+      title: '🏆 和牌之王',
+      name: maxWins > 0 ? winNames : '无',
+      detail: maxWins > 0 ? `斩获 ${maxWins} 局 / 胜率 ${(maxWins / (scores.length || 1) * 100).toFixed(0)}%` : '均无和牌',
+      theme: COLORS.orange,
+    },
+    {
+      title: '🎯 点炮大师',
+      name: maxDiscards > 0 ? discardNames : '无',
+      detail: maxDiscards > 0 ? `接炮 ${maxDiscards} 局 / 点炮率 ${(maxDiscards / (scores.length || 1) * 100).toFixed(0)}%` : '无人点炮',
+      theme: COLORS.purple,
+    },
+    {
+      title: '👑 单局至尊',
+      name: maxSingleFan > 0 ? maxFanPlayer : '无',
+      detail: maxSingleFan > 0 ? `单盘极意砍下 ${maxSingleFan} 番！` : '无大牌出现',
+      theme: COLORS.red,
+    },
+    {
+      title: '📊 战局风云',
+      name: `共对决 ${scores.length} 局`,
+      detail: `自摸 ${selfDrawCount} 局 · 荒庄 ${drawCount} 局`,
+      theme: COLORS.blue,
+    }
+  ];
+
+  cols.forEach((col, idx) => {
+    const colX = PAD + idx * colWidth;
+    
+    // Draw vertical divider
+    if (idx > 0) {
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(colX, y + 24);
+      ctx.lineTo(colX, y + height - 24);
+      ctx.stroke();
+    }
+
+    // Title
+    text(ctx, col.title, colX + colWidth / 2, y + 42, {
+      size: 20,
+      weight: 800,
+      color: col.theme,
+      align: 'center',
+    });
+
+    // Name
+    fitText(ctx, col.name, colX + colWidth / 2, y + 96, colWidth - 24, {
+      size: 26,
+      weight: 900,
+      color: COLORS.ink,
+      align: 'center',
+    });
+
+    // Detail
+    fitText(ctx, col.detail, colX + colWidth / 2, y + 140, colWidth - 16, {
+      size: 16,
+      weight: 600,
+      color: COLORS.muted,
+      align: 'center',
+    });
+  });
+
+  return y + height + 30;
+};
+
 const blobFromCanvas = (canvas: HTMLCanvasElement): Promise<Blob> => new Promise((resolve, reject) => {
   canvas.toBlob((blob) => {
     if (blob) resolve(blob);
@@ -430,7 +689,7 @@ export async function createGameDetailShareImage(input: GameDetailShareInput): P
 
   // Calculate dynamic logical height
   const headerHeight = 210;
-  const overviewHeight = 230;
+  const overviewHeight = 280; // height 250 + 30 gap = 280
   const tableTitleHeight = 62;
   
   const headerRowCount = 68;
@@ -438,9 +697,10 @@ export async function createGameDetailShareImage(input: GameDetailShareInput): P
   const rowCount = input.scores.length + (input.penalty ? 1 : 0);
   const tableHeight = headerRowCount + rowCount * rowHeight + 20 + 30;
   
+  const highlightHeight = 62 + 180 + 30; // "牌局花絮" title + highlights card + gap
   const footerHeight = 110;
   
-  const logicalHeight = 36 + headerHeight + overviewHeight + tableTitleHeight + tableHeight + footerHeight;
+  const logicalHeight = 36 + headerHeight + overviewHeight + tableTitleHeight + tableHeight + highlightHeight + footerHeight;
   const scale = Math.min(window.devicePixelRatio || 2, 2);
 
   const canvas = document.createElement('canvas');
@@ -460,10 +720,12 @@ export async function createGameDetailShareImage(input: GameDetailShareInput): P
   ctx.fillRect(0, 0, WIDTH, logicalHeight);
 
   // Render content
-  let y = drawHeader(ctx, 36, input.game, input.generatedAt ?? new Date());
-  y = drawOverview(ctx, y, input.game.id, input.players);
+  let y = drawHeader(ctx, 36, input.game, input.generatedAt ?? new Date(), input.scores);
+  y = drawOverview(ctx, y, input.game.id, input.players, input.scores);
   y = drawSectionTitle(ctx, '对局明细', y);
   y = drawDetailTable(ctx, y, input.players, input.scores, input.penalty);
+  y = drawSectionTitle(ctx, '牌局趣闻', y);
+  y = drawHighlights(ctx, y, input.players, input.scores);
 
   // Render Footer text
   text(ctx, '由「国标麻将实时计分板」生成  ·  四川熊猫国标俱乐部赞助', WIDTH / 2, logicalHeight - 48, {

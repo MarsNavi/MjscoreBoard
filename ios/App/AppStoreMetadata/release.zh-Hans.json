@@ -3,10 +3,10 @@
   "bundleId": "com.mjscoreboard.app",
   "appInfoId": "4a11aa6e-f146-4497-971e-d439fafc558a",
   "appInfoLocalizationId": "b21fbb3f-24b0-486a-bf94-64755b222d79",
-  "appStoreVersionId": "65de800d-485f-4c44-aab1-0d0b5cc5b6fe",
-  "appStoreVersionLocalizationId": "1fa9e32d-0f1d-48ca-8b36-a06312f51268",
+  "appStoreVersionId": "459e9394-7a7a-4650-b7a4-ad406c522520",
+  "appStoreVersionLocalizationId": "9705f02c-b712-4df8-9029-3b0047621846",
   "ageRatingDeclarationId": "4a11aa6e-f146-4497-971e-d439fafc558a",
-  "buildId": "f89ac193-77be-4358-9768-41c6d45cc829",
+  "buildId": "34b6a540-79fd-42e6-9bbf-836b863dc936",
   "primaryCategoryId": "UTILITIES",
   "screenshotDisplayType": "APP_IPHONE_65",
   "appInfoLocalization": {
@@ -25,7 +25,7 @@
     "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,档案分享,本地数据",
     "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
     "marketingUrl": null,
-    "whatsNew": "修复计分页点按返回首页并确认后未正确跳转的问题。"
+    "whatsNew": "在对局详情页新增了“分享对局明细”功能，可以一键生成精美排版的对局详情长图，包含中文局数转换（如“东一局”）、领奖台式竞技名次徽章以及和牌自摸/点炮特殊色彩标注，支持系统原生分享与网页下载。"
   },
   "reviewDetail": {
     "contactFirstName": "Rui",

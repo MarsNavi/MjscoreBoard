@@ -245,26 +245,38 @@ console.log(`Build: ${metadata.buildId}`);
 console.log(`截图数量: ${screenshotSets.reduce((total, set) => total + set.screenshots.length, 0)}`);
 
 if (!screenshotsOnly) {
-  await update(
-    '更新应用名称副标题和隐私政策 URL',
-    'PATCH',
-    `/v1/appInfoLocalizations/${metadata.appInfoLocalizationId}`,
-    resource('appInfoLocalizations', metadata.appInfoLocalizationId, metadata.appInfoLocalization),
-  );
+  try {
+    await update(
+      '更新应用名称副标题和隐私政策 URL',
+      'PATCH',
+      `/v1/appInfoLocalizations/${metadata.appInfoLocalizationId}`,
+      resource('appInfoLocalizations', metadata.appInfoLocalizationId, metadata.appInfoLocalization),
+    );
+  } catch (e) {
+    console.warn('   ⚠️ 无法更新应用名称和副标题（可能已被锁定），跳过:', e.message);
+  }
 
-  await update(
-    '设置主分类为 Utilities',
-    'PATCH',
-    `/v1/appInfos/${metadata.appInfoId}/relationships/primaryCategory`,
-    { data: { type: 'appCategories', id: metadata.primaryCategoryId } },
-  );
+  try {
+    await update(
+      '设置主分类为 Utilities',
+      'PATCH',
+      `/v1/appInfos/${metadata.appInfoId}/relationships/primaryCategory`,
+      { data: { type: 'appCategories', id: metadata.primaryCategoryId } },
+    );
+  } catch (e) {
+    console.warn('   ⚠️ 无法更新主分类（可能已被锁定），跳过:', e.message);
+  }
 
-  await update(
-    '填写年龄分级声明',
-    'PATCH',
-    `/v1/ageRatingDeclarations/${metadata.ageRatingDeclarationId}`,
-    resource('ageRatingDeclarations', metadata.ageRatingDeclarationId, metadata.ageRating),
-  );
+  try {
+    await update(
+      '填写年龄分级声明',
+      'PATCH',
+      `/v1/ageRatingDeclarations/${metadata.ageRatingDeclarationId}`,
+      resource('ageRatingDeclarations', metadata.ageRatingDeclarationId, metadata.ageRating),
+    );
+  } catch (e) {
+    console.warn('   ⚠️ 无法更新年龄分级声明（可能已被锁定），跳过:', e.message);
+  }
 
   await update(
     '更新版本发布属性',
