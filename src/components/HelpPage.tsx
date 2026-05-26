@@ -30,18 +30,18 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">v1.5.2</h2>
-                <p className="text-sm text-gray-500">2026-05-25</p>
+                <h2 className="text-2xl font-bold text-gray-800">v1.5.3</h2>
+                <p className="text-sm text-gray-500">2026-05-26</p>
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
               <p className="text-lg font-semibold text-gray-900">更新内容：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">对局明细支持长图分享：</strong>在对局详情页新增“分享对局明细”按钮，可一键生成设计感十足的对局详情长图。长图支持中文局名自动转换（如“东一局”）、领奖台式竞技名次徽章（金/银/铜）以及细致的和牌自摸/点炮/放铳情况的色彩高亮展示，支持原生系统分享及网页下载。
+                  <strong className="text-gray-900">新增对局详情长图分享：</strong>支持在对局明细页一键生成并分享精美的对局明细长图，包括名次卡片、每局得分明细以及大番高分牌局的趣味视觉效果。
                 </li>
                 <li>
-                  <strong className="text-gray-900">修复返回首页：</strong>计分页点按返回首页并确认后，能够正确回到首页。
+                  <strong className="text-gray-900">修复返回首页：</strong>修复在计分页点按返回首页确认后未正确跳转的问题。
                 </li>
               </ul>
             </div>

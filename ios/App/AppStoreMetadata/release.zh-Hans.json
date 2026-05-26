@@ -25,7 +25,7 @@
     "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,档案分享,本地数据",
     "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
     "marketingUrl": null,
-    "whatsNew": "在对局详情页新增了“分享对局明细”功能，可以一键生成精美排版的对局详情长图，包含中文局数转换（如“东一局”）、领奖台式竞技名次徽章以及和牌自摸/点炮特殊色彩标注，支持系统原生分享与网页下载。"
+    "whatsNew": "在对局详情页新增了“分享对局明细”功能，可以一键生成并分享精美的对局明细长图，包括名次卡片、每局得分明细以及大番高分牌局的趣味视觉效果。"
   },
   "reviewDetail": {
     "contactFirstName": "Rui",
