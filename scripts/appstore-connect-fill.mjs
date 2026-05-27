@@ -292,12 +292,16 @@ if (!screenshotsOnly) {
     resource('appStoreVersionLocalizations', metadata.appStoreVersionLocalizationId, metadata.versionLocalization),
   );
 
-  await update(
-    '声明 build 不使用非豁免加密',
-    'PATCH',
-    `/v1/builds/${metadata.buildId}`,
-    resource('builds', metadata.buildId, { usesNonExemptEncryption: false }),
-  );
+  try {
+    await update(
+      '声明 build 不使用非豁免加密',
+      'PATCH',
+      `/v1/builds/${metadata.buildId}`,
+      resource('builds', metadata.buildId, { usesNonExemptEncryption: false }),
+    );
+  } catch (e) {
+    console.warn('   ⚠️ 无法声明 build 加密属性（可能已设置），跳过:', e.message);
+  }
 
   await update(
     `绑定已上传的 build ${metadata.buildId}`,
