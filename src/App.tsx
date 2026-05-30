@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Position, Player, Game, PlayerId, User } from './lib/types';
 import { db } from './lib/db';
 import PlayerScore from './components/PlayerScore';
@@ -39,6 +40,7 @@ const DEFAULT_DATA_FILE_ID = 'default-data-file';
 type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'deviceMode';
 
 function App() {
+  const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [dataFiles, setDataFiles] = useState<DataFileSummary[]>([]);
   const [currentPage, setCurrentPage] = useState<PageView>('home');
@@ -261,7 +263,7 @@ function App() {
     try {
       await db.games.add(gameData);
     } catch (gameError) {
-      console.error('创建比赛失败:', gameError);
+      console.error(t('game.createFailed'), gameError);
       return;
     }
 
@@ -321,7 +323,7 @@ function App() {
 
   const handleWin = (position: Position) => {
     if (!gameStarted) {
-      alert('请先开始比赛。');
+      alert(t('game.startFirst'));
       return;
     }
 
@@ -420,13 +422,13 @@ function App() {
     }
 
     if (!skipActiveGameConfirm && gameStarted) {
-      const confirmed = window.confirm('当前档案有未完成比赛。切换后可在历史中继续，是否切换？');
+      const confirmed = window.confirm(t('files.switchConfirm'));
       if (!confirmed) return;
     }
 
     const targetUser = await db.users.get(userId);
     if (!targetUser) {
-      alert('未找到档案。');
+      alert(t('files.notFound'));
       return;
     }
 
@@ -446,11 +448,11 @@ function App() {
 
   const handleCreateDataFile = useCallback(async () => {
     if (gameStarted) {
-      const confirmed = window.confirm('当前有未完成比赛。新建档案后，可回到原档案继续，是否新建？');
+      const confirmed = window.confirm(t('files.createConfirm'));
       if (!confirmed) return;
     }
 
-    const name = window.prompt('新档案名称：', '新档案');
+    const name = window.prompt(t('files.newFileName'), t('files.newFile'));
     if (name === null) return;
 
     const user = await createBlankDataFile(name);
@@ -460,7 +462,7 @@ function App() {
   const handleRenameDataFile = useCallback(async () => {
     if (!currentUser) return;
 
-    const name = window.prompt('档案名称：', getDataFileName(currentUser));
+    const name = window.prompt(t('files.fileNamePrompt'), getDataFileName(currentUser));
     if (name === null) return;
 
     await renameDataFile(currentUser.id, name);
@@ -474,11 +476,11 @@ function App() {
   const handleDeleteDataFile = useCallback(async () => {
     if (!currentUser) return;
     if (dataFiles.length <= 1) {
-      alert('至少保留一个档案。');
+      alert(t('files.keepOne'));
       return;
     }
 
-    const confirmed = window.confirm(`删除「${getDataFileName(currentUser)}」？此档案内的比赛和统计会一并删除，无法恢复。`);
+    const confirmed = window.confirm(t('files.deleteConfirm', { name: getDataFileName(currentUser) }));
     if (!confirmed) return;
 
     await deleteDataFile(currentUser.id);
@@ -542,7 +544,7 @@ function App() {
     if (!game) return;
 
     if (!fromDevices) {
-      if (!confirm('记录荒庄？本盘四家均记 0 分。')) return;
+      if (!confirm(t('game.drawConfirm'))) return;
     }
 
     const scoreChanges = {
@@ -567,7 +569,7 @@ function App() {
         created_at: new Date().toISOString()
       });
     } catch (scoreError) {
-      console.error('记录荒庄失败:', scoreError);
+      console.error(t('game.drawFailed'), scoreError);
       return;
     }
 
@@ -638,7 +640,7 @@ function App() {
   };
 
   const handleDeleteGame = async (gameId: string) => {
-    if (!confirm('删除这场比赛？此操作无法恢复。')) return;
+    if (!confirm(t('game.deleteConfirm'))) return;
 
     const isCurrentGame = game?.id === gameId;
 
@@ -665,11 +667,11 @@ function App() {
     const lastScore = scores[0];
 
     if (!lastScore) {
-      alert('没有可撤销的记录。');
+      alert(t('game.noUndo'));
       return;
     }
 
-    if (!confirm('撤销上一盘记录？')) return;
+    if (!confirm(t('game.revokeRound'))) return;
 
     await db.scores.delete(lastScore.id);
 
@@ -804,7 +806,7 @@ function App() {
         created_at: new Date().toISOString()
       });
     } catch (scoreError) {
-      console.error('记录分数失败:', scoreError);
+      console.error(t('game.scoreFailed'), scoreError);
       return;
     }
 
@@ -1007,7 +1009,7 @@ function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
-        <div className="text-gray-600 text-sm">正在打开当前档案…</div>
+        <div className="text-gray-600 text-sm">{t('files.opening')}</div>
       </div>
     );
   }
@@ -1021,10 +1023,10 @@ function App() {
   );
 
   const mainTabs = [
-    { page: 'home' as const, path: '', label: '开局', Icon: Home },
-    { page: 'history' as const, path: '/history', label: '历史', Icon: History },
-    { page: 'stats' as const, path: '/stats', label: '统计', Icon: BarChart3 },
-    { page: 'data' as const, path: '/data', label: '档案', Icon: Database },
+    { page: 'home' as const, path: '', label: t('common.start', '开局'), Icon: Home },
+    { page: 'history' as const, path: '/history', label: t('common.history'), Icon: History },
+    { page: 'stats' as const, path: '/stats', label: t('common.stats'), Icon: BarChart3 },
+    { page: 'data' as const, path: '/data', label: t('files.manageFiles'), Icon: Database },
   ];
 
   const mainNavigation = (
@@ -1157,12 +1159,12 @@ function App() {
       {bleManager}
       <button
         onClick={() => {
-          if (confirm('返回开局页？当前比赛会自动保存。')) {
+          if (confirm(t('game.returnHomeConfirm'))) {
             navigateTo('');
           }
         }}
         className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-2 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-gray-600 hover:text-gray-800"
-        title="返回开局页"
+        title={t('game.returnHome')}
       >
         <Home size={20} />
       </button>
@@ -1170,7 +1172,7 @@ function App() {
       <button
         onClick={() => setShowBleModal(true)}
         className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-14 p-2 bg-white/80 hover:bg-white rounded-lg shadow-md transition-all z-20 flex items-center gap-1 text-blue-600 hover:text-blue-800"
-        title="计分牌连接"
+        title={t('device.connectDevice')}
       >
         <Bluetooth size={20} />
       </button>
@@ -1180,21 +1182,21 @@ function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 text-center">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">提前结束比赛</h3>
-              <p className="text-gray-600 mb-6">已完成的盘数会保存，可在历史中查看。</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('game.earlyEndGame')}</h3>
+              <p className="text-gray-600 mb-6">{t('game.earlyEndGameDesc')}</p>
               
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowEndGameConfirm(false)}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleConfirmEndGame}
                   className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
                 >
-                  结束比赛
+                  {t('game.endGame')}
                 </button>
               </div>
             </div>
@@ -1232,13 +1234,13 @@ function App() {
             <div className="col-start-2 row-start-2 flex items-center justify-center">
               {game?.is_completed || game?.status === 'finished' ? (
                  <div className="flex flex-col items-center justify-center gap-4 bg-white/90 p-6 rounded-xl shadow-xl backdrop-blur-sm z-10 animate-in fade-in zoom-in duration-300">
-                    <div className="text-2xl font-black text-gray-800">比赛已结束</div>
-                    <div className="text-sm text-gray-500 font-medium">查看本场成绩，或从历史继续回看。</div>
+                    <div className="text-2xl font-black text-gray-800">{t('game.gameEnded')}</div>
+                    <div className="text-sm text-gray-500 font-medium">{t('game.viewStatsOrHistory')}</div>
                     <button 
                       onClick={handleFinalizeGame}
                       className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
                     >
-                      查看成绩
+                      {t('game.viewStats')}
                     </button>
                  </div>
               ) : (
@@ -1295,7 +1297,7 @@ function App() {
             className="col-start-3 col-span-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <Ban size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span>荒庄</span>
+            <span>{t('mahjong.draw')}</span>
           </button>
           
           <button
@@ -1308,7 +1310,7 @@ function App() {
             className="col-span-2 bg-white hover:bg-gray-50 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-700 px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <History size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span>明细</span>
+            <span>{t('game.gameDetail')}</span>
           </button>
 
           {/* Row 2: Undo, Penalty, Restart (3 buttons, col-span-2) */}
@@ -1318,7 +1320,7 @@ function App() {
             className="col-span-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <Undo size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span>撤销</span>
+            <span>{t('game.undo')}</span>
           </button>
 
           <button
@@ -1327,7 +1329,7 @@ function App() {
             className="col-span-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <AlertTriangle size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span>判罚</span>
+            <span>{t('mahjong.penalty')}</span>
           </button>
 
           <button
@@ -1335,7 +1337,7 @@ function App() {
             className="col-span-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2.5 max-[1023px]:landscape:py-1.5 min-[1024px]:px-4 min-[1024px]:py-2.5 rounded-lg shadow-md transition-all flex items-center gap-1.5 max-[1023px]:landscape:gap-1 text-sm max-[1023px]:landscape:text-xs font-medium justify-center"
           >
             <RotateCcw size={18} className="max-[1023px]:landscape:w-4 max-[1023px]:landscape:h-4" />
-            <span>结束</span>
+            <span>{t('common.endGame')}</span>
           </button>
         </div>
       </div>

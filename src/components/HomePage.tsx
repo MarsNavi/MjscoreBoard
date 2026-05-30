@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Position, User } from '../lib/types';
 import { db } from '../lib/db';
 import { normalizePlayerName } from '../lib/playerNames';
@@ -15,10 +16,10 @@ interface HomePageProps {
 }
 
 const positionLabels: Record<Position, string> = {
-  east: '东',
-  south: '南',
-  west: '西',
-  north: '北',
+  east: t('mahjong.east'),
+  south: t('mahjong.south'),
+  west: t('mahjong.west'),
+  north: t('mahjong.north'),
 };
 
 export default function HomePage({
@@ -30,6 +31,7 @@ export default function HomePage({
   onNameChange,
   onDeviceMode,
 }: HomePageProps) {
+  const { t } = useTranslation();
   const positions: Position[] = ['east', 'south', 'west', 'north'];
   const [commonNames, setCommonNames] = useState<string[]>([]);
   const [focusedPosition, setFocusedPosition] = useState<Position | null>(null);
@@ -188,25 +190,25 @@ export default function HomePage({
 
             <div className="relative space-y-4 sm:space-y-5">
               <h2 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-rose-600">
-                快速开局
+                {t('game.quickStart')}
               </h2>
 
               <div>
                 <label className="text-sm font-bold text-gray-700 block mb-3 flex items-center gap-2">
-                  比赛名称（可选）
+                  {t('game.gameName')}
                 </label>
                 <input
                   type="text"
                   value={gameName}
                   onChange={(e) => onGameNameChange(e.target.value)}
-                  placeholder="周末友谊赛"
+                  placeholder={t('game.gameNamePlaceholder')}
                   className="w-full px-5 py-3 text-center border-2 border-orange-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all text-base sm:text-lg font-medium hover:border-orange-300"
                 />
               </div>
 
               <div>
                 <label className="text-sm font-bold text-gray-700 block mb-3 flex items-center gap-2">
-                  选手姓名
+                  {t('game.playerNames')}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {positions.map((position) => {
@@ -223,7 +225,7 @@ export default function HomePage({
                           <span className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 text-white rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-md">
                             {positionLabels[position]}
                           </span>
-                          <span>{positionLabels[position]}家</span>
+                          <span>{positionLabels[position]}{t('mahjong.playerSuffix')}</span>
                         </label>
                         <div className="relative">
                           <input
@@ -244,7 +246,7 @@ export default function HomePage({
                                 setFocusedPosition(focusedPosition === position ? null : position);
                               }}
                               className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-500 transition-colors"
-                              aria-label="展开选手列表"
+                              aria-label={t('game.expandPlayerList')}
                             >
                               <svg
                                 className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -265,7 +267,7 @@ export default function HomePage({
                           >
                             <div className="py-1">
                               <div className="text-[10px] text-gray-400 px-3 py-1.5 font-bold uppercase tracking-wider">
-                                常用选手 · 点击选择
+                                {t('game.commonPlayers')}
                               </div>
                               {filteredSuggestions.map((name, idx) => {
                                 const isAlreadySelected = Object.values(tempPlayerNames).some(
@@ -294,7 +296,7 @@ export default function HomePage({
                               })}
                               {filteredSuggestions.length === 0 && (
                                 <div className="px-3 py-3 text-sm text-gray-400 text-center">
-                                  无匹配选手
+                                  {t('game.noMatch')}
                                 </div>
                               )}
                             </div>
@@ -311,7 +313,7 @@ export default function HomePage({
                 className="w-full bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-600 hover:via-red-600 hover:to-rose-700 text-white py-4 rounded-2xl font-black text-lg sm:text-xl transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-[1.02] relative overflow-hidden group"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  开始比赛
+                  {t('game.startGame')}
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
               </button>
@@ -321,7 +323,7 @@ export default function HomePage({
                 className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-medium text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
               >
                 <MonitorPlay size={18} />
-                作为显示屏 (模拟计分板)
+                {t('device.displayMode')}
               </button>
             </div>
           </div>

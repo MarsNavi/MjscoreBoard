@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Position, Player } from '../lib/types';
 
 interface PlayerScoreProps {
@@ -8,12 +9,7 @@ interface PlayerScoreProps {
   isConfirmMode?: boolean;
 }
 
-const positionLabels: Record<Position, string> = {
-  east: '东',
-  south: '南',
-  west: '西',
-  north: '北',
-};
+// Remove positionLabels
 
 const rotationClasses: Record<Position, string> = {
   east: '',
@@ -23,9 +19,10 @@ const rotationClasses: Record<Position, string> = {
 };
 
 export default function PlayerScore({ player, position, onWin, gameStarted, isConfirmMode = false }: PlayerScoreProps) {
-  const label = positionLabels[position];
+  const { t } = useTranslation();
+  const label = t(`mahjong.${position}`);
   const rotation = rotationClasses[position];
-  const buttonLabel = isConfirmMode ? '确认成绩' : '和';
+  const buttonLabel = isConfirmMode ? t('game.confirmScore') : t('mahjong.ron');
   const isConfirmed = player.confirmed_result;
 
   const getScoreColor = (score: number) => {
@@ -57,7 +54,7 @@ export default function PlayerScore({ player, position, onWin, gameStarted, isCo
               : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
           }`}
         >
-          {isConfirmed && isConfirmMode ? '已确认' : buttonLabel}
+          {isConfirmed && isConfirmMode ? t('game.confirmed') : buttonLabel}
         </button>
       </div>
     </div>

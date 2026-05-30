@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 export interface ShareSummaryStat {
   player_name: string;
   games_played: number;
@@ -194,9 +195,9 @@ const drawHeader = (ctx: CanvasRenderingContext2D, y: number, generatedAt: Date)
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  text(ctx, '国标麻将成绩统计', PAD, y + 62, { size: 52, weight: 900, color: COLORS.ink });
-  text(ctx, `生成时间：${formatDate(generatedAt)}`, PAD, y + 108, { size: 24, weight: 500, color: COLORS.muted });
-  text(ctx, '赛后长图 · 可保存分享', PAD, y + 148, { size: 28, weight: 800, color: COLORS.orange });
+  text(ctx, i18n.t('shareImage.statsTitle'), PAD, y + 62, { size: 52, weight: 900, color: COLORS.ink });
+  text(ctx, i18n.t('shareImage.generatedAt', { time: formatDate(generatedAt) }), PAD, y + 108, { size: 24, weight: 500, color: COLORS.muted });
+  text(ctx, i18n.t('shareImage.statsSubtitle'), PAD, y + 148, { size: 28, weight: 800, color: COLORS.orange });
 
   return y + 210;
 };
@@ -207,10 +208,10 @@ const drawOverview = (ctx: CanvasRenderingContext2D, y: number, stats: ShareSumm
   const leader = stats[0]?.player_name ?? '-';
   const leaderScore = stats[0] ? fixed1(stats[0].total_standard_score) : '-';
   const cards = [
-    ['选手数', String(totalPlayers), COLORS.orange],
-    ['完成比赛', String(totalGames), COLORS.rose],
-    ['当前领先', leader, COLORS.green],
-    ['领先标准分', leaderScore, COLORS.blue],
+    [i18n.t('shareImage.playerCount'), String(totalPlayers), COLORS.orange],
+    [i18n.t('shareImage.completedGames'), String(totalGames), COLORS.rose],
+    [i18n.t('shareImage.currentLeader'), leader, COLORS.green],
+    [i18n.t('shareImage.leaderScore'), leaderScore, COLORS.blue],
   ];
 
   const gap = 16;
@@ -276,7 +277,7 @@ function drawTable<T>(
       const tx = align === 'right' ? colX + column.width - 12 : align === 'center' ? colX + column.width / 2 : colX;
       fitText(ctx, column.value(row), tx, rowY + 43, column.width - 16, {
         size: 24,
-        weight: column.title === '选手' ? 800 : 700,
+        weight: column.title === i18n.t('game.playerName') ? 800 : 700,
         color: column.color?.(row) ?? COLORS.ink,
         align,
       });
@@ -321,7 +322,7 @@ const drawMetricCards = (
 const blobFromCanvas = (canvas: HTMLCanvasElement): Promise<Blob> => new Promise((resolve, reject) => {
   canvas.toBlob((blob) => {
     if (blob) resolve(blob);
-    else reject(new Error('无法生成成绩统计图片'));
+    else reject(new Error(i18n.t('shareImage.errorGenerateStats')));
   }, 'image/png', 0.95);
 });
 
@@ -342,7 +343,7 @@ export async function createStatsShareImage(input: StatsShareImageInput): Promis
   canvas.width = Math.floor(WIDTH * scale);
   canvas.height = Math.floor(logicalHeight * scale);
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('当前设备无法创建分享图片');
+  if (!ctx) throw new Error(i18n.t('shareImage.errorDeviceStats'));
   ctx.scale(scale, scale);
 
   const pageGradient = ctx.createLinearGradient(0, 0, 0, logicalHeight);
@@ -354,48 +355,48 @@ export async function createStatsShareImage(input: StatsShareImageInput): Promis
 
   let y = drawHeader(ctx, 36, input.generatedAt ?? new Date());
   y = drawOverview(ctx, y, input.summaryStats);
-  y = drawSectionTitle(ctx, '战绩一览', y);
+  y = drawSectionTitle(ctx, i18n.t('stats.overview'), y);
   y = drawTable<ShareSummaryStat>(ctx, y, [
-    { title: '选手', width: 270, value: row => row.player_name },
-    { title: '场次', width: 135, align: 'center', value: row => String(row.games_played) },
-    { title: '总标准分', width: 185, align: 'center', value: row => fixed1(row.total_standard_score), color: () => COLORS.orange },
-    { title: '平均标准分', width: 205, align: 'center', value: row => fixed2(row.average_standard_score), color: () => COLORS.blue },
-    { title: '总比赛分', width: 185, align: 'center', value: row => signedNumber(row.total_game_score), color: row => row.total_game_score >= 0 ? COLORS.green : COLORS.red },
+    { title: i18n.t('game.playerName'), width: 270, value: row => row.player_name },
+    { title: i18n.t('stats.totalGames'), width: 135, align: 'center', value: row => String(row.games_played) },
+    { title: i18n.t('shareImage.totalStandardScore'), width: 185, align: 'center', value: row => fixed1(row.total_standard_score), color: () => COLORS.orange },
+    { title: i18n.t('shareImage.averageStandardScore'), width: 205, align: 'center', value: row => fixed2(row.average_standard_score), color: () => COLORS.blue },
+    { title: i18n.t('game.totalScore'), width: 185, align: 'center', value: row => signedNumber(row.total_game_score), color: row => row.total_game_score >= 0 ? COLORS.green : COLORS.red },
   ], input.summaryStats);
 
   if (detailStats.length > 0) {
-    y = drawSectionTitle(ctx, '攻守数据', y + 8);
+    y = drawSectionTitle(ctx, i18n.t('stats.attackDefense'), y + 8);
     detailStats.forEach((stat) => {
       y = drawMetricCards(ctx, y, stat.player_name, [
-        { label: '总盘数', value: String(stat.total_rounds) },
-        { label: '和牌盘数', value: String(stat.win_rounds), color: COLORS.green },
-        { label: '和牌率', value: percent(stat.win_rate), color: COLORS.green },
-        { label: '和牌平均番', value: stat.win_rounds > 0 ? fixed1(stat.avg_win_fan) : '-' },
-        { label: '自摸盘数', value: String(stat.self_draw_rounds), color: COLORS.blue },
-        { label: '自摸率', value: percent(stat.self_draw_rate), color: COLORS.blue },
-        { label: '放铳盘数', value: String(stat.loser_rounds), color: COLORS.red },
-        { label: '放铳率', value: percent(stat.loser_rate), color: COLORS.red },
-        { label: '放铳平均番', value: stat.loser_rounds > 0 ? fixed1(stat.avg_loser_fan) : '-' },
+        { label: i18n.t('shareImage.totalRounds'), value: String(stat.total_rounds) },
+        { label: i18n.t('shareImage.winRounds'), value: String(stat.win_rounds), color: COLORS.green },
+        { label: i18n.t('stats.winRate'), value: percent(stat.win_rate), color: COLORS.green },
+        { label: i18n.t('stats.avgWinFan'), value: stat.win_rounds > 0 ? fixed1(stat.avg_win_fan) : '-' },
+        { label: i18n.t('shareImage.selfDrawRounds'), value: String(stat.self_draw_rounds), color: COLORS.blue },
+        { label: i18n.t('stats.selfDrawRate'), value: percent(stat.self_draw_rate), color: COLORS.blue },
+        { label: i18n.t('shareImage.loserRounds'), value: String(stat.loser_rounds), color: COLORS.red },
+        { label: i18n.t('stats.loserRate'), value: percent(stat.loser_rate), color: COLORS.red },
+        { label: i18n.t('shareImage.avgLoserFan'), value: stat.loser_rounds > 0 ? fixed1(stat.avg_loser_fan) : '-' },
       ]);
     });
   }
 
   if (winningStats.length > 0) {
-    y = drawSectionTitle(ctx, '和牌数据', y + 8);
+    y = drawSectionTitle(ctx, i18n.t('stats.winData'), y + 8);
     winningStats.forEach((stat) => {
       y = drawMetricCards(ctx, y, stat.player_name, [
-        { label: '和牌总盘数', value: String(stat.total_win_rounds), color: COLORS.green },
-        { label: '8-15番', value: String(stat.win_8_15) },
-        { label: '16-30番', value: String(stat.win_16_30) },
-        { label: '31-63番', value: String(stat.win_31_63) },
-        { label: '64番+', value: String(stat.win_64_plus), color: COLORS.rose },
-        { label: '点和最大番', value: String(stat.max_fan_rong), color: COLORS.amber },
-        { label: '自摸最大番', value: String(stat.max_fan_self_draw), color: COLORS.blue },
+        { label: i18n.t('shareImage.totalWinRounds'), value: String(stat.total_win_rounds), color: COLORS.green },
+        { label: i18n.t('shareImage.fan8_15'), value: String(stat.win_8_15) },
+        { label: i18n.t('shareImage.fan16_30'), value: String(stat.win_16_30) },
+        { label: i18n.t('shareImage.fan31_63'), value: String(stat.win_31_63) },
+        { label: i18n.t('shareImage.fan64_plus'), value: String(stat.win_64_plus), color: COLORS.rose },
+        { label: i18n.t('shareImage.maxFanRong'), value: String(stat.max_fan_rong), color: COLORS.amber },
+        { label: i18n.t('stats.maxWinFan'), value: String(stat.max_fan_self_draw), color: COLORS.blue },
       ]);
     });
   }
 
-  text(ctx, '由「国标麻将实时计分板」生成', WIDTH / 2, logicalHeight - 48, {
+  text(ctx, i18n.t('shareImage.footerGenerator'), WIDTH / 2, logicalHeight - 48, {
     size: 24,
     weight: 600,
     color: COLORS.muted,
@@ -411,6 +412,6 @@ export const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolv
     const result = String(reader.result || '');
     resolve(result.includes(',') ? result.split(',')[1] : result);
   };
-  reader.onerror = () => reject(reader.error || new Error('读取图片失败'));
+  reader.onerror = () => reject(reader.error || new Error(i18n.t('shareImage.errorReadImage')));
   reader.readAsDataURL(blob);
 });

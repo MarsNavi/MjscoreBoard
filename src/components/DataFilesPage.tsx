@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Database, FilePlus, FolderOpen, GitMerge, Pencil, Plus, Share2, Trash2, Upload, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
@@ -46,9 +47,10 @@ export default function DataFilesPage({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentDataFile = dataFiles.find((file) => file.id === user.id);
   const activeFileName = currentDataFile?.name || getDataFileName(user);
+  const { t } = useTranslation();
 
   const formatLastGameDate = (dateString?: string) => {
-    if (!dateString) return '暂无记录';
+    if (!dateString) return t('files.noRecord');
     return new Date(dateString).toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
@@ -114,7 +116,7 @@ export default function DataFilesPage({
       });
     } catch (error) {
       console.error('Import failed:', error);
-      alert('导入失败。请选择本应用分享或备份的牌局档案。');
+      alert(t('files.importFailedMsg'));
     }
   };
 
@@ -128,13 +130,13 @@ export default function DataFilesPage({
       setPendingImport(null);
 
       if (counts.games === 0 && counts.skipped_games) {
-        alert(`没有新增比赛。\n\n已跳过 ${counts.skipped_games} 场重复比赛。`);
+        alert(t('files.mergeNoNewGamesMsg', { skipped: counts.skipped_games }));
       } else {
-        alert(`合并完成。\n\n新增比赛：${counts.games} 场\n跳过重复：${counts.skipped_games || 0} 场\n新增选手记录：${counts.players} 条`);
+        alert(t('files.mergeSuccessMsg', { games: counts.games, skipped: counts.skipped_games || 0, players: counts.players }));
       }
     } catch (error) {
       console.error('Merge failed:', error);
-      alert('合并失败，请稍后重试。');
+      alert(t('files.mergeFailedMsg'));
     } finally {
       setImportingDataFile(false);
     }
@@ -143,7 +145,7 @@ export default function DataFilesPage({
   const handleImportAsNewDataFile = async () => {
     if (!pendingImport || importingDataFile) return;
 
-    const name = window.prompt('新档案名称：', pendingImport.defaultName);
+    const name = window.prompt(t('files.newFileNamePrompt'), pendingImport.defaultName);
     if (name === null) return;
 
     setImportingDataFile(true);
@@ -151,10 +153,10 @@ export default function DataFilesPage({
       const { user: importedUser, counts } = await importBackupAsNewDataFile(pendingImport.data, name);
       await onDataFileChanged(importedUser.id);
       setPendingImport(null);
-      alert(`已创建「${importedUser.code}」。\n\n导入比赛：${counts.games} 场\n导入选手记录：${counts.players} 条`);
+      alert(t('files.importSuccessMsg', { name: importedUser.code, games: counts.games, players: counts.players }));
     } catch (error) {
       console.error('Import as new failed:', error);
-      alert('新建档案失败，请稍后重试。');
+      alert(t('files.importNewFailedMsg'));
     } finally {
       setImportingDataFile(false);
     }
@@ -178,18 +180,18 @@ export default function DataFilesPage({
             encoding: Encoding.UTF8,
           });
 
-          alert(`备份已保存。\n\n位置：Documents/${fileName}`);
+          alert(t('files.backupSavedMsg', { fileName }));
         } catch (e) {
           console.error('File write failed', e);
-          alert('备份失败，请检查存储权限。');
+          alert(t('files.backupFailedPermissionMsg'));
         }
       } else {
         downloadJsonFile(jsonString, fileName);
-        alert('档案已备份。');
+        alert(t('files.archiveBackedUpMsg'));
       }
     } catch (error) {
       console.error('Export failed:', error);
-      alert('备份失败。');
+      alert(t('files.backupFailedMsg'));
     }
   };
 
@@ -199,8 +201,8 @@ export default function DataFilesPage({
     setSharingDataFile(true);
     try {
       const { data, jsonString, fileName } = await createExportPayload();
-      const title = `${data.data_file?.name || '麻将'} · 牌局档案`;
-      const text = '这是一份国标麻将计分档案。接收后可选择合并或另存；合并时会自动跳过重复比赛。';
+      const title = t('files.shareTitle', { name: data.data_file?.name || '麻将' });
+      const text = t('files.shareText');
 
       if (Capacitor.isNativePlatform()) {
         const savedFile = await Filesystem.writeFile({
@@ -214,7 +216,7 @@ export default function DataFilesPage({
           title,
           text,
           files: [savedFile.uri],
-          dialogTitle: '分享牌局档案',
+          dialogTitle: t('files.shareDialogTitle'),
         });
         return;
       }
@@ -228,11 +230,11 @@ export default function DataFilesPage({
         });
       } else {
         downloadJsonFile(jsonString, fileName);
-        alert('当前浏览器不支持直接分享，已下载备份文件。');
+        alert(t('files.shareNotSupportedMsg'));
       }
     } catch (error) {
       console.error('Share data file failed:', error);
-      alert('分享档案失败，请稍后重试。');
+      alert(t('files.shareFailedMsg'));
     } finally {
       setSharingDataFile(false);
     }
@@ -253,24 +255,24 @@ export default function DataFilesPage({
           <div className="w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-black tracking-[0.18em] text-orange-500">导入档案</div>
-                <h2 className="mt-1 text-2xl font-black text-gray-900">选择导入方式</h2>
+                <div className="text-xs font-black tracking-[0.18em] text-orange-500">{t('files.importArchive')}</div>
+                <h2 className="mt-1 text-2xl font-black text-gray-900">{t('files.chooseImportMethod')}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                  如果是同一圈牌友的新记录，建议合并；只是想单独查看，就另存为新档案。
+                  {t('files.importMethodDesc')}
                 </p>
               </div>
               <button
                 onClick={() => setPendingImport(null)}
                 disabled={importingDataFile}
                 className="rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 disabled:opacity-50"
-                aria-label="关闭"
+                aria-label={t('common.close')}
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="mt-4 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">
-              {pendingImport.data.games?.length || 0} 场比赛 · {pendingImport.data.players?.length || 0} 条选手记录
+              {t('files.importSummary', { games: pendingImport.data.games?.length || 0, players: pendingImport.data.players?.length || 0 })}
             </div>
 
             <div className="mt-4 space-y-3">
@@ -283,8 +285,8 @@ export default function DataFilesPage({
               >
                 <GitMerge size={22} className="mt-0.5 shrink-0" />
                 <span>
-                  <span className="block text-lg font-black">合并到当前档案</span>
-                  <span className="mt-1 block text-sm font-semibold text-white/80">适合接收同一圈牌友的新记录，重复比赛会自动跳过。</span>
+                  <span className="block text-lg font-black">{t('files.mergeFile')}</span>
+                  <span className="mt-1 block text-sm font-semibold text-white/80">{t('files.mergeDesc')}</span>
                 </span>
               </button>
               <button
@@ -296,8 +298,8 @@ export default function DataFilesPage({
               >
                 <FolderOpen size={22} className="mt-0.5 shrink-0" />
                 <span>
-                  <span className="block text-lg font-black">另存为新档案</span>
-                  <span className="mt-1 block text-sm font-semibold text-gray-500">保留为独立档案，不影响当前档案。</span>
+                  <span className="block text-lg font-black">{t('files.saveAsNew')}</span>
+                  <span className="mt-1 block text-sm font-semibold text-gray-500">{t('files.saveAsNewDesc')}</span>
                 </span>
               </button>
             </div>
@@ -310,13 +312,13 @@ export default function DataFilesPage({
           <div className="w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black text-gray-900">切换档案</h2>
-                <p className="mt-1 text-sm text-gray-500">切换后，历史和统计只显示该档案的记录。</p>
+                <h2 className="text-2xl font-black text-gray-900">{t('files.switchFile')}</h2>
+                <p className="mt-1 text-sm text-gray-500">{t('files.switchFileDesc')}</p>
               </div>
               <button
                 onClick={() => setShowDataFileSwitcher(false)}
                 className="rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200"
-                aria-label="关闭"
+                aria-label={t('common.close')}
               >
                 <X size={18} />
               </button>
@@ -341,11 +343,11 @@ export default function DataFilesPage({
                       <div className="min-w-0">
                         <div className="truncate text-base font-black text-gray-900">{file.name}</div>
                         <div className="mt-1 text-xs font-semibold text-gray-500">
-                          {file.games_count} 场比赛 · 最近 {formatLastGameDate(file.last_game_at)}
+                          {t('files.fileStats', { games: file.games_count, date: formatLastGameDate(file.last_game_at) })}
                         </div>
                       </div>
                       {isActive && (
-                        <span className="shrink-0 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">当前</span>
+                        <span className="shrink-0 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">{t('files.current')}</span>
                       )}
                     </div>
                   </button>
@@ -363,52 +365,52 @@ export default function DataFilesPage({
               <Database size={22} className="text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-black tracking-[0.2em] text-orange-500">牌局管理</div>
-              <h1 className="mt-1 text-3xl font-black text-gray-900">牌局档案</h1>
-              <p className="mt-1 text-sm text-gray-500">每个牌友圈单独保存，历史与统计互不混淆。</p>
+              <div className="text-xs font-black tracking-[0.2em] text-orange-500">{t('files.manageGame')}</div>
+              <h1 className="mt-1 text-3xl font-black text-gray-900">{t('files.dataFiles')}</h1>
+              <p className="mt-1 text-sm text-gray-500">{t('files.dataFilesDesc')}</p>
             </div>
             <button
               onClick={onViewHelp}
               className="shrink-0 rounded-full border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-black text-orange-700 transition-colors hover:bg-orange-100"
             >
-              更新
+              {t('common.update')}
             </button>
           </div>
 
           <div className="mt-5 rounded-3xl bg-gradient-to-br from-orange-50 to-rose-50 p-4 border border-orange-100">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-black text-orange-600">当前档案</div>
+                <div className="text-xs font-black text-orange-600">{t('files.currentFile')}</div>
                 <div className="mt-1 truncate text-2xl font-black text-gray-900">{activeFileName}</div>
               </div>
               <button
                 onClick={() => setShowDataFileSwitcher(true)}
                 className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-orange-700 shadow-sm transition-colors hover:bg-orange-100"
               >
-                切换
+                {t('files.switch')}
               </button>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-white/80 px-3 py-2 border border-orange-100">
                 <div className="text-lg font-black text-orange-600">{currentDataFile?.games_count ?? 0}</div>
-                <div className="text-xs font-semibold text-gray-500">比赛</div>
+                <div className="text-xs font-semibold text-gray-500">{t('files.games')}</div>
               </div>
               <div className="rounded-2xl bg-white/80 px-3 py-2 border border-rose-100">
                 <div className="text-lg font-black text-rose-600">{currentDataFile?.finished_games_count ?? 0}</div>
-                <div className="text-xs font-semibold text-gray-500">完成</div>
+                <div className="text-xs font-semibold text-gray-500">{t('files.finished')}</div>
               </div>
               <div className="rounded-2xl bg-white/80 px-3 py-2 border border-emerald-100">
                 <div className="text-lg font-black text-emerald-700">{formatLastGameDate(currentDataFile?.last_game_at)}</div>
-                <div className="text-xs font-semibold text-gray-500">最近</div>
+                <div className="text-xs font-semibold text-gray-500">{t('files.recent')}</div>
               </div>
             </div>
           </div>
 
           <div className="mt-4 border-t border-orange-100 pt-4">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-xs font-black tracking-[0.16em] text-gray-400">档案管理</div>
-              <div className="text-xs font-bold text-gray-400">共 {dataFiles.length} 个</div>
+              <div className="text-xs font-black tracking-[0.16em] text-gray-400">{t('files.manageFiles')}</div>
+              <div className="text-xs font-bold text-gray-400">{t('files.totalFiles', { count: dataFiles.length })}</div>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button
@@ -418,7 +420,7 @@ export default function DataFilesPage({
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-50 px-2 py-3 text-xs font-bold text-orange-700 hover:bg-orange-100"
               >
                 <Plus size={15} />
-                新建
+                {t('files.new')}
               </button>
               <button
                 onClick={() => {
@@ -427,14 +429,14 @@ export default function DataFilesPage({
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 px-2 py-3 text-xs font-bold text-amber-700 hover:bg-amber-100"
               >
                 <Pencil size={15} />
-                改名
+                {t('files.rename')}
               </button>
               <button
                 onClick={handleExportData}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 px-2 py-3 text-xs font-bold text-gray-600 hover:bg-gray-100"
               >
                 <FilePlus size={15} />
-                备份
+                {t('files.backup')}
               </button>
               <button
                 onClick={() => {
@@ -443,7 +445,7 @@ export default function DataFilesPage({
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-red-50 px-2 py-3 text-xs font-bold text-red-600 hover:bg-red-100"
               >
                 <Trash2 size={15} />
-                删除
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -451,8 +453,8 @@ export default function DataFilesPage({
 
         <div className="rounded-[2rem] bg-white p-5 sm:p-6 shadow-xl border-2 border-orange-100">
           <div>
-            <h2 className="text-xl font-black text-gray-900">分享与导入</h2>
-            <p className="mt-1 text-sm text-gray-500">把当前档案发给别人，也可以接收别人发来的档案。</p>
+            <h2 className="text-xl font-black text-gray-900">{t('files.shareAndImport')}</h2>
+            <p className="mt-1 text-sm text-gray-500">{t('files.shareAndImportDesc')}</p>
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -463,8 +465,8 @@ export default function DataFilesPage({
             >
               <Share2 size={20} />
               <span>
-                <span className="block text-sm font-black">{sharingDataFile ? '正在准备分享' : '分享当前档案'}</span>
-                <span className="mt-0.5 block text-xs font-semibold text-orange-700/60">对方可查看，也可合并。</span>
+                <span className="block text-sm font-black">{sharingDataFile ? t('files.preparingShare') : t('files.shareFile')}</span>
+                <span className="mt-0.5 block text-xs font-semibold text-orange-700/60">{t('files.shareDesc')}</span>
               </span>
             </button>
 
@@ -474,8 +476,8 @@ export default function DataFilesPage({
             >
               <Upload size={20} />
               <span>
-                <span className="block text-sm font-black">导入档案</span>
-                <span className="mt-0.5 block text-xs font-semibold text-blue-700/60">导入后再选择合并或另存。</span>
+                <span className="block text-sm font-black">{t('files.importArchive')}</span>
+                <span className="mt-0.5 block text-xs font-semibold text-blue-700/60">{t('files.importDesc')}</span>
               </span>
             </button>
           </div>

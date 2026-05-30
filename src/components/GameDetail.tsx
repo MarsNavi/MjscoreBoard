@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Player, ScoreRecord, Position, Game, Penalty } from '../lib/types';
+import { useTranslation } from 'react-i18next';
 import { db } from '../lib/db';
 import { ArrowLeft, Share2, Loader2 } from 'lucide-react';
 import { buildPlayersWithCalculatedScores, getPositionForPlayerInRound } from '../lib/gameScoring';
@@ -20,6 +21,7 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
   const [penalty, setPenalty] = useState<Penalty | null>(null);
   const [game, setGame] = useState<Game | null>(null);
   const [sharing, setSharing] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const loadGameDetail = async () => {
@@ -88,10 +90,10 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
         });
 
         await Share.share({
-          title: `国标麻将对局明细 - ${game.game_name || '比赛详情'}`,
-          text: '对局明细长图',
+          title: t('game.shareDetailTitle', { name: game.game_name || t('game.matchDetail') }),
+          text: t('game.shareDetailText'),
           files: [savedFile.uri],
-          dialogTitle: '分享对局明细',
+          dialogTitle: t('game.shareGameDetail'),
         });
         return;
       }
@@ -99,8 +101,8 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
       const file = new File([blob], fileName, { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
-          title: `国标麻将对局明细 - ${game.game_name || '比赛详情'}`,
-          text: '对局明细长图',
+          title: t('game.shareDetailTitle', { name: game.game_name || t('game.matchDetail') }),
+          text: t('game.shareDetailText'),
           files: [file],
         });
       } else {
@@ -108,7 +110,7 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
       }
     } catch (error) {
       console.error('Share detail failed:', error);
-      alert('分享对局明细失败，请稍后重试。');
+      alert(t('game.shareDetailFailed'));
     } finally {
       setSharing(false);
     }
@@ -124,14 +126,14 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
               className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft size={24} />
-              <span className="text-lg font-semibold">返回</span>
+              <span className="text-lg font-semibold">{t('common.back')}</span>
             </button>
             <div>
               <h2 className="text-2xl font-bold text-gray-800">
-                {game?.game_name || '比赛详情'}
+                {game?.game_name || t('game.matchDetail')}
               </h2>
               {game?.game_name && (
-                <div className="text-sm text-gray-500 mt-1">比赛详情</div>
+                <div className="text-sm text-gray-500 mt-1">{t('game.matchDetail')}</div>
               )}
             </div>
           </div>
@@ -142,13 +144,13 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
             className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
           >
             {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-            <span>{sharing ? '生成中…' : '分享对局明细'}</span>
+            <span>{sharing ? t('common.generating') : t('game.shareGameDetail')}</span>
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">当前分数</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">{t('game.currentScore')}</h3>
             <div className="grid grid-cols-4 gap-4">
               {players
                 .sort((a, b) => a.player_id.localeCompare(b.player_id))
@@ -171,12 +173,12 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">计分明细</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">{t('game.scoreDetail')}</h3>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-4 py-2 text-center">盘数</th>
+                    <th className="border border-gray-300 px-4 py-2 text-center">{t('game.roundCount')}</th>
                     {[...players].sort((a, b) => a.player_id.localeCompare(b.player_id)).map((player) => (
                       <th
                         key={player.id}
@@ -223,7 +225,7 @@ export default function GameDetail({ gameId, onBack }: GameDetailProps) {
                   {penalty && (
                     <tr className="hover:bg-gray-50">
                       <td className="border border-gray-300 px-4 py-2 text-center text-gray-400">
-                        判罚
+                        {t('mahjong.penalty')}
                       </td>
                       {[...players].sort((a, b) => a.player_id.localeCompare(b.player_id)).map((player) => {
                         const penaltyChanges = penalty.penalty_changes as Record<Position, number>;

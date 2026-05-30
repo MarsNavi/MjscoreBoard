@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle } from 'lucide-react';
 import { Player } from '../lib/types';
 
@@ -15,6 +16,7 @@ export default function PenaltyModal({
   onSubmit,
   currentPenalties
 }: PenaltyModalProps) {
+  const { t } = useTranslation();
   const [penalties, setPenalties] = useState<Record<string, number>>({
     east: 0,
     south: 0,
@@ -46,12 +48,7 @@ export default function PenaltyModal({
     return players.find(p => p.position === position);
   };
 
-  const positionNames = {
-    east: '东',
-    south: '南',
-    west: '西',
-    north: '北',
-  };
+// Remove positionNames
 
   const totalPenalty = Object.values(penalties).reduce((sum, val) => sum + val, 0);
 
@@ -61,7 +58,7 @@ export default function PenaltyModal({
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-2">
             <AlertTriangle className="text-orange-500" size={24} />
-            <h2 className="text-2xl font-bold text-gray-800">判罚</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('mahjong.penalty')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -73,7 +70,7 @@ export default function PenaltyModal({
 
         <div className="p-6 space-y-4">
           <p className="text-sm text-gray-600 mb-4">
-            为每位选手填写调整分。加分填正数，扣分填负数。
+            {t('game.penaltyDescription')}
           </p>
 
           {(['east', 'south', 'west', 'north'] as const).map((position) => {
@@ -81,7 +78,7 @@ export default function PenaltyModal({
             return (
               <div key={position} className="flex items-center gap-3">
                 <div className="w-20 font-medium text-gray-700">
-                  {positionNames[position]} - {player?.name || '未命名'}
+                  {t(`mahjong.${position}`)} - {player?.name || t('common.unnamed')}
                 </div>
                 <input
                   type="number"
@@ -96,8 +93,8 @@ export default function PenaltyModal({
 
           {totalPenalty !== 0 && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                当前合计为 <span className="font-bold">{totalPenalty}</span> 分。通常应为 0，请确认是否有遗漏。
+              <p className="text-sm text-yellow-800 font-medium">
+                {t('game.penaltyWarning', { total: totalPenalty })}
               </p>
             </div>
           )}
@@ -108,13 +105,13 @@ export default function PenaltyModal({
             onClick={onClose}
             className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors"
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             className="flex-1 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors shadow-lg"
           >
-            保存判罚
+            {t('game.savePenalty')}
           </button>
         </div>
       </div>

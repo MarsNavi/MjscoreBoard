@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { User, GameResult } from '../lib/types';
 import { db } from '../lib/db';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowUpDown, Loader2, Share2 } from 'lucide-react';
 import { buildGameResults, buildPlayersWithCalculatedScores } from '../lib/gameScoring';
 import { normalizePlayerName } from '../lib/playerNames';
@@ -80,6 +81,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
   const [sharing, setSharing] = useState(false);
   const [sortField, setSortField] = useState<SortField>('total_standard_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { t } = useTranslation();
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -394,10 +396,10 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
         });
 
         await Share.share({
-          title: '国标麻将成绩统计',
-          text: '成绩统计长图',
+          title: t('stats.shareTitle'),
+          text: t('stats.shareText'),
           files: [savedFile.uri],
-          dialogTitle: '分享成绩统计',
+          dialogTitle: t('stats.shareStats'),
         });
         return;
       }
@@ -405,8 +407,8 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
       const file = new File([blob], fileName, { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
-          title: '国标麻将成绩统计',
-          text: '成绩统计长图',
+          title: t('stats.shareTitle'),
+          text: t('stats.shareText'),
           files: [file],
         });
       } else {
@@ -414,7 +416,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
       }
     } catch (error) {
       console.error('Share stats failed:', error);
-      alert('分享失败，请稍后重试。');
+      alert(t('stats.shareFailed'));
     } finally {
       setSharing(false);
     }
@@ -434,7 +436,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
               </button>
             )}
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-800">成绩统计</h1>
+              <h1 className="text-2xl font-bold text-gray-800">{t('stats.title')}</h1>
             </div>
             <button
               onClick={handleShareStats}
@@ -442,30 +444,30 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
               className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
             >
               {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
-              <span>{sharing ? '生成中…' : '分享长图'}</span>
+              <span>{sharing ? t('common.generating') : t('stats.shareImage')}</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-gray-500">正在加载…</div>
+            <div className="text-center py-8 text-gray-500">{t('common.loading')}</div>
           ) : stats.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              完成比赛后，这里会显示统计。
+              {t('stats.noStats')}
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">战绩一览</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">{t('stats.overview')}</h2>
               <div className="overflow-x-auto mb-8">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b-2 border-gray-200">
-                      <th className="text-left py-3 px-2 font-bold text-gray-700">选手</th>
+                      <th className="text-left py-3 px-2 font-bold text-gray-700">{t('stats.player')}</th>
                       <th className="text-center py-3 px-2 font-bold text-gray-700">
                         <button
                           onClick={() => handleSort('games_played')}
                           className="flex items-center justify-center gap-1 w-full hover:text-orange-600 transition-colors"
                         >
-                          场次
+                          {t('stats.totalGames')}
                           <ArrowUpDown size={14} />
                         </button>
                       </th>
@@ -474,7 +476,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
                           onClick={() => handleSort('total_standard_score')}
                           className="flex items-center justify-center gap-1 w-full hover:text-orange-600 transition-colors"
                         >
-                          总标准分
+                          {t('stats.totalStandardScore')}
                           <ArrowUpDown size={14} />
                         </button>
                       </th>
@@ -483,7 +485,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
                           onClick={() => handleSort('average_standard_score')}
                           className="flex items-center justify-center gap-1 w-full hover:text-orange-600 transition-colors"
                         >
-                          平均标准分
+                          {t('stats.avgStandardScore')}
                           <ArrowUpDown size={14} />
                         </button>
                       </th>
@@ -492,7 +494,7 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
                           onClick={() => handleSort('total_game_score')}
                           className="flex items-center justify-center gap-1 w-full hover:text-orange-600 transition-colors"
                         >
-                          总比赛分
+                          {t('game.totalScore')}
                           <ArrowUpDown size={14} />
                         </button>
                       </th>
@@ -533,21 +535,21 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
 
               {detailStats.length > 0 && (
                 <>
-                  <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">攻守数据</h2>
+                  <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">{t('stats.attackDefense')}</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b-2 border-gray-200">
-                          <th className="text-left py-3 px-2 font-bold text-gray-700">选手</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">总盘数</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">和牌盘数</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">和牌率</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">和牌平均番</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">自摸盘数</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">自摸率</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">放铳盘数</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">放铳率</th>
-                          <th className="text-center py-3 px-2 font-bold text-gray-700">放铳平均番</th>
+                          <th className="text-left py-3 px-2 font-bold text-gray-700">{t('stats.player')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.totalRounds')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.winRounds')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.winRate')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.avgWinFan')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.selfDrawRounds')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.selfDrawRate')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.loserRounds')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.loserRate')}</th>
+                          <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.avgLoserFan')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -600,19 +602,19 @@ export default function PlayerStatsPage({ user, onBack, showBack = true }: Playe
 
                   {winningStats.length > 0 && (
                     <>
-                      <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">和牌数据</h2>
+                      <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">{t('stats.winData')}</h2>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
                             <tr className="border-b-2 border-gray-200">
-                              <th className="text-left py-3 px-2 font-bold text-gray-700">选手</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">和牌总盘数</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">8-15番</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">16-30番</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">31-63番</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">64番+</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">点和最大番</th>
-                              <th className="text-center py-3 px-2 font-bold text-gray-700">自摸最大番</th>
+                              <th className="text-left py-3 px-2 font-bold text-gray-700">{t('stats.player')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.totalWinRounds')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.fan8to15')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.fan16to30')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.fan31to63')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.fan64plus')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.maxFanRong')}</th>
+                              <th className="text-center py-3 px-2 font-bold text-gray-700">{t('stats.maxWinFan')}</th>
                             </tr>
                           </thead>
                           <tbody>

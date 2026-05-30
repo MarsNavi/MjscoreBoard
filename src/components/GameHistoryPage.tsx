@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { User, Game } from '../lib/types';
 import { db } from '../lib/db';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Calendar, Trophy, Play, Trash2 } from 'lucide-react';
 import { buildPlayersWithCalculatedScores } from '../lib/gameScoring';
 import { normalizePlayerName } from '../lib/playerNames';
@@ -53,6 +54,7 @@ export default function GameHistoryPage({
   const [deletingGameId, setDeletingGameId] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<Record<string, GameResult[]>>({});
   const [playerDailyTotals, setPlayerDailyTotals] = useState<PlayerDailyTotal[]>([]);
+  const { t } = useTranslation();
 
   const loadGames = useCallback(async () => {
     setLoading(true);
@@ -143,12 +145,12 @@ export default function GameHistoryPage({
 
   const getGameStatus = (game: Game) => {
     if (game.is_completed) {
-      return '已完成';
+      return t('history.completed');
     }
     if (game.status === 'finished') {
-      return '已结束';
+      return t('history.ended');
     }
-    return `进行中 ${game.current_game}/16`;
+    return t('history.inProgress', { current: game.current_game });
   };
 
   const handleDelete = async (gameId: string) => {
@@ -180,16 +182,16 @@ export default function GameHistoryPage({
             )}
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <Trophy className="text-yellow-500" />
-              比赛历史
+              {t('game.gameHistory')}
             </h1>
           </div>
 
           {!loading && playerDailyTotals.length > 0 && (
             <div className="mb-4 p-4 bg-gradient-to-r from-orange-100 to-rose-100 rounded-xl border-2 border-orange-200">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">近 24 小时小计</span>
+                <span className="text-sm font-semibold text-gray-700">{t('history.recent24h')}</span>
                 <span className="text-xs text-gray-600">
-                  按比赛创建时间统计
+                  {t('history.statsByCreateTime')}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -206,9 +208,9 @@ export default function GameHistoryPage({
           )}
 
           {loading ? (
-            <div className="text-center py-8 text-gray-500">正在加载…</div>
+            <div className="text-center py-8 text-gray-500">{t('common.loading')}</div>
           ) : games.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">还没有比赛记录</div>
+            <div className="text-center py-8 text-gray-500">{t('history.noGames')}</div>
           ) : (
             <div className="space-y-3">
               {games.map((game) => {
@@ -252,7 +254,7 @@ export default function GameHistoryPage({
                             className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-sm"
                           >
                             <Play size={14} />
-                            继续比赛
+                            {t('game.resumeGame')}
                           </button>
                         )}
                         <button
@@ -261,7 +263,7 @@ export default function GameHistoryPage({
                             handleDelete(game.id);
                           }}
                           className="p-2 hover:bg-red-100 text-red-500 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="删除比赛"
+                          title={t('history.deleteGame')}
                           disabled={isDeleting}
                         >
                           <Trash2 size={20} />
@@ -285,7 +287,7 @@ export default function GameHistoryPage({
                     {isDeleting && (
                       <div className="mt-2 flex items-center gap-1 text-red-600 text-xs font-medium">
                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                        正在删除…
+                        {t('history.deleting')}
                       </div>
                     )}
                   </div>

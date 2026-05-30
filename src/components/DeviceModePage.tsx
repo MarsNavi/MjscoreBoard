@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { useTranslation } from 'react-i18next';
 import { X, Play, ShieldAlert, BadgeCheck } from 'lucide-react';
 import { deviceModeBle } from '../lib/deviceModeBle';
 import { Position } from '../lib/types';
@@ -17,12 +18,19 @@ interface PlayState {
 }
 
 const POSITIONS: Position[] = ['east', 'south', 'west', 'north'];
-const POS_LABELS: Record<Position, string> = { east: '东', south: '南', west: '西', north: '北' };
 
 export default function DeviceModePage({ onExit }: DeviceModePageProps) {
   const [deviceId, setDeviceId] = useState<string>('');
   const [status, setStatus] = useState<DeviceStatus>('WAITING');
   const [playState, setPlayState] = useState<PlayState | null>(null);
+  const { t } = useTranslation();
+  
+  const POS_LABELS: Record<Position, string> = { 
+    east: t('mahjong.east'), 
+    south: t('mahjong.south'), 
+    west: t('mahjong.west'), 
+    north: t('mahjong.north') 
+  };
   const [confirmMsg, setConfirmMsg] = useState('');
   
   // 当前绑定的初始物理座位索引
@@ -145,7 +153,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                     {POS_LABELS[pos]}
                 </span>
                 <span className="text-slate-300 font-bold text-xs sm:text-sm truncate max-w-[60px] sm:max-w-[80px]">
-                    {playState.names[pos] || '未设置'}
+                    {playState.names[pos] || t('device.notSet')}
                 </span>
              </div>
              <div className={`text-2xl sm:text-4xl font-black font-mono tracking-tighter ${
@@ -171,16 +179,16 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       {status === 'WAITING' && (
         <div className="text-center w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
-          <h1 className="text-3xl sm:text-5xl font-black text-slate-200 mb-8 tracking-widest">麻将计分板</h1>
+          <h1 className="text-3xl sm:text-5xl font-black text-slate-200 mb-8 tracking-widest">{t('device.mahjongScoreboard')}</h1>
           
           <div className="space-y-6">
             <div className="inline-block text-xl sm:text-3xl font-mono text-emerald-400 bg-slate-800/80 px-8 py-4 rounded-2xl border border-emerald-900/50">
-              设备号: {deviceId || '加载中...'}
+              {t('device.deviceId', { id: deviceId || t('common.loading') })}
             </div>
             
             <div className="flex items-center justify-center gap-3 text-slate-400 text-lg sm:text-xl animate-pulse mt-4">
               <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-              等待主机连接...
+              {t('device.waitingHost')}
             </div>
           </div>
         </div>
@@ -191,12 +199,12 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
            
            {/* 顶部视角切换提示 */}
            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700 backdrop-blur">
-              <span className="text-xs sm:text-sm text-slate-400">视角跟随: <strong className="text-orange-400">{playState.names[myPosition]} ({POS_LABELS[myPosition]}位)</strong></span>
+              <span className="text-xs sm:text-sm text-slate-400">{t('device.followView')} <strong className="text-orange-400">{playState.names[myPosition]} ({t('device.posSeat', { pos: POS_LABELS[myPosition] })})</strong></span>
               <button 
                 onClick={() => setShowFollowSelector(true)}
                 className="text-[10px] sm:text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded transition-colors"
               >
-                切换
+                {t('device.switch')}
               </button>
            </div>
 
@@ -228,7 +236,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                  className="w-full aspect-square bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border border-slate-600/50"
                >
                   <span className="text-lg sm:text-2xl opacity-50">💨</span>
-                  <span className="text-sm sm:text-base">荒庄</span>
+                  <span className="text-sm sm:text-base">{t('mahjong.draw')}</span>
                </button>
                
                <button 
@@ -236,7 +244,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                  className="w-full aspect-square bg-gradient-to-br from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white rounded-2xl font-black shadow-[0_0_20px_rgba(225,29,72,0.4)] active:scale-95 transition-all flex flex-col items-center justify-center gap-2"
                >
                   <span className="text-xl sm:text-3xl drop-shadow">🀄️</span>
-                  <span className="text-base sm:text-lg tracking-widest">和牌</span>
+                  <span className="text-base sm:text-lg tracking-widest">{t('device.win')}</span>
                </button>
            </div>
         </div>
@@ -250,7 +258,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
              </div>
              
              <h2 className="text-2xl sm:text-4xl font-black text-white mb-10 leading-relaxed whitespace-pre-line">
-                 {status === 'HUANG' ? '本局荒庄' : confirmMsg}
+                 {status === 'HUANG' ? t('device.roundDraw') : confirmMsg}
              </h2>
              
              <div className="flex gap-4 sm:gap-6 justify-center">
@@ -258,13 +266,13 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                     onClick={() => handleAction('BTN:CANCEL')} 
                     className="flex-1 max-w-[160px] py-4 sm:py-5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-2xl font-bold text-lg sm:text-xl active:scale-95 transition-all"
                  >
-                     取消
+                     {t('common.cancel')}
                  </button>
                  <button 
                     onClick={() => handleAction('BTN:CONFIRM')} 
                     className="flex-1 max-w-[200px] py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-lg sm:text-xl active:scale-95 transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)]"
                  >
-                     确认
+                     {t('common.confirm')}
                  </button>
              </div>
           </div>
@@ -275,8 +283,8 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       {showFollowSelector && playState && (
         <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-slate-800 rounded-3xl border border-slate-700 p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4 text-center">选择你要跟随的选手</h3>
-            <p className="text-sm text-slate-400 mb-6 text-center">手机屏幕会自动旋转，确保该选手始终在正下方</p>
+            <h3 className="text-xl font-bold text-white mb-4 text-center">{t('device.selectFollowPlayer')}</h3>
+            <p className="text-sm text-slate-400 mb-6 text-center">{t('device.followPlayerDesc')}</p>
             <div className="space-y-3">
               {POSITIONS.map(pos => (
                 <button
@@ -293,7 +301,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                   }`}
                 >
                   <span>{playState.names[pos]}</span>
-                  <span className="text-sm opacity-60">{POS_LABELS[pos]}位</span>
+                  <span className="text-sm opacity-60">{t('device.posSeat', { pos: POS_LABELS[pos] })}</span>
                 </button>
               ))}
             </div>
@@ -301,7 +309,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
               onClick={() => setShowFollowSelector(false)}
               className="w-full mt-6 p-4 bg-slate-900 hover:bg-black text-slate-400 rounded-xl font-bold transition-colors"
             >
-              取消
+              {t('common.cancel')}
             </button>
           </div>
         </div>

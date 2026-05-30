@@ -1,5 +1,6 @@
-import { ArrowLeft, Play, Sparkles } from 'lucide-react';
+import { ArrowLeft, Play, Sparkles, Globe } from 'lucide-react';
 import { User } from '../lib/types';
+import { useTranslation } from 'react-i18next';
 
 interface HelpPageProps {
   user: User;
@@ -7,6 +8,13 @@ interface HelpPageProps {
 }
 
 export default function HelpPage({ onBack }: HelpPageProps) {
+  const { t, i18n } = useTranslation();
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem('mjscoreboard_lang', lang);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
       <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white py-6 px-4 shadow-lg">
@@ -17,12 +25,34 @@ export default function HelpPage({ onBack }: HelpPageProps) {
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-2xl md:text-3xl font-bold">版本更新</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">{t('help.versionHistory')}</h1>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8">
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-gray-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl flex items-center justify-center">
+                <Globe size={20} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">{t('help.languageSettings', 'Settings / 语言设置')}</h2>
+            </div>
+            <div className="pl-13 space-y-3">
+              <div className="flex items-center gap-4">
+                <select
+                  value={i18n.language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 font-medium text-gray-700 bg-white min-w-[160px]"
+                >
+                  <option value="zh">简体中文</option>
+                  <option value="en">English</option>
+                  <option value="ja">日本語</option>
+                </select>
+              </div>
+            </div>
+          </section>
 
           <section className="space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
@@ -35,16 +65,16 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">手机可作为显示设备：</strong>无需硬件计分板，闲置手机即可充当计分显示屏。在首页点击「作为显示屏」进入外设模式，另一台手机扫描蓝牙即可连接。
+                  <strong className="text-gray-900">{t('help.v1_6_1_title')}</strong>{t('help.v1_6_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">智能视角跟随：</strong>手机显示屏会自动跟随选手，换位后无需手动调整，始终保证自己的分数在最下方。
+                  <strong className="text-gray-900">{t('help.v1_6_2_title')}</strong>{t('help.v1_6_2_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">蓝牙架构升级：</strong>底层蓝牙引擎全面升级，同时支持主控端和外设端双角色。
+                  <strong className="text-gray-900">{t('help.v1_6_3_title')}</strong>{t('help.v1_6_3_desc')}
                 </li>
               </ul>
             </div>
@@ -61,13 +91,13 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">对局详情长图分享：</strong>支持一键生成精美的对局明细长图，包括名次卡片和大番牌局的趣味标记。
+                  <strong className="text-gray-900">{t('help.v1_5_1_title')}</strong>{t('help.v1_5_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">计分板设备号显示优化：</strong>设备通电即可看到蓝牙设备号，方便与主机配对。
+                  <strong className="text-gray-900">{t('help.v1_5_2_title')}</strong>{t('help.v1_5_2_desc')}
                 </li>
               </ul>
             </div>
@@ -84,22 +114,22 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">成绩统计支持长图分享：</strong>在成绩统计页新增分享按钮，可生成包含战绩一览、攻守数据和和牌数据的长图，方便赛后保存和转发。
+                  <strong className="text-gray-900">{t('help.v1_4_1_title')}</strong>{t('help.v1_4_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">新增牌局档案切换：</strong>支持为不同牌友圈创建独立档案，也可以把别人分享的档案另存或合并。
+                  <strong className="text-gray-900">{t('help.v1_4_2_title')}</strong>{t('help.v1_4_2_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">新增牌局档案分享：</strong>可以把当前档案直接分享给其他人，对方可导入成新档案，也可以合并到自己的档案里。
+                  <strong className="text-gray-900">{t('help.v1_4_3_title')}</strong>{t('help.v1_4_3_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">修正同名选手统计：</strong>自动清理名字前后的空格，避免同一个人因为输入差异被拆成多条统计记录。
+                  <strong className="text-gray-900">{t('help.v1_4_4_title')}</strong>{t('help.v1_4_4_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化硬件计分牌中文显示：</strong>统一使用完整中文字体资源，修复部分计分牌中文字显示成方框的问题。
+                  <strong className="text-gray-900">{t('help.v1_4_5_title')}</strong>{t('help.v1_4_5_desc')}
                 </li>
               </ul>
             </div>
@@ -116,16 +146,16 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">修复成绩统计：</strong>修正标准分计算逻辑，历史数据统计更准确。
+                  <strong className="text-gray-900">{t('help.v1_3_1_title')}</strong>{t('help.v1_3_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">新增和牌统计：</strong>增加和牌数、番数分布、最大番等统计。
+                  <strong className="text-gray-900">{t('help.v1_3_2_title')}</strong>{t('help.v1_3_2_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">优化硬件计分牌：</strong>改进硬件计分牌的连接与显示体验。
+                  <strong className="text-gray-900">{t('help.v1_3_3_title')}</strong>{t('help.v1_3_3_desc')}
                 </li>
               </ul>
             </div>
@@ -142,16 +172,16 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">小屏适配优化：</strong>优化了在小屏设备上的显示效果，确保所有功能按钮都能在屏幕内完整显示，操作更加便捷。
+                  <strong className="text-gray-900">{t('help.v1_1_1_title')}</strong>{t('help.v1_1_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">流程简化：</strong>取消了“确认成绩”环节，和牌或流局后直接生效，让比赛节奏更加流畅。
+                  <strong className="text-gray-900">{t('help.v1_1_2_title')}</strong>{t('help.v1_1_2_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">智能硬件支持：</strong>支持蓝牙绑定认证的自研 BLE 计分设备，实现“一人一屏”的专属显示与交互体验。
+                  <strong className="text-gray-900">{t('help.v1_1_3_title')}</strong>{t('help.v1_1_3_desc')}
                 </li>
               </ul>
             </div>
@@ -168,13 +198,13 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">v1.0 正式发布：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.v1_0_title')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  所有记录和统计均在本地运行，不需要联网也可以使用
+                  {t('help.v1_0_1_desc')}
                 </li>
                 <li>
-                  支持牌局档案分享、导入和备份，方便换设备或与牌友同步记录
+                  {t('help.v1_0_2_desc')}
                 </li>
               </ul>
             </div>
@@ -191,19 +221,19 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">快速开局智能记忆：</strong>开局时自动读取上次比赛的名称和选手名单，无需重复输入。
+                  <strong className="text-gray-900">{t('help.v0_6_1_title')}</strong>{t('help.v0_6_1_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">选手输入优化：</strong>常用选手列表更稳定，开局时可快速选择历史姓名。
+                  <strong className="text-gray-900">{t('help.v0_6_2_title')}</strong>{t('help.v0_6_2_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">比赛历史改进：</strong>历史页支持查看比赛结果，并提供近 24 小时小计，方便结算。
+                  <strong className="text-gray-900">{t('help.v0_6_3_title')}</strong>{t('help.v0_6_3_desc')}
                 </li>
                 <li>
-                  <strong className="text-gray-900">成绩统计优化：</strong>在成绩统计中增加攻守数据，统计和牌、自摸和放铳情况。
+                  <strong className="text-gray-900">{t('help.v0_6_4_title')}</strong>{t('help.v0_6_4_desc')}
                 </li>
               </ul>
             </div>
@@ -220,68 +250,68 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               </div>
             </div>
             <div className="pl-13 space-y-6 text-gray-700 leading-relaxed">
-              <p className="text-lg font-semibold text-gray-900">主要功能：</p>
+              <p className="text-lg font-semibold text-gray-900">{t('help.mainFeatures')}</p>
 
               <div className="space-y-4">
                 <div>
                   <p className="font-semibold text-gray-900 mb-2">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm mr-2">1</span>
-                    如何开局
+                    {t('help.howToStart')}
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>填写比赛名称（可选）</li>
-                    <li>填写四位选手姓名（东、南、西、北）</li>
-                    <li>点按“开始比赛”，创建 16 盘国标麻将比赛</li>
-                    <li>系统自动进行座位轮换</li>
+                    <li>{t('help.start_1')}</li>
+                    <li>{t('help.start_2')}</li>
+                    <li>{t('help.start_3')}</li>
+                    <li>{t('help.start_4')}</li>
                   </ul>
                 </div>
 
                 <div>
                   <p className="font-semibold text-gray-900 mb-2">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600 text-sm mr-2">2</span>
-                    如何计分
+                    {t('help.howToScore')}
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>和牌选手点按“和”录入番数</li>
-                    <li>支持自摸和点炮两种情况</li>
-                    <li>系统自动计算分数变化</li>
-                    <li>第 16 盘结束后自动保存比赛成绩</li>
+                    <li>{t('help.score_1')}</li>
+                    <li>{t('help.score_2')}</li>
+                    <li>{t('help.score_3')}</li>
+                    <li>{t('help.score_4')}</li>
                   </ul>
                 </div>
 
                 <div>
                   <p className="font-semibold text-gray-900 mb-2">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600 text-sm mr-2">3</span>
-                    荒庄和裁判判罚
+                    {t('help.drawAndPenalty')}
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>荒庄时点按“荒庄”</li>
-                    <li>支持裁判判罚功能（加分/扣分）</li>
-                    <li>可处理错和、诈和等违规情况</li>
+                    <li>{t('help.dp_1')}</li>
+                    <li>{t('help.dp_2')}</li>
+                    <li>{t('help.dp_3')}</li>
                   </ul>
                 </div>
 
                 <div>
                   <p className="font-semibold text-gray-900 mb-2">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-600 text-sm mr-2">4</span>
-                    比赛历史管理
+                    {t('help.historyManagement')}
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>查看所有比赛记录</li>
-                    <li>继续未完成的比赛</li>
-                    <li>自动恢复比赛进度和分数</li>
-                    <li>查看完整的比赛详情</li>
+                    <li>{t('help.hist_1')}</li>
+                    <li>{t('help.hist_2')}</li>
+                    <li>{t('help.hist_3')}</li>
+                    <li>{t('help.hist_4')}</li>
                   </ul>
                 </div>
 
                 <div>
                   <p className="font-semibold text-gray-900 mb-2">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-pink-100 text-pink-600 text-sm mr-2">5</span>
-                    成绩统计功能
+                    {t('help.statsFunction')}
                   </p>
                   <ul className="list-disc list-inside space-y-1 pl-8 text-sm">
-                    <li>查看所有已完成比赛的战绩</li>
-                    <li>选手数据统计分析</li>
+                    <li>{t('help.stat_1')}</li>
+                    <li>{t('help.stat_2')}</li>
                   </ul>
                 </div>
               </div>
@@ -290,8 +320,8 @@ export default function HelpPage({ onBack }: HelpPageProps) {
 
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-center space-y-2 text-sm text-gray-500">
-              <p>本应用由四川熊猫俱乐部赞助</p>
-              <p>作者 李睿</p>
+              <p>{t('help.sponsor')}</p>
+              <p>{t('help.author')}</p>
             </div>
           </div>
         </div>
