@@ -317,6 +317,8 @@
     "v1_6_2_desc": "The display automatically follows the player, keeping their score at the bottom without manual adjustment.",
     "v1_6_3_title": "Bluetooth Architecture Upgrade:",
     "v1_6_3_desc": "Bluetooth engine upgraded, supporting both host and peripheral roles.",
+    "v1_6_4_title": "Multilingual Support:",
+    "v1_6_4_desc": "Seamlessly switch between English, Simplified Chinese, and Japanese across the entire app, share images, and even the ESP32 hardware scoreboard!",
     "v1_5_1_title": "Game Detail Image Share:",
     "v1_5_1_desc": "One-click generation of beautiful game detail images, including rank cards and interesting marks for big wins.",
     "v1_5_2_title": "Scoreboard Device ID Display:",

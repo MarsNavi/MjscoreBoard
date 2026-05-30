@@ -76,6 +76,9 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <li>
                   <strong className="text-gray-900">{t('help.v1_6_3_title')}</strong>{t('help.v1_6_3_desc')}
                 </li>
+                <li>
+                  <strong className="text-gray-900">{t('help.v1_6_4_title')}</strong>{t('help.v1_6_4_desc')}
+                </li>
               </ul>
             </div>
           </section>
