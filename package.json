@@ -2,6 +2,14 @@
   "name": "mjscoreboard",
   "private": true,
   "version": "1.6.0",
+  "description": "A real-time scoring app for competitive Mahjong (Chinese Official rules), with BLE scoreboard support.",
+  "author": "Rui Li",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MarsNavi/MjscoreBoard.git"
+  },
+  "homepage": "https://github.com/MarsNavi/MjscoreBoard",
   "type": "module",
   "scripts": {
     "dev": "vite",

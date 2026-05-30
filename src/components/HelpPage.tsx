@@ -291,7 +291,7 @@ export default function HelpPage({ onBack }: HelpPageProps) {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-center space-y-2 text-sm text-gray-500">
               <p>本应用由四川熊猫俱乐部赞助</p>
-              <p>作者 李睿 13501165270（微信同号）</p>
+              <p>作者 李睿</p>
             </div>
           </div>
         </div>

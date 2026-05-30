@@ -27,3 +27,4 @@ release/
 ios/App/build/
 ios/App/output/
 android/.kotlin/
+ios/App/AppStoreMetadata/
