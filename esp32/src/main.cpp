@@ -50,6 +50,152 @@ bool hasNewCommand = false;
 SemaphoreHandle_t queueMutex = NULL;
 String deviceName = "";
 
+enum AppLanguage { LANG_ZH, LANG_EN, LANG_JA };
+AppLanguage currentLang = LANG_ZH;
+
+const char* t(const char* key) {
+    if (strcmp(key, "WAITING_HOST") == 0) {
+        if (currentLang == LANG_EN) return "Waiting for host...";
+        if (currentLang == LANG_JA) return "ホスト接続待ち...";
+        return "等待主机连接...";
+    }
+    if (strcmp(key, "BLUETOOTH_CONN") == 0) {
+        if (currentLang == LANG_EN) return "Bluetooth Connected";
+        if (currentLang == LANG_JA) return "Bluetooth接続済み";
+        return "蓝牙已连接";
+    }
+    if (strcmp(key, "WAITING_START") == 0) {
+        if (currentLang == LANG_EN) return "Waiting to start...";
+        if (currentLang == LANG_JA) return "対局開始待ち...";
+        return "等待开局...";
+    }
+    if (strcmp(key, "MAHJONG_BOARD") == 0) {
+        if (currentLang == LANG_EN) return "Mahjong Scoreboard";
+        if (currentLang == LANG_JA) return "麻雀スコアボード";
+        return "麻将计分板";
+    }
+    if (strcmp(key, "WIN") == 0) {
+        if (currentLang == LANG_EN) return "Win";
+        if (currentLang == LANG_JA) return "和了";
+        return "和";
+    }
+    if (strcmp(key, "GAMEOVER") == 0) {
+        if (currentLang == LANG_EN) return "Game\nOver";
+        if (currentLang == LANG_JA) return "対局\n終了";
+        return "比赛\n结束";
+    }
+    if (strcmp(key, "DRAW") == 0) {
+        if (currentLang == LANG_EN) return "Draw";
+        if (currentLang == LANG_JA) return "流局";
+        return "荒";
+    }
+    if (strcmp(key, "DIFF") == 0) {
+        if (currentLang == LANG_EN) return "Diff";
+        if (currentLang == LANG_JA) return "差";
+        return "差";
+    }
+    if (strcmp(key, "TSUMO") == 0) {
+        if (currentLang == LANG_EN) return "Tsumo";
+        if (currentLang == LANG_JA) return "ツモ";
+        return "自摸";
+    }
+    if (strcmp(key, "NOT_ALLOCATED") == 0) {
+        if (currentLang == LANG_EN) return "Unallocated";
+        if (currentLang == LANG_JA) return "未割り当て";
+        return "未分配";
+    }
+    if (strcmp(key, "CONFIRMED") == 0) {
+        if (currentLang == LANG_EN) return "Confirmed";
+        if (currentLang == LANG_JA) return "確認済み";
+        return "已确认";
+    }
+    if (strcmp(key, "CONFIRM_SCORE") == 0) {
+        if (currentLang == LANG_EN) return "Confirm Score";
+        if (currentLang == LANG_JA) return "成績確認";
+        return "确认成绩";
+    }
+    if (strcmp(key, "CONFIRM_CALC") == 0) {
+        if (currentLang == LANG_EN) return "Confirm Calc";
+        if (currentLang == LANG_JA) return "点数確認";
+        return "确认计分";
+    }
+    if (strcmp(key, "SUBMITTING") == 0) {
+        if (currentLang == LANG_EN) return "Submitting...";
+        if (currentLang == LANG_JA) return "送信中...";
+        return "提交中...";
+    }
+    if (strcmp(key, "UNSTARTED") == 0) {
+        if (currentLang == LANG_EN) return "Unstarted";
+        if (currentLang == LANG_JA) return "未開始";
+        return "未开局";
+    }
+    if (strcmp(key, "WIN_TITLE_SUFFIX") == 0) {
+        if (currentLang == LANG_EN) return "Wins";
+        if (currentLang == LANG_JA) return "の和了";
+        return "和牌";
+    }
+    if (strcmp(key, "DEVICE_PREFIX") == 0) {
+        if (currentLang == LANG_EN) return "Device:";
+        if (currentLang == LANG_JA) return "デバイス:";
+        return "设备:";
+    }
+    if (strcmp(key, "HU_SETTLEMENT") == 0) {
+        if (currentLang == LANG_EN) return "Win Settlement";
+        if (currentLang == LANG_JA) return "和了決済";
+        return "和牌结算";
+    }
+    if (strcmp(key, "BTN_CONFIRM") == 0) {
+        if (currentLang == LANG_EN) return "Confirm";
+        if (currentLang == LANG_JA) return "確認";
+        return "确认";
+    }
+    if (strcmp(key, "BTN_CANCEL") == 0) {
+        if (currentLang == LANG_EN) return "Cancel";
+        if (currentLang == LANG_JA) return "キャンセル";
+        return "取消";
+    }
+    if (strcmp(key, "LEFT_DEAL") == 0) {
+        if (currentLang == LANG_EN) return "Left Deal";
+        if (currentLang == LANG_JA) return "上家放銃";
+        return "上家点";
+    }
+    if (strcmp(key, "OPP_DEAL") == 0) {
+        if (currentLang == LANG_EN) return "Opp Deal";
+        if (currentLang == LANG_JA) return "対面放銃";
+        return "对家点";
+    }
+    if (strcmp(key, "RIGHT_DEAL") == 0) {
+        if (currentLang == LANG_EN) return "Right Deal";
+        if (currentLang == LANG_JA) return "下家放銃";
+        return "下家点";
+    }
+    if (strcmp(key, "DRAW_CONFIRM_TITLE") == 0) {
+        if (currentLang == LANG_EN) return "Confirm Draw";
+        if (currentLang == LANG_JA) return "流局確認";
+        return "荒庄确认";
+    }
+    if (strcmp(key, "DRAW_CONFIRM_TEXT") == 0) {
+        if (currentLang == LANG_EN) return "Record as Draw?";
+        if (currentLang == LANG_JA) return "流局として記録しますか?";
+        return "记录为荒庄?";
+    }
+    return key;
+}
+
+const char* t_wind(int windIndex) {
+    if (windIndex < 0 || windIndex > 3) return "?";
+    if (currentLang == LANG_EN) {
+        const char* w[] = {"E", "S", "W", "N"};
+        return w[windIndex];
+    } else if (currentLang == LANG_JA) {
+        const char* w[] = {"東", "南", "西", "北"};
+        return w[windIndex];
+    } else {
+        const char* w[] = {"东", "南", "西", "北"};
+        return w[windIndex];
+    }
+}
+
 // --- Game State ---
 struct GameState {
   String mode; // PLAY, CONFIRM, IDLE
@@ -304,7 +450,7 @@ String getFirst3Chars(String str) {
 static void msgbox_huang_event_cb(lv_event_t * e) {
     lv_obj_t * mbox = lv_event_get_current_target(e);
     const char* btn_txt = lv_msgbox_get_active_btn_text(mbox);
-    if(btn_txt && strcmp(btn_txt, "确认") == 0) {
+    if(btn_txt && (strcmp(btn_txt, t("BTN_CONFIRM")) == 0 || strcmp(btn_txt, "确认") == 0 || strcmp(btn_txt, "Confirm") == 0 || strcmp(btn_txt, "確認") == 0)) {
         sendText("BTN:HUANG\n");
     }
     lv_msgbox_close(mbox);
@@ -316,15 +462,22 @@ static void event_handler_game_btn(lv_event_t * e) {
     if(code == LV_EVENT_CLICKED) {
         if (obj == btn_huang) {
             // Confirmation for Huangzhuang
-            const char* winds[] = {"东", "南", "西", "北"};
             int windIndex = (gameState.gameNumber - 1) / 4;
             int juIndex = ((gameState.gameNumber - 1) % 4) + 1;
             char buf[64];
-            snprintf(buf, sizeof(buf), "%s%d局 %d/16\n记录为荒庄?", 
-                    (windIndex < 4 ? winds[windIndex] : "?"), juIndex, gameState.gameNumber);
+            if (currentLang == LANG_EN) {
+                snprintf(buf, sizeof(buf), "%s%d %d/16\n%s", 
+                        t_wind(windIndex), juIndex, gameState.gameNumber, t("DRAW_CONFIRM_TEXT"));
+            } else {
+                snprintf(buf, sizeof(buf), "%s%d局 %d/16\n%s", 
+                        t_wind(windIndex), juIndex, gameState.gameNumber, t("DRAW_CONFIRM_TEXT"));
+            }
             
-            static const char * btns[] = {"确认", "取消", ""};
-            lv_obj_t * mbox = lv_msgbox_create(lv_layer_top(), "荒庄确认", buf, btns, true);
+            static const char * btns[3];
+            btns[0] = t("BTN_CONFIRM");
+            btns[1] = t("BTN_CANCEL");
+            btns[2] = "";
+            lv_obj_t * mbox = lv_msgbox_create(lv_layer_top(), t("DRAW_CONFIRM_TITLE"), buf, btns, true);
             lv_obj_add_event_cb(mbox, msgbox_huang_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_center(mbox);
             
@@ -364,7 +517,7 @@ static void event_handler_game_btn(lv_event_t * e) {
             
             // Set Title & Labels
             if (myPositionIndex >= 0 && myPositionIndex <= 3) {
-                 lv_label_set_text_fmt(lbl_hu_title, "%s 和牌", gameState.names[myPositionIndex].c_str());
+                 lv_label_set_text_fmt(lbl_hu_title, "%s %s", gameState.names[myPositionIndex].c_str(), t("WIN_TITLE_SUFFIX"));
                  
                  // Dynamic Labels: Left, Opp, Right
                  int leftIdx = (myPositionIndex + 3) % 4;
@@ -381,7 +534,7 @@ static void event_handler_game_btn(lv_event_t * e) {
                  if (l_right) lv_label_set_text(l_right, getFirst3Chars(gameState.names[rightIdx]).c_str());
                  
             } else {
-                 lv_label_set_text(lbl_hu_title, "和牌结算");
+                 lv_label_set_text(lbl_hu_title, t("HU_SETTLEMENT"));
                  // Clear names if not in game
                  lv_obj_t* l_left = lv_obj_get_child(btn_hu_opts[0], 1);
                  lv_obj_t* l_opp = lv_obj_get_child(btn_hu_opts[1], 1);
@@ -414,7 +567,7 @@ static void event_handler_hu_action(lv_event_t * e) {
             if (huLoserRelPos == -1) return;
             // Visual Feedback
             lv_obj_set_style_bg_color(btn_hu_submit, C_SLATE_600, 0);
-            lv_label_set_text(lbl_hu_submit, "提交中...");
+            lv_label_set_text(lbl_hu_submit, t("SUBMITTING"));
             
             String cmd = "";
             if (huLoserRelPos == 3) cmd = "HE:ZIMO:" + String(huBaseScore) + "\n";
@@ -427,7 +580,7 @@ static void event_handler_hu_action(lv_event_t * e) {
             // Delay close slightly or just close
             lv_obj_add_flag(scr_hu, LV_OBJ_FLAG_HIDDEN);
             lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
-            lv_label_set_text(lbl_hu_submit, "确认计分");
+            lv_label_set_text(lbl_hu_submit, t("CONFIRM_CALC"));
             
         } else if (user_data >= 2 && user_data <= 5) { // Pos
              huLoserRelPos = user_data - 2;
@@ -471,7 +624,7 @@ void create_connect_screen() {
     lv_obj_set_style_bg_color(scr_connect, C_SLATE_900, 0);
     
     lv_obj_t * label = lv_label_create(scr_connect);
-    String welcomeMsg = "麻将计分板\n\n设备号: " + deviceName + "\n\n等待连接...";
+    String welcomeMsg = String(t("MAHJONG_BOARD")) + "\n\n" + String(t("DEVICE_PREFIX")) + " " + deviceName + "\n\n" + String(t("WAITING_HOST"));
     lv_label_set_text(label, welcomeMsg.c_str());
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
@@ -495,13 +648,13 @@ void create_waiting_screen() {
     lv_obj_set_style_bg_color(scr_waiting, C_SLATE_900, 0);
     
     lv_obj_t * label = lv_label_create(scr_waiting);
-    lv_label_set_text(label, "蓝牙已连接");
+    lv_label_set_text(label, t("BLUETOOTH_CONN"));
     lv_obj_align(label, LV_ALIGN_CENTER, 0, -30);
     lv_obj_set_style_text_color(label, C_EMERALD_500, 0);
     lv_obj_set_style_text_font(label, &lv_font_wqy_20, 0);
 
     lv_obj_t * sub = lv_label_create(scr_waiting);
-    lv_label_set_text(sub, "等待开局...");
+    lv_label_set_text(sub, t("WAITING_START"));
     lv_obj_align(sub, LV_ALIGN_CENTER, 0, 20);
     lv_obj_set_style_text_color(sub, C_SLATE_400, 0);
     lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
@@ -539,7 +692,7 @@ void create_game_screen() {
     // Position Label (Top Left) - e.g. "EAST"
     // Using lbl_device_id variable for this purpose to reuse existing pointer
     lbl_device_id = lv_label_create(cont_board);
-    lv_label_set_text(lbl_device_id, "设备: --"); 
+    lv_label_set_text_fmt(lbl_device_id, "%s --", t("DEVICE_PREFIX"));
     lv_obj_align(lbl_device_id, LV_ALIGN_TOP_LEFT, 15, 15);
     lv_obj_set_style_bg_color(lbl_device_id, C_SLATE_900, 0);
     lv_obj_set_style_bg_opa(lbl_device_id, LV_OPA_90, 0);
@@ -618,7 +771,7 @@ void create_game_screen() {
     lv_obj_add_event_cb(btn_player_confirm, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t* l_conf = lv_label_create(btn_player_confirm);
-    lv_label_set_text(l_conf, "确认成绩");
+    lv_label_set_text(l_conf, t("CONFIRM_SCORE"));
     lv_obj_center(l_conf);
     lv_obj_set_style_text_font(l_conf, &lv_font_wqy_20, 0);
     lv_obj_set_style_text_color(l_conf, C_SLATE_900, 0);
@@ -650,7 +803,7 @@ void create_game_screen() {
     lv_obj_set_style_border_width(pill_info, 0, 0);
     
     lbl_game_info = lv_label_create(pill_info);
-    lv_label_set_text(lbl_game_info, "未开局");
+    lv_label_set_text(lbl_game_info, t("UNSTARTED"));
     lv_obj_center(lbl_game_info);
     lv_obj_set_style_text_color(lbl_game_info, C_SLATE_400, 0);
     lv_obj_set_style_text_font(lbl_game_info, &lv_font_wqy_20, 0);
@@ -668,7 +821,7 @@ void create_game_screen() {
     lv_obj_add_event_cb(btn_hu, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t* lbl_hu = lv_label_create(btn_hu);
-    lv_label_set_text(lbl_hu, "和");
+    lv_label_set_text(lbl_hu, t("WIN"));
     lv_obj_center(lbl_hu);
     lv_obj_set_style_text_font(lbl_hu, &lv_font_wqy_20, 0); // Full CJK font for labels
     lv_obj_set_style_text_color(lbl_hu, lv_color_white(), 0);
@@ -685,7 +838,7 @@ void create_game_screen() {
     lv_obj_add_flag(btn_gameover, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_t* l_go = lv_label_create(btn_gameover);
-    lv_label_set_text(l_go, "比赛\n结束");
+    lv_label_set_text(l_go, t("GAMEOVER"));
     lv_obj_center(l_go);
     lv_obj_set_style_text_align(l_go, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(l_go, &lv_font_wqy_20, 0);
@@ -710,7 +863,7 @@ void create_game_screen() {
     lv_obj_set_style_shadow_opa(btn_huang, LV_OPA_30, 0);
     lv_obj_add_event_cb(btn_huang, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
     lv_obj_t* l_huang = lv_label_create(btn_huang);
-    lv_label_set_text(l_huang, "荒");
+    lv_label_set_text(l_huang, t("DRAW"));
     lv_obj_center(l_huang);
     lv_obj_set_style_text_font(l_huang, &lv_font_wqy_20, 0);
     
@@ -721,7 +874,7 @@ void create_game_screen() {
     lv_obj_set_style_bg_color(btn_diff, C_SLATE_700, 0);
     lv_obj_add_event_cb(btn_diff, event_handler_game_btn, LV_EVENT_CLICKED, NULL);
     lv_obj_t* l_diff = lv_label_create(btn_diff);
-    lv_label_set_text(l_diff, "差");
+    lv_label_set_text(l_diff, t("DIFF"));
     lv_obj_center(l_diff);
     lv_obj_set_style_text_font(l_diff, &lv_font_wqy_20, 0);
 }
@@ -748,7 +901,7 @@ void create_hu_menu() {
     lv_obj_add_event_cb(btn_back, event_handler_hu_action, LV_EVENT_CLICKED, (void*)0);
     
     lbl_hu_title = lv_label_create(scr_hu);
-    lv_label_set_text(lbl_hu_title, "和牌结算");
+    lv_label_set_text(lbl_hu_title, t("HU_SETTLEMENT"));
     lv_obj_align(lbl_hu_title, LV_ALIGN_TOP_MID, 0, 20);
     lv_obj_set_style_text_color(lbl_hu_title, C_SLATE_200, 0);
     lv_obj_set_style_text_font(lbl_hu_title, &lv_font_wqy_20, 0);
@@ -771,7 +924,7 @@ void create_hu_menu() {
     lv_obj_set_flex_flow(row_losers, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row_losers, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     
-    const char* labels[] = {"上家点", "对家点", "下家点"};
+    const char* labels[] = {t("LEFT_DEAL"), t("OPP_DEAL"), t("RIGHT_DEAL")};
     for (int i = 0; i < 3; i++) {
         btn_hu_opts[i] = lv_btn_create(row_losers);
         lv_obj_set_width(btn_hu_opts[i], 120); // Wider for Landscape
@@ -803,7 +956,7 @@ void create_hu_menu() {
     lv_obj_set_height(btn_hu_opts[3], 40);
     lv_obj_set_style_bg_color(btn_hu_opts[3], C_SLATE_700, 0);
     lv_obj_t* l_zimo = lv_label_create(btn_hu_opts[3]);
-    lv_label_set_text(l_zimo, "自摸");
+    lv_label_set_text(l_zimo, t("TSUMO"));
     lv_obj_center(l_zimo);
     lv_obj_set_style_text_font(l_zimo, &lv_font_wqy_20, 0);
     lv_obj_add_event_cb(btn_hu_opts[3], event_handler_hu_action, LV_EVENT_CLICKED, (void*)(long)5);
@@ -870,31 +1023,33 @@ void create_hu_menu() {
     lv_obj_set_height(btn_hu_submit, 40);
     lv_obj_set_style_bg_color(btn_hu_submit, C_SKY_500, 0);
     lbl_hu_submit = lv_label_create(btn_hu_submit);
-    lv_label_set_text(lbl_hu_submit, "确认计分");
+    lv_label_set_text(lbl_hu_submit, t("CONFIRM_CALC"));
     lv_obj_center(lbl_hu_submit);
     lv_obj_set_style_text_font(lbl_hu_submit, &lv_font_wqy_20, 0);
     lv_obj_add_event_cb(btn_hu_submit, event_handler_hu_action, LV_EVENT_CLICKED, (void*)1);
 }
 
 void update_game_ui() {
-    // Labels: East, South, West, North
-    const char* winds[] = {"东", "南", "西", "北"};
-    
     // Update Sidebar
     if (gameState.gameNumber > 0) {
         int windIndex = (gameState.gameNumber - 1) / 4;
         int juIndex = ((gameState.gameNumber - 1) % 4) + 1;
-        lv_label_set_text_fmt(lbl_game_info, "%s%d局 %d/16", 
-            (windIndex < 4 ? winds[windIndex] : "?"), juIndex, gameState.gameNumber);
+        if (currentLang == LANG_EN) {
+            lv_label_set_text_fmt(lbl_game_info, "%s%d %d/16", 
+                t_wind(windIndex), juIndex, gameState.gameNumber);
+        } else {
+            lv_label_set_text_fmt(lbl_game_info, "%s%d局 %d/16", 
+                t_wind(windIndex), juIndex, gameState.gameNumber);
+        }
     } else {
-         lv_label_set_text(lbl_game_info, "未开局");
+         lv_label_set_text(lbl_game_info, t("UNSTARTED"));
     }
 
     // Update Device ID
     if (myPositionIndex != -1) {
-         lv_label_set_text_fmt(lbl_device_id, "设备: %s", winds[myPositionIndex]);
+         lv_label_set_text_fmt(lbl_device_id, "%s %s", t("DEVICE_PREFIX"), t_wind(myPositionIndex));
     } else {
-         lv_label_set_text(lbl_device_id, "设备: 未分配");
+         lv_label_set_text_fmt(lbl_device_id, "%s %s", t("DEVICE_PREFIX"), t("NOT_ALLOCATED"));
     }
 
     // Confirm Button State
@@ -903,11 +1058,11 @@ void update_game_ui() {
          if (isConfirmed) {
              lv_obj_set_style_bg_color(btn_player_confirm, C_SLATE_500, 0);
              lv_obj_set_style_text_color(btn_player_confirm, C_SLATE_100, 0);
-             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), "已确认");
+             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), t("CONFIRMED"));
          } else {
              lv_obj_set_style_bg_color(btn_player_confirm, C_AMBER_300, 0);
              lv_obj_set_style_text_color(btn_player_confirm, C_SLATE_900, 0);
-             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), "确认成绩");
+             lv_label_set_text(lv_obj_get_child(btn_player_confirm, 0), t("CONFIRM_SCORE"));
          }
     } else {
          lv_obj_add_flag(btn_player_confirm, LV_OBJ_FLAG_HIDDEN);
@@ -995,7 +1150,43 @@ void update_game_ui() {
 
 void processCommand(String cmd) {
     // Parse Command
-    if (cmd.startsWith("SETUP:")) {
+    if (cmd.startsWith("LANG:")) {
+        String langStr = cmd.substring(5);
+        langStr.trim();
+        if (langStr == "en") currentLang = LANG_EN;
+        else if (langStr == "ja") currentLang = LANG_JA;
+        else currentLang = LANG_ZH;
+        
+        if (lv_scr_act() == scr_game) {
+            update_game_ui();
+            
+            // Explicitly update static labels on game screen
+            lv_label_set_text(lv_obj_get_child(btn_hu, 0), t("WIN"));
+            lv_label_set_text(lv_obj_get_child(btn_gameover, 0), t("GAMEOVER"));
+            lv_label_set_text(lv_obj_get_child(btn_huang, 0), t("DRAW"));
+            lv_label_set_text(lv_obj_get_child(btn_diff, 0), t("DIFF"));
+            
+            // Update hu menu labels
+            lv_label_set_text(lbl_hu_title, t("HU_SETTLEMENT"));
+            lv_label_set_text(lbl_hu_submit, t("CONFIRM_CALC"));
+            
+            lv_label_set_text(lv_obj_get_child(btn_hu_opts[0], 0), t("LEFT_DEAL"));
+            lv_label_set_text(lv_obj_get_child(btn_hu_opts[1], 0), t("OPP_DEAL"));
+            lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 0), t("RIGHT_DEAL"));
+            lv_label_set_text(lv_obj_get_child(btn_hu_opts[3], 0), t("TSUMO"));
+        } else if (lv_scr_act() == scr_waiting) {
+            lv_obj_t* label = lv_obj_get_child(scr_waiting, 0);
+            lv_obj_t* sub = lv_obj_get_child(scr_waiting, 1);
+            if (label) lv_label_set_text(label, t("BLUETOOTH_CONN"));
+            if (sub) lv_label_set_text(sub, t("WAITING_START"));
+        } else if (lv_scr_act() == scr_connect) {
+            lv_obj_t* label = lv_obj_get_child(scr_connect, 0);
+            if (label) {
+                String welcomeMsg = String(t("MAHJONG_BOARD")) + "\n\n" + String(t("DEVICE_PREFIX")) + " " + deviceName + "\n\n" + String(t("WAITING_HOST"));
+                lv_label_set_text(label, welcomeMsg.c_str());
+            }
+        }
+    } else if (cmd.startsWith("SETUP:")) {
         myPositionIndex = cmd.substring(6).toInt();
         update_game_ui();
         show_screen(scr_waiting); // Or stay on waiting until state

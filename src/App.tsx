@@ -40,7 +40,7 @@ const DEFAULT_DATA_FILE_ID = 'default-data-file';
 type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'deviceMode';
 
 function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [dataFiles, setDataFiles] = useState<DataFileSummary[]>([]);
   const [currentPage, setCurrentPage] = useState<PageView>('home');
@@ -870,7 +870,7 @@ function App() {
                   if (!connection || connection.status !== 'connected') continue;
                   
                   const encoder = new TextEncoder();
-                  const payload = 'STATE:WAITING\n';
+                  const payload = `LANG:${i18n.language}\nSTATE:WAITING\n`;
                   const data = encoder.encode(payload);
                   try {
                      await writeData(connection.deviceId, new DataView(data.buffer));
@@ -890,6 +890,15 @@ function App() {
             for (const position of positions) {
                const connection = bleDevices[position];
               if (!connection || connection.status !== 'connected') continue;
+
+              // 0. Send Language
+              const langCmd = `LANG:${i18n.language}\n`;
+              try {
+                  await writeData(connection.deviceId, new DataView(new TextEncoder().encode(langCmd)));
+                  await new Promise(resolve => setTimeout(resolve, 50));
+              } catch (e) {
+                  console.error('Sync lang error', e);
+              }
 
               // 1. Send Names
               const pList = [
@@ -957,7 +966,7 @@ function App() {
     }, 500); // Increased debounce to 500ms to avoid conflict with incoming messages
 
     return () => clearTimeout(timer);
-  }, [game, players, gameStarted, isConfirmMode, bleDevices, writeData]); // Sync whenever game state or connection changes
+  }, [game, players, gameStarted, isConfirmMode, bleDevices, writeData, i18n.language]); // Sync whenever game state or connection changes
 
   // Message Handler Effect
   useEffect(() => {
