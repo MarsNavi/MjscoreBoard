@@ -1,5 +1,5 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "mjscoreboard",
   "private": true,
   "version": "1.6.0",
   "type": "module",
@@ -24,10 +24,8 @@
     "@capacitor/ios": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-bluetooth-low-energy": "^8.1.1",
-    "cordova-plugin-ble-peripheral": "^1.0.0",
     "dexie": "^4.2.1",
     "lucide-react": "^0.344.0",
-    "lv_font_conv": "^1.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tar": "^7.5.4"

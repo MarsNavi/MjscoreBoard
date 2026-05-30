@@ -56,7 +56,6 @@ struct GameState {
   String round; // e.g., "east"
   int gameNumber; // 1-16
   int scores[4]; // 0:East, 1:South, 2:West, 3:North
-  int prevScores[4];
   String names[4];
 };
 
@@ -135,8 +134,6 @@ void my_touch_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
 
 // --- Setup ---
 void setup() {
-    Serial.begin(115200);
-
     Serial.begin(115200);
     Serial.println("System Starting...");
 
@@ -510,7 +507,7 @@ void create_waiting_screen() {
     lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
 
     lv_obj_t * ver = lv_label_create(scr_waiting);
-    lv_label_set_text(ver, "v1.5.3");
+    lv_label_set_text(ver, "v1.6");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
@@ -1017,11 +1014,7 @@ void processCommand(String cmd) {
     } else if (cmd.startsWith("STATE:")) {
         // STATE:mode:round:gameNum:s0:s1:s2:s3
         // Example: STATE:PLAY:east:1:0:0:0:0
-        int parts[8]; // indices of colons
-        int count = 0;
-        int lastIdx = -1;
-        
-        // Manual split to avoid memory issues with vector<String>
+        // Split command into tokens
         std::vector<String> tokens;
         int start = 0;
         while (start < cmd.length()) {

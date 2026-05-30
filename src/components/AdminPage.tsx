@@ -184,7 +184,7 @@ export function AdminPage({ onBack, currentUserId }: AdminPageProps) {
                     >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
                         {user.code}
-                        {user.code === 'Micken' && (
+                        {user.code === 'micken' && (
                           <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">管理员</span>
                         )}
                       </td>

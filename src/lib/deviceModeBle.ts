@@ -26,7 +26,7 @@ class DeviceModeBleManager {
         if (json.service.toLowerCase() === BLE_SERVICE_UUID && json.characteristic.toLowerCase() === BLE_RX_CHAR_UUID) {
           const buffer = json.value as ArrayBuffer;
           const text = new TextDecoder().decode(buffer);
-          console.log('[DeviceMode] Received write:', text);
+
           if (this.onMessageCallback) {
             this.onMessageCallback(text);
           }
@@ -59,7 +59,7 @@ class DeviceModeBleManager {
       await blePeripheral.createServiceFromJSON(serviceDef);
       await blePeripheral.startAdvertising(BLE_SERVICE_UUID, deviceId);
       this.isAdvertising = true;
-      console.log(`[DeviceMode] Started advertising as ${deviceId}`);
+
     } catch (e) {
       console.error('[DeviceMode] Failed to start advertising:', e);
     }
@@ -71,7 +71,7 @@ class DeviceModeBleManager {
     try {
       const buffer = new TextEncoder().encode(message).buffer;
       await blePeripheral.setCharacteristicValue(BLE_SERVICE_UUID, BLE_TX_CHAR_UUID, buffer);
-      console.log('[DeviceMode] Sent notify:', message);
+
     } catch (e) {
       console.error('[DeviceMode] Failed to notify central:', e);
     }

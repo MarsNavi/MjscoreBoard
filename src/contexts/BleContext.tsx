@@ -1,9 +1,9 @@
 import { createContext, useState, useRef, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { BluetoothLowEnergy, BleDevice } from '@capgo/capacitor-bluetooth-low-energy';
 import { PluginListenerHandle } from '@capacitor/core';
+import { Position } from '../lib/types';
 
-// Re-export types if needed, or import from central types
-export type Position = 'east' | 'south' | 'west' | 'north';
+export type { Position };
 
 export type BleConnectionInfo = {
   deviceId: string;
@@ -65,7 +65,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         setIsInitialized(true);
         
         disconnectListenerRef.current = await BluetoothLowEnergy.addListener('deviceDisconnected', (event) => {
-            console.log('device disconnected', event.deviceId);
+
             setBleDevices((prev) => {
                 let updated = { ...prev };
                 let changed = false;
@@ -153,7 +153,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
       for (const pos of positions) {
         const device = bleDevices[pos];
         if (device && device.deviceId && device.status === 'disconnected') {
-           console.log(`[Auto-Reconnect] Attempting to connect to ${pos} (${device.name})...`);
+
            
            try {
              await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
@@ -169,10 +169,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
                 [pos]: { ...prev[pos]!, status: 'connected' }
              }));
              
-             console.log(`[Auto-Reconnect] Success for ${pos}`);
-             
            } catch (err) {
-             console.log(`[Auto-Reconnect] Failed for ${pos}:`, err);
            }
         }
       }

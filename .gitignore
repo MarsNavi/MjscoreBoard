@@ -24,3 +24,6 @@ release/
 *.sln
 *.sw?
 .env
+ios/App/build/
+ios/App/output/
+android/.kotlin/

@@ -52,7 +52,6 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       if (active) setDeviceId(storedId);
       
       deviceModeBle.setMessageHandler((msg: string) => {
-        console.log('[Device UI] Handle msg:', msg);
         if (msg.startsWith('STATE:PLAY:')) {
             const parts = msg.split(':');
             if (parts.length >= 14) {

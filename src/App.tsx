@@ -836,13 +836,7 @@ function App() {
     setWinnerPosition(null);
   };
 
-  /*
-   const handleDeviceConfirm = (position: Position) => {
-     // Legacy function, can be removed if confirmed unused
-     if (!game) return;
-     console.log(`Device ${position} confirmed.`);
-   };
-   */
+
 
   // Sync State Effect
   const isSyncingRef = useRef(false);
@@ -976,18 +970,7 @@ function App() {
            void handleHuangzhuangRef.current(true);
            return;
         }
-        /*
-        if (msg === 'BTN:CONFIRM') {
-           handleDeviceConfirm(position);
-           return;
-        }
-        */
-        /*
-        if (msg === 'BTN:GAMEOVER') {
-           handleFinalizeGame();
-           return;
-        }
-        */
+
         const parts = msg.split(':');
         if (parts[0] === 'HE') {
            const kind = parts[1];
