@@ -12,6 +12,7 @@ import GameHistoryPage from './components/GameHistoryPage';
 import PlayerStatsPage from './components/PlayerStatsPage';
 import HelpPage from './components/HelpPage';
 import { AdminPage } from './components/AdminPage';
+import DeviceModePage from './components/DeviceModePage';
 import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Database } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
 import { useBle } from './contexts/useBle';
@@ -35,7 +36,7 @@ import {
 const TOTAL_GAMES = 16;
 const DEFAULT_DATA_FILE_ID = 'default-data-file';
 
-type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'admin';
+type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'admin' | 'deviceMode';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1094,6 +1095,7 @@ function App() {
           onGameNameChange={setGameName}
           tempPlayerNames={tempPlayerNames}
           onNameChange={handleNameChange}
+          onDeviceMode={() => navigateTo('deviceMode' as any)}
         />
     );
   }
@@ -1108,6 +1110,10 @@ function App() {
         />
       </>
     );
+  }
+
+  if (currentPage === 'deviceMode') {
+    return <DeviceModePage onExit={() => navigateTo('home')} />;
   }
 
   if (currentPage === 'help') {

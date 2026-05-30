@@ -48,6 +48,7 @@ bool oldDeviceConnected = false;
 std::vector<String> commandQueue;
 bool hasNewCommand = false;
 SemaphoreHandle_t queueMutex = NULL;
+String deviceName = "";
 
 // --- Game State ---
 struct GameState {
@@ -170,6 +171,11 @@ void setup() {
     indev_drv.read_cb = my_touch_read;
     lv_indev_drv_register(&indev_drv);
 
+    // Get Device ID early
+    uint64_t chipid = ESP.getEfuseMac();
+    deviceName = "MJ-BOARD-" + String((uint32_t)chipid, HEX);
+    deviceName.toUpperCase();
+
     // Create UI
     init_ui();
 
@@ -256,9 +262,7 @@ class RxCallbacks : public BLECharacteristicCallbacks {
 };
 
 void setupBle() {
-    uint64_t chipid = ESP.getEfuseMac();
-    String devName = "MJ-BOARD-" + String((uint32_t)chipid, HEX);
-    BLEDevice::init(devName.c_str());
+    BLEDevice::init(deviceName.c_str());
     bleServer = BLEDevice::createServer();
     bleServer->setCallbacks(new ServerCallbacks());
     BLEService* service = bleServer->createService(SERVICE_UUID);
@@ -470,7 +474,8 @@ void create_connect_screen() {
     lv_obj_set_style_bg_color(scr_connect, C_SLATE_900, 0);
     
     lv_obj_t * label = lv_label_create(scr_connect);
-    lv_label_set_text(label, "麻将计分板\n\n等待蓝牙连接...");
+    String welcomeMsg = "麻将计分板\n\n设备号: " + deviceName + "\n\n等待连接...";
+    lv_label_set_text(label, welcomeMsg.c_str());
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
     lv_obj_set_style_text_color(label, C_SLATE_200, 0);
@@ -482,7 +487,7 @@ void create_connect_screen() {
     lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
 
     lv_obj_t * ver = lv_label_create(scr_connect);
-    lv_label_set_text(ver, "v1.4");
+    lv_label_set_text(ver, "v1.6");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
@@ -505,7 +510,7 @@ void create_waiting_screen() {
     lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
 
     lv_obj_t * ver = lv_label_create(scr_waiting);
-    lv_label_set_text(ver, "v1.4");
+    lv_label_set_text(ver, "v1.5.3");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);

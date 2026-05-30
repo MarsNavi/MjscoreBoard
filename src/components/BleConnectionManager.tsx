@@ -171,17 +171,17 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                   </div>
                ) : (
                   <div className="space-y-2">
-                     {scannedDevices.map((result) => (
-                        <div key={result.device.deviceId} className="bg-white hover:bg-gray-50 rounded-lg p-3 border border-gray-100 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                     {scannedDevices.map((device) => (
+                        <div key={device.deviceId} className="bg-white hover:bg-gray-50 rounded-lg p-3 border border-gray-100 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                            <div className="flex items-start gap-3">
                               <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                                 <Bluetooth size={16} />
                               </div>
                               <div>
-                                 <div className="font-medium text-gray-800 text-sm">{result.device.name || '未命名设备'}</div>
+                                 <div className="font-medium text-gray-800 text-sm">{device.name || '未命名设备'}</div>
                                  <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
-                                   <span>ID: {result.device.deviceId}</span>
-                                   <span className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">RSSI: {result.rssi}</span>
+                                   <span>ID: {device.deviceId}</span>
+                                   <span className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">RSSI: {device.rssi}</span>
                                  </div>
                               </div>
                            </div>
@@ -194,7 +194,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                                   <button
                                      key={pos}
                                      disabled={isBound || connectingPosition !== null}
-                                     onClick={() => handleConnect(pos, result.device.deviceId, result.device.name || '未命名设备')}
+                                     onClick={() => handleConnect(pos, device.deviceId, device.name || '未命名设备')}
                                      className={`px-2 py-1 rounded text-[10px] border transition-all ${
                                        isBound 
                                          ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'

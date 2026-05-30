@@ -1,8 +1,8 @@
 import { createContext, useState, useRef, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { BleClient, ScanResult } from '@capacitor-community/bluetooth-le';
+import { BluetoothLowEnergy, BleDevice } from '@capgo/capacitor-bluetooth-low-energy';
+import { PluginListenerHandle } from '@capacitor/core';
 
 // Re-export types if needed, or import from central types
-// Assuming Position is 'east' | 'south' | 'west' | 'north'
 export type Position = 'east' | 'south' | 'west' | 'north';
 
 export type BleConnectionInfo = {
@@ -14,7 +14,7 @@ export type BleConnectionInfo = {
 interface BleContextType {
   bleDevices: Record<Position, BleConnectionInfo | null>;
   isScanning: boolean;
-  scannedDevices: ScanResult[];
+  scannedDevices: BleDevice[];
   bleError: string | null;
   startScan: () => Promise<void>;
   stopScan: () => Promise<void>;
@@ -47,40 +47,75 @@ export function BleProvider({ children }: { children: ReactNode }) {
     north: null,
   });
   const [isScanning, setIsScanning] = useState(false);
-  const [scannedDevices, setScannedDevices] = useState<ScanResult[]>([]);
-  const scannedDevicesRef = useRef<ScanResult[]>([]);
+  const [scannedDevices, setScannedDevices] = useState<BleDevice[]>([]);
+  const scannedDevicesRef = useRef<BleDevice[]>([]);
   const [bleError, setBleError] = useState<string | null>(null);
   
-  // Ref for the message handler to avoid stale closures in callbacks
   const messageHandlerRef = useRef<((position: Position, message: string) => void) | null>(null);
+  const scanListenerRef = useRef<PluginListenerHandle | null>(null);
+  const disconnectListenerRef = useRef<PluginListenerHandle | null>(null);
+  const notifyListenerRef = useRef<PluginListenerHandle | null>(null);
 
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load from LocalStorage on mount
   useEffect(() => {
     const initBle = async () => {
       try {
-        await BleClient.initialize();
+        await BluetoothLowEnergy.initialize();
         setIsInitialized(true);
         
+        disconnectListenerRef.current = await BluetoothLowEnergy.addListener('deviceDisconnected', (event) => {
+            console.log('device disconnected', event.deviceId);
+            setBleDevices((prev) => {
+                let updated = { ...prev };
+                let changed = false;
+                const positions: Position[] = ['east', 'south', 'west', 'north'];
+                for (const pos of positions) {
+                    const current = prev[pos];
+                    if (current && current.deviceId === event.deviceId && current.status !== 'disconnected') {
+                        updated[pos] = { ...current, status: 'disconnected' };
+                        changed = true;
+                    }
+                }
+                return changed ? updated : prev;
+            });
+        });
+
+        notifyListenerRef.current = await BluetoothLowEnergy.addListener('characteristicChanged', (event) => {
+            if (event.service.toLowerCase() !== BLE_SERVICE_UUID.toLowerCase() || 
+                event.characteristic.toLowerCase() !== BLE_TX_CHAR_UUID.toLowerCase()) {
+                return;
+            }
+            const text = new TextDecoder().decode(new Uint8Array(event.value));
+            
+            if (messageHandlerRef.current) {
+                setBleDevices((prev) => {
+                    const positions: Position[] = ['east', 'south', 'west', 'north'];
+                    for (const pos of positions) {
+                        if (prev[pos]?.deviceId === event.deviceId) {
+                            messageHandlerRef.current!(pos, text);
+                            break;
+                        }
+                    }
+                    return prev;
+                });
+            }
+        });
+
         const savedDevices = localStorage.getItem('bleDevices');
         if (savedDevices) {
           try {
             const parsed = JSON.parse(savedDevices) as Record<Position, BleConnectionInfo | null>;
-            // Validate structure and reset status
             const validPositions: Position[] = ['east', 'south', 'west', 'north'];
             const validatedDevices: Record<Position, BleConnectionInfo | null> = {
-              east: null,
-              south: null,
-              west: null,
-              north: null,
+              east: null, south: null, west: null, north: null,
             };
 
             validPositions.forEach(pos => {
               if (parsed[pos] && typeof parsed[pos] === 'object') {
                 validatedDevices[pos] = {
                   ...parsed[pos]!,
-                  status: 'disconnected' // Always start as disconnected until auto-reconnect kicks in
+                  status: 'disconnected' 
                 };
               }
             });
@@ -97,14 +132,18 @@ export function BleProvider({ children }: { children: ReactNode }) {
       }
     };
     initBle();
+
+    return () => {
+        scanListenerRef.current?.remove();
+        disconnectListenerRef.current?.remove();
+        notifyListenerRef.current?.remove();
+    };
   }, []);
 
-  // Save to LocalStorage whenever bleDevices changes
   useEffect(() => {
     localStorage.setItem('bleDevices', JSON.stringify(bleDevices));
   }, [bleDevices]);
 
-  // Auto-reconnect loop
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -113,44 +152,18 @@ export function BleProvider({ children }: { children: ReactNode }) {
       
       for (const pos of positions) {
         const device = bleDevices[pos];
-        // Only try to reconnect if we have a device ID and it's currently disconnected
-        // We don't want to interrupt 'connecting' state or 'connected' state
         if (device && device.deviceId && device.status === 'disconnected') {
            console.log(`[Auto-Reconnect] Attempting to connect to ${pos} (${device.name})...`);
            
            try {
-             // Set status to connecting to give UI feedback (optional, but good for "don't disconnect" feeling)
-             // However, doing this inside the loop might cause rapid state updates if it fails quickly.
-             // Let's just try to connect.
+             await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
              
-             await BleClient.connect(device.deviceId, (disconnectedDeviceId) => {
-                console.log('device disconnected callback', disconnectedDeviceId);
-                setBleDevices((prev) => {
-                   const current = prev[pos];
-                   if (current && current.deviceId === disconnectedDeviceId) {
-                       return {
-                           ...prev,
-                           [pos]: { ...current, status: 'disconnected' }
-                       };
-                   }
-                   return prev;
-                });
+             await BluetoothLowEnergy.startCharacteristicNotifications({
+                deviceId: device.deviceId,
+                service: BLE_SERVICE_UUID,
+                characteristic: BLE_TX_CHAR_UUID,
              });
-
-             // Re-subscribe to notifications
-             await BleClient.startNotifications(
-                device.deviceId,
-                BLE_SERVICE_UUID,
-                BLE_TX_CHAR_UUID,
-                (value) => {
-                    const text = new TextDecoder().decode(value.buffer);
-                    if (messageHandlerRef.current) {
-                        messageHandlerRef.current(pos, text);
-                    }
-                }
-             );
              
-             // Update status to connected
              setBleDevices((prev) => ({
                 ...prev,
                 [pos]: { ...prev[pos]!, status: 'connected' }
@@ -160,10 +173,6 @@ export function BleProvider({ children }: { children: ReactNode }) {
              
            } catch (err) {
              console.log(`[Auto-Reconnect] Failed for ${pos}:`, err);
-             // Verify if it's already connected?
-             // Sometimes connect throws if already connected.
-             // We can try to read RSSI or something to check?
-             // For now, just leave it as disconnected, will retry next loop.
            }
         }
       }
@@ -174,7 +183,11 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
   const stopScan = useCallback(async () => {
     try {
-      await BleClient.stopLEScan();
+      if (scanListenerRef.current) {
+          await scanListenerRef.current.remove();
+          scanListenerRef.current = null;
+      }
+      await BluetoothLowEnergy.stopScan();
       setIsScanning(false);
     } catch (error) {
       console.error('Failed to stop scan:', error);
@@ -183,25 +196,25 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
   const startScan = useCallback(async () => {
     try {
-      await BleClient.stopLEScan().catch(() => {});
+      await stopScan();
       setScannedDevices([]);
       scannedDevicesRef.current = [];
       setIsScanning(true);
       setBleError(null);
 
-      await BleClient.requestLEScan(
-        {
-           services: [BLE_SERVICE_UUID],
-        },
-        (result) => {
-          if (!result.device.name) return;
-          const existingIndex = scannedDevicesRef.current.findIndex(d => d.device.deviceId === result.device.deviceId);
+      scanListenerRef.current = await BluetoothLowEnergy.addListener('deviceScanned', (event) => {
+          const device = event.device;
+          if (!device.name) return;
+          const existingIndex = scannedDevicesRef.current.findIndex(d => d.deviceId === device.deviceId);
           if (existingIndex === -1) {
-            scannedDevicesRef.current = [...scannedDevicesRef.current, result];
+            scannedDevicesRef.current = [...scannedDevicesRef.current, device];
             setScannedDevices([...scannedDevicesRef.current]);
           }
-        }
-      );
+      });
+
+      await BluetoothLowEnergy.startScan({
+         services: [BLE_SERVICE_UUID],
+      });
       
       setTimeout(() => {
         void stopScan();
@@ -216,7 +229,6 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
   const connectToDevice = useCallback(async (position: Position, deviceId: string, deviceName: string) => {
     try {
-        // Check if device is already connected to another position
         const positions: Position[] = ['east', 'south', 'west', 'north'];
         for (const pos of positions) {
             if (bleDevices[pos]?.deviceId === deviceId) {
@@ -228,32 +240,13 @@ export function BleProvider({ children }: { children: ReactNode }) {
         setBleError(null);
         await stopScan();
 
-        await BleClient.connect(deviceId, (disconnectedDeviceId) => {
-            console.log('device disconnected', disconnectedDeviceId);
-            setBleDevices((prev) => {
-                const current = prev[position];
-                // Only update if it's the same device and we haven't already unbound it
-                if (current && current.deviceId === disconnectedDeviceId) {
-                    return {
-                        ...prev,
-                        [position]: { ...current, status: 'disconnected' }
-                    };
-                }
-                return prev;
-            });
-        });
+        await BluetoothLowEnergy.connect({ deviceId });
 
-        await BleClient.startNotifications(
+        await BluetoothLowEnergy.startCharacteristicNotifications({
             deviceId,
-            BLE_SERVICE_UUID,
-            BLE_TX_CHAR_UUID,
-            (value) => {
-                const text = new TextDecoder().decode(value.buffer);
-                if (messageHandlerRef.current) {
-                    messageHandlerRef.current(position, text);
-                }
-            }
-        );
+            service: BLE_SERVICE_UUID,
+            characteristic: BLE_TX_CHAR_UUID,
+        });
 
         const connection: BleConnectionInfo = {
             deviceId: deviceId,
@@ -266,9 +259,8 @@ export function BleProvider({ children }: { children: ReactNode }) {
             [position]: connection,
         }));
         
-        // Remove from scanned list
-        setScannedDevices(prev => prev.filter(d => d.device.deviceId !== deviceId));
-        scannedDevicesRef.current = scannedDevicesRef.current.filter(d => d.device.deviceId !== deviceId);
+        setScannedDevices(prev => prev.filter(d => d.deviceId !== deviceId));
+        scannedDevicesRef.current = scannedDevicesRef.current.filter(d => d.deviceId !== deviceId);
 
     } catch (error) {
         if (error instanceof Error) {
@@ -278,7 +270,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         } else {
             setBleError('连接失败。请确认计分牌已开机并靠近手机。');
         }
-        throw error; // Re-throw to let caller handle if needed
+        throw error; 
     }
   }, [bleDevices, stopScan]);
 
@@ -286,7 +278,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
     const current = bleDevices[position];
     if (current && current.deviceId) {
       try {
-        await BleClient.disconnect(current.deviceId);
+        await BluetoothLowEnergy.disconnect({ deviceId: current.deviceId });
       } catch (error) {
         console.error(error);
       }
@@ -298,7 +290,13 @@ export function BleProvider({ children }: { children: ReactNode }) {
   }, [bleDevices]);
 
   const writeData = useCallback(async (deviceId: string, data: DataView) => {
-      await BleClient.write(deviceId, BLE_SERVICE_UUID, BLE_RX_CHAR_UUID, data);
+      const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      await BluetoothLowEnergy.writeCharacteristic({
+          deviceId,
+          service: BLE_SERVICE_UUID,
+          characteristic: BLE_RX_CHAR_UUID,
+          value: Array.from(bytes)
+      });
   }, []);
 
   const setMessageHandler = useCallback((handler: (position: Position, message: string) => void) => {

@@ -30,7 +30,33 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">v1.5.3</h2>
+                <h2 className="text-2xl font-bold text-gray-800">v1.6</h2>
+                <p className="text-sm text-gray-500">2026-05-30</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">更新内容：</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">手机可作为显示设备：</strong>无需硬件计分板，闲置手机即可充当计分显示屏。在首页点击「作为显示屏」进入外设模式，另一台手机扫描蓝牙即可连接。
+                </li>
+                <li>
+                  <strong className="text-gray-900">智能视角跟随：</strong>手机显示屏会自动跟随选手，换位后无需手动调整，始终保证自己的分数在最下方。
+                </li>
+                <li>
+                  <strong className="text-gray-900">蓝牙架构升级：</strong>底层蓝牙引擎全面升级，同时支持主控端和外设端双角色。
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.5</h2>
                 <p className="text-sm text-gray-500">2026-05-26</p>
               </div>
             </div>
@@ -38,10 +64,10 @@ export default function HelpPage({ onBack }: HelpPageProps) {
               <p className="text-lg font-semibold text-gray-900">更新内容：</p>
               <ul className="list-disc list-inside space-y-2 pl-4">
                 <li>
-                  <strong className="text-gray-900">新增对局详情长图分享：</strong>支持在对局明细页一键生成并分享精美的对局明细长图，包括名次卡片、每局得分明细以及大番高分牌局的趣味视觉效果。
+                  <strong className="text-gray-900">对局详情长图分享：</strong>支持一键生成精美的对局明细长图，包括名次卡片和大番牌局的趣味标记。
                 </li>
                 <li>
-                  <strong className="text-gray-900">修复返回首页：</strong>修复在计分页点按返回首页确认后未正确跳转的问题。
+                  <strong className="text-gray-900">计分板设备号显示优化：</strong>设备通电即可看到蓝牙设备号，方便与主机配对。
                 </li>
               </ul>
             </div>

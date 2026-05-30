@@ -3,10 +3,10 @@
   "bundleId": "com.mjscoreboard.app",
   "appInfoId": "4a11aa6e-f146-4497-971e-d439fafc558a",
   "appInfoLocalizationId": "b21fbb3f-24b0-486a-bf94-64755b222d79",
-  "appStoreVersionId": "4589aab4-a688-4123-b67c-c9698217e011",
-  "appStoreVersionLocalizationId": "ce4d8005-01fc-437c-9c2c-23595e75c16e",
+  "appStoreVersionId": "622687a1-c9c4-4b89-986a-4c59803afe05",
+  "appStoreVersionLocalizationId": "e33c09d6-1eab-4b2f-81b6-20a8da022ec2",
   "ageRatingDeclarationId": "4a11aa6e-f146-4497-971e-d439fafc558a",
-  "buildId": "8d7a4fef-ae5f-4d75-a26d-af19c09e0368",
+  "buildId": "d98a2cab-2206-4e99-9712-ee1d8ceb704e",
   "primaryCategoryId": "UTILITIES",
   "screenshotDisplayType": "APP_IPHONE_65",
   "appInfoLocalization": {
@@ -17,7 +17,8 @@
   "version": {
     "copyright": "2026 Rui Li",
     "releaseType": "AFTER_APPROVAL",
-    "usesIdfa": false
+    "usesIdfa": false,
+    "versionString": "1.6"
   },
   "versionLocalization": {
     "promotionalText": "为线下国标麻将比赛设计的实时计分工具，支持16盘制、座位轮换、战绩统计、档案分享和本地备份。",
@@ -25,7 +26,7 @@
     "keywords": "国标麻将,麻将计分,计分板,比赛记录,战绩统计,蓝牙计分,档案分享,本地数据",
     "supportUrl": "https://github.com/MarsNavi/magiscal/blob/main/mjscoreboard-support.md",
     "marketingUrl": null,
-    "whatsNew": "在对局详情页新增了“分享对局明细”功能，可以一键生成并分享精美的对局明细长图，包括名次卡片、每局得分明细以及大番高分牌局的趣味视觉效果。"
+    "whatsNew": "更新内容：\n- 手机可作为显示设备：无需硬件计分板，闲置手机即可充当计分显示屏。\n- 智能视角跟随：手机显示屏会自动跟随选手，换位后自动调整视角。\n- 蓝牙架构升级：底层蓝牙引擎全面升级。"
   },
   "reviewDetail": {
     "contactFirstName": "Rui",
