@@ -11,7 +11,7 @@ import DataFilesPage from './components/DataFilesPage';
 import GameHistoryPage from './components/GameHistoryPage';
 import PlayerStatsPage from './components/PlayerStatsPage';
 import HelpPage from './components/HelpPage';
-import { AdminPage } from './components/AdminPage';
+
 import DeviceModePage from './components/DeviceModePage';
 import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Database } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
@@ -36,7 +36,7 @@ import {
 const TOTAL_GAMES = 16;
 const DEFAULT_DATA_FILE_ID = 'default-data-file';
 
-type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'admin' | 'deviceMode';
+type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'deviceMode';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -183,10 +183,7 @@ function App() {
   }, []);
 
   const applyRoute = useCallback((hash: string) => {
-    if (hash === '/admin') {
-      setSelectedGameId(null);
-      setCurrentPage('admin');
-    } else if (hash === '/history') {
+    if (hash === '/history') {
       setSelectedGameId(null);
       setCurrentPage('history');
     } else if (hash === '/stats') {
@@ -1083,17 +1080,7 @@ function App() {
     );
   }
 
-  if (currentPage === 'admin') {
-    return (
-      <>
-        {bleManager}
-        <AdminPage
-          onBack={() => navigateTo('')}
-          currentUserId={currentUser.id}
-        />
-      </>
-    );
-  }
+
 
   if (currentPage === 'deviceMode') {
     return <DeviceModePage onExit={() => navigateTo('home')} />;
