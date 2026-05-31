@@ -894,7 +894,7 @@ function App() {
               // 0. Send Language
               const langCmd = `LANG:${i18n.language}\n`;
               try {
-                  await writeData(connection.deviceId, new DataView(new TextEncoder().encode(langCmd)));
+                  await writeData(connection.deviceId, new DataView(new TextEncoder().encode(langCmd).buffer));
                   await new Promise(resolve => setTimeout(resolve, 50));
               } catch (e) {
                   console.error('Sync lang error', e);

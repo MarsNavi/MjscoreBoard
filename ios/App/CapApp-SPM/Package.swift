@@ -15,8 +15,7 @@ let package = Package(
         .package(name: "CapacitorCommunityKeepAwake", path: "../../../node_modules/@capacitor-community/keep-awake"),
         .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
-        .package(name: "CapgoCapacitorBluetoothLowEnergy", path: "../../../node_modules/@capgo/capacitor-bluetooth-low-energy"),
-        .package(name: "CordovaPluginBlePeripheral", path: "../../capacitor-cordova-ios-plugins/sources/CordovaPluginBlePeripheral")
+        .package(name: "CapgoCapacitorBluetoothLowEnergy", path: "../../../node_modules/@capgo/capacitor-bluetooth-low-energy")
     ],
     targets: [
         .target(
@@ -27,8 +26,7 @@ let package = Package(
                 .product(name: "CapacitorCommunityKeepAwake", package: "CapacitorCommunityKeepAwake"),
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
-                .product(name: "CapgoCapacitorBluetoothLowEnergy", package: "CapgoCapacitorBluetoothLowEnergy"),
-                .product(name: "CordovaPluginBlePeripheral", package: "CordovaPluginBlePeripheral")
+                .product(name: "CapgoCapacitorBluetoothLowEnergy", package: "CapgoCapacitorBluetoothLowEnergy")
             ]
         )
     ]

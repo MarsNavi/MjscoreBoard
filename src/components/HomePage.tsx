@@ -15,12 +15,6 @@ interface HomePageProps {
   onDeviceMode: () => void;
 }
 
-const positionLabels: Record<Position, string> = {
-  east: t('mahjong.east'),
-  south: t('mahjong.south'),
-  west: t('mahjong.west'),
-  north: t('mahjong.north'),
-};
 
 export default function HomePage({
   user,
@@ -32,6 +26,14 @@ export default function HomePage({
   onDeviceMode,
 }: HomePageProps) {
   const { t } = useTranslation();
+
+  const positionLabels: Record<Position, string> = {
+    east: t('mahjong.east'),
+    south: t('mahjong.south'),
+    west: t('mahjong.west'),
+    north: t('mahjong.north'),
+  };
+
   const positions: Position[] = ['east', 'south', 'west', 'north'];
   const [commonNames, setCommonNames] = useState<string[]>([]);
   const [focusedPosition, setFocusedPosition] = useState<Position | null>(null);

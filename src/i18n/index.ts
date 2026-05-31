@@ -11,8 +11,15 @@ const resources = {
   ja: { translation: ja }
 };
 
-const savedLang = localStorage.getItem('mjscoreboard_lang');
-const defaultLang = savedLang || (typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'zh') || 'zh';
+let savedLang = null;
+try {
+  savedLang = localStorage.getItem('mjscoreboard_lang');
+} catch (e) {
+  console.warn('localStorage is not available');
+}
+
+const navLang = typeof navigator !== 'undefined' ? (navigator.language || (navigator.languages && navigator.languages[0]) || 'zh') : 'zh';
+const defaultLang = savedLang || navLang.split('-')[0] || 'zh';
 const finalLang = ['zh', 'en', 'ja'].includes(defaultLang) ? defaultLang : 'zh';
 
 i18n
