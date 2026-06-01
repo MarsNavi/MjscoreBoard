@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Position, User } from '../lib/types';
 import { db } from '../lib/db';
 import { normalizePlayerName } from '../lib/playerNames';
-import { MonitorPlay } from 'lucide-react';
+import { MonitorPlay, Globe } from 'lucide-react';
 
 interface HomePageProps {
   user: User;
@@ -25,7 +25,15 @@ export default function HomePage({
   onNameChange,
   onDeviceMode,
 }: HomePageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const langLabels: Record<string, string> = { zh: '中', en: 'EN', ja: 'JP' };
+  const langOrder = ['zh', 'en', 'ja'];
+  const cycleLang = () => {
+    const next = langOrder[(langOrder.indexOf(i18n.language) + 1) % langOrder.length];
+    i18n.changeLanguage(next);
+    try { localStorage.setItem('mjscoreboard_lang', next); } catch {}
+  };
 
   const positionLabels: Record<Position, string> = {
     east: t('mahjong.east'),
@@ -175,10 +183,18 @@ export default function HomePage({
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZjk5MDAiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNk0xMiAzOGMzLjMxIDAgNiAyLjY5IDYgNnMtMi42OSA2LTYgNi02LTIuNjktNi02IDIuNjktNiA2LTZ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-40"></div>
 
       <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] md:py-5 md:pt-[calc(1.5rem+env(safe-area-inset-top))] px-4 shadow-2xl">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight drop-shadow-lg">
-            国标麻将实时计分板
+            {t('common.appTitle', '国标麻将实时计分板')}
           </h1>
+          <button
+            onClick={cycleLang}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-sm font-bold backdrop-blur-sm"
+            title="Switch Language / 切换语言"
+          >
+            <Globe size={16} />
+            <span>{langLabels[i18n.language] || '中'}</span>
+          </button>
         </div>
       </div>
 

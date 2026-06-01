@@ -27,7 +27,8 @@
     "start": "開始",
     "endGame": "終了",
     "generating": "生成中...",
-    "update": "更新"
+    "update": "更新",
+    "appTitle": "国標麻雀リアルタイムスコアボード"
   },
   "mahjong": {
     "east": "東",

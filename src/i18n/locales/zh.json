@@ -27,7 +27,8 @@
     "start": "开局",
     "endGame": "结束",
     "generating": "生成中…",
-    "update": "更新"
+    "update": "更新",
+    "appTitle": "国标麻将实时计分板"
   },
   "mahjong": {
     "east": "东",

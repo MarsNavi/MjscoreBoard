@@ -197,6 +197,9 @@ function App() {
     } else if (hash === '/help') {
       setSelectedGameId(null);
       setCurrentPage('help');
+    } else if (hash === 'deviceMode' || hash === '/deviceMode') {
+      setSelectedGameId(null);
+      setCurrentPage('deviceMode');
     } else if (hash.startsWith('/game/')) {
       const gameId = hash.split('/')[2];
       if (gameId) {

@@ -27,7 +27,8 @@
     "start": "Start",
     "endGame": "End",
     "generating": "Generating...",
-    "update": "Update"
+    "update": "Update",
+    "appTitle": "Mahjong Live Scoreboard"
   },
   "mahjong": {
     "east": "East",
