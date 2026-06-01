@@ -6,7 +6,7 @@ const keyId = 'GL8UDBLWYF';
 const issuerId = 'ff871bef-0835-4aca-81d6-709743a64d44';
 const keyPath = `${process.env.HOME}/.appstoreconnect/private_keys/AuthKey_${keyId}.p8`;
 const appId = '6758918094';
-const targetVersion = '1.6.3';
+const targetVersion = '1.6.7';
 
 const privateKey = fs.readFileSync(keyPath, 'utf8');
 const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
@@ -51,8 +51,8 @@ async function run() {
     console.log(`   No pending submissions or error: ${e.message}`);
   }
 
-  // 1. Create App Store Version 1.6.3
-  console.log('\n1. Creating App Store Version 1.6.3...');
+  // 1. Create App Store Version 1.6.7
+  console.log('\n1. Creating App Store Version 1.6.7...');
   const versions = await api('GET', `/v1/apps/${appId}/appStoreVersions`);
   let versionId;
   const existing = versions.data.find(v => v.attributes.versionString === targetVersion);
@@ -104,14 +104,14 @@ async function run() {
       type: 'appStoreVersionLocalizations',
       id: locId,
       attributes: {
-        whatsNew: '1.6.3 更新内容：\n- 修复蓝牙后台连接断开问题\n- 修复 Android 14+ 蓝牙权限崩溃问题\n- 完善多语言支持（蓝牙连接、档案管理等页面）\n- 修复计分板模式视角跟随失效的问题\n- 修复蓝牙资源泄漏问题\n- 优化日期显示随语言切换'
+        whatsNew: '1.6.7 更新内容：\n- 修复蓝牙后台连接断开问题\n- 修复 Android 14+ 蓝牙权限崩溃问题\n- 完善多语言支持（蓝牙连接、档案管理等页面）\n- 修复计分板模式视角跟随失效的问题\n- 修复蓝牙资源泄漏问题\n- 优化日期显示随语言切换'
       }
     }
   });
   console.log('   Localization updated.');
 
   // 3. Wait for build to be processed
-  console.log('\n3. Waiting for build 1.6.3 to finish processing...');
+  console.log('\n3. Waiting for build 1.6.7 to finish processing...');
   let buildId = null;
   while (!buildId) {
     const builds = await api('GET', `/v1/builds?filter[app]=${appId}&include=preReleaseVersion&limit=20&sort=-uploadedDate`);
@@ -182,7 +182,7 @@ async function run() {
     data: { type: 'reviewSubmissions', id: subId, attributes: { submitted: true } }
   });
 
-  console.log('\n🎉 v1.6.3 SUBMITTED TO APP STORE FOR REVIEW!');
+  console.log('\n🎉 v1.6.7 SUBMITTED TO APP STORE FOR REVIEW!');
   console.log('State:', finalRes.data.attributes.state);
 }
 

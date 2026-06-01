@@ -6,7 +6,7 @@ const keyId = 'GL8UDBLWYF';
 const issuerId = 'ff871bef-0835-4aca-81d6-709743a64d44';
 const keyPath = `${process.env.HOME}/.appstoreconnect/private_keys/AuthKey_${keyId}.p8`;
 const appId = '6758918094';
-const targetVersion = '1.6';
+const targetVersion = '1.6.7';
 
 const privateKey = fs.readFileSync(keyPath, 'utf8');
 const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
@@ -24,95 +24,82 @@ async function api(method, path, body) {
     headers: { Authorization: `Bearer ${makeToken()}`, ...(body ? {'Content-Type':'application/json'} : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (method === 'DELETE' && res.status === 204) return null;
   const text = await res.text();
-  if (res.status >= 400) throw new Error(`Error ${res.status}: ${text}`);
+  if (res.status >= 400) throw new Error(`${method} ${path} => ${res.status}\n${text}`);
   return text ? JSON.parse(text) : null;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function run() {
-  console.log('1. Finding App Store Version 1.6...');
+  console.log('1. Finding editable version...');
   const versions = await api('GET', `/v1/apps/${appId}/appStoreVersions`);
-  const version = versions.data.find(v => v.attributes.versionString === targetVersion);
-  if (!version) throw new Error('Version 1.6 not found.');
-  const versionId = version.id;
-  console.log('Version ID:', versionId, 'State:', version.attributes.appStoreState);
-
-  console.log('\n2. Checking Review Submissions...');
-  const submissionsResponse = await api('GET', `/v1/apps/${appId}/reviewSubmissions`);
-  const activeSubmission = submissionsResponse.data.find(s => ['WAITING_FOR_REVIEW', 'READY_FOR_REVIEW'].includes(s.attributes.state));
-  if (activeSubmission) {
-    console.log(`Canceling existing submission ${activeSubmission.id} (State: ${activeSubmission.attributes.state})...`);
-    await api('PATCH', `/v1/reviewSubmissions/${activeSubmission.id}`, {
-      data: {
-        type: 'reviewSubmissions',
-        id: activeSubmission.id,
-        attributes: { canceled: true }
-      }
-    });
-    console.log('Submission canceled.');
+  let versionId;
+  const editableStates = ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'];
+  let editable = versions.data.find(v => editableStates.includes(v.attributes.appStoreState));
+  
+  if (editable) {
+    versionId = editable.id;
+    console.log(`Found editable version ${editable.attributes.versionString} in state ${editable.attributes.appStoreState}. Updating to ${targetVersion}...`);
+    if (editable.attributes.versionString !== targetVersion) {
+      await api('PATCH', `/v1/appStoreVersions/${versionId}`, {
+        data: { type: 'appStoreVersions', id: versionId, attributes: { versionString: targetVersion } }
+      });
+      console.log('Updated version string.');
+    }
+  } else {
+    throw new Error('No editable version found!');
   }
 
-  console.log('\n3. Waiting for Build 2 to finish processing on App Store Connect...');
-  let newBuildId = null;
-  while (!newBuildId) {
+  console.log('2. Waiting for build 1.6.7 to finish processing (this takes Apple 5-15 mins)...');
+  let buildId = null;
+  while (!buildId) {
     const builds = await api('GET', `/v1/builds?filter[app]=${appId}&include=preReleaseVersion&limit=20&sort=-uploadedDate`);
     const targetBuild = builds.data.find(b => {
       const prvId = b.relationships?.preReleaseVersion?.data?.id;
       const prv = (builds.included || []).find(i => i.type === 'preReleaseVersions' && i.id === prvId);
-      return prv && prv.attributes.version === targetVersion && b.attributes.version === '2';
+      return prv && prv.attributes.version === targetVersion;
     });
 
     if (targetBuild) {
       if (targetBuild.attributes.processingState === 'VALID') {
-        newBuildId = targetBuild.id;
-        console.log(`Found VALID Build 2. Build ID: ${newBuildId}`);
+        buildId = targetBuild.id;
+        console.log(`   Found VALID build. ID: ${buildId}`);
       } else if (targetBuild.attributes.processingState === 'FAILED') {
-        throw new Error(`Build 2 processing FAILED!`);
+        throw new Error('Build processing FAILED!');
       } else {
-        console.log(`Build 2 found but processing state is ${targetBuild.attributes.processingState}. Waiting 15s...`);
-        await sleep(15000);
+        console.log(`   Processing: ${targetBuild.attributes.processingState}. Waiting 30s...`);
+        await sleep(30000);
       }
     } else {
-      console.log(`Build 2 not found yet. Waiting 15s...`);
-      await sleep(15000);
+      console.log('   Build not found yet. Waiting 30s...');
+      await sleep(30000);
     }
   }
 
-  console.log('\n4. Declaring Export Compliance for Build 2...');
-  await api('PATCH', `/v1/builds/${newBuildId}`, {
-    data: {
-      type: 'builds',
-      id: newBuildId,
-      attributes: { usesNonExemptEncryption: false }
-    }
-  });
+  console.log('3. Export compliance...');
+  try {
+    await api('PATCH', `/v1/builds/${buildId}`, {
+      data: { type: 'builds', id: buildId, attributes: { usesNonExemptEncryption: false } }
+    });
+  } catch (e) { }
 
-  console.log('\n4.1. Detaching old build and attaching Build 2...');
+  console.log('4. Attaching build to version...');
   await api('PATCH', `/v1/appStoreVersions/${versionId}`, {
     data: {
-      type: 'appStoreVersions',
-      id: versionId,
-      relationships: {
-        build: {
-          data: { type: 'builds', id: newBuildId }
-        }
-      }
+      type: 'appStoreVersions', id: versionId,
+      relationships: { build: { data: { type: 'builds', id: buildId } } }
     }
   });
-  console.log('Build 2 attached successfully.');
 
-  console.log('\n5. Re-submitting for review...');
-  const createSubRes = await api('POST', '/v1/reviewSubmissions', {
+  console.log('5. Submitting for review...');
+  const subRes = await api('POST', '/v1/reviewSubmissions', {
     data: {
       type: 'reviewSubmissions',
       relationships: { app: { data: { type: 'apps', id: appId } } }
     }
   });
-  const subId = createSubRes.data.id;
-  console.log('Created new submission:', subId);
+  const subId = subRes.data.id;
 
   await api('POST', '/v1/reviewSubmissionItems', {
     data: {
@@ -123,17 +110,13 @@ async function run() {
       }
     }
   });
-  console.log('Added App Store Version to submission.');
 
-  const submitRes = await api('PATCH', `/v1/reviewSubmissions/${subId}`, {
-    data: {
-      type: 'reviewSubmissions',
-      id: subId,
-      attributes: { submitted: true }
-    }
+  const finalRes = await api('PATCH', `/v1/reviewSubmissions/${subId}`, {
+    data: { type: 'reviewSubmissions', id: subId, attributes: { submitted: true } }
   });
-  console.log('\n🎉 NEW BUILD SUCCESSFULLY SUBMITTED TO APP STORE FOR REVIEW!');
-  console.log('Submission State:', submitRes.data.attributes.state);
+
+  console.log('🎉 1.6.7 SUBMITTED TO APP STORE FOR REVIEW!');
+  console.log('State:', finalRes.data.attributes.state);
 }
 
 run().catch(console.error);
