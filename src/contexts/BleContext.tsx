@@ -171,6 +171,9 @@ export function BleProvider({ children }: { children: ReactNode }) {
            try {
              await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
              
+             // Must discover services before requesting characteristics on iOS
+             await BluetoothLowEnergy.discoverServices({ deviceId: device.deviceId });
+
              await BluetoothLowEnergy.startCharacteristicNotifications({
                 deviceId: device.deviceId,
                 service: BLE_SERVICE_UUID,
@@ -252,6 +255,9 @@ export function BleProvider({ children }: { children: ReactNode }) {
         await stopScan();
 
         await BluetoothLowEnergy.connect({ deviceId });
+
+        // Must discover services before requesting characteristics on iOS
+        await BluetoothLowEnergy.discoverServices({ deviceId });
 
         await BluetoothLowEnergy.startCharacteristicNotifications({
             deviceId,

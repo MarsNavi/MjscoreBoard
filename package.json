@@ -1,7 +1,7 @@
 {
   "name": "mjscoreboard",
   "private": true,
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "A real-time scoring app for competitive Mahjong (Chinese Official rules), with BLE scoreboard support.",
   "author": "Rui Li",
   "license": "MIT",
