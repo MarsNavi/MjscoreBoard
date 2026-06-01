@@ -61,6 +61,23 @@ export function BleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initBle = async () => {
       try {
+        try {
+          await BluetoothLowEnergy.requestPermissions();
+        } catch (err) {
+          console.warn('Bluetooth permissions request failed:', err);
+        }
+
+        try {
+          const { enabled } = await BluetoothLowEnergy.isEnabled();
+          if (!enabled) {
+            if (window.confirm('记分板需要开启蓝牙才能搜索和被发现，是否前往系统设置开启蓝牙？')) {
+              await BluetoothLowEnergy.openBluetoothSettings();
+            }
+          }
+        } catch (err) {
+          console.warn('Bluetooth enabled check failed:', err);
+        }
+
         await BluetoothLowEnergy.initialize();
         setIsInitialized(true);
         
