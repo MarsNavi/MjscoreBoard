@@ -40,12 +40,7 @@ class DeviceModeBleManager {
             uuid: BLE_TX_CHAR_UUID,
             properties: blePeripheral.properties.NOTIFY | blePeripheral.properties.READ,
             permissions: blePeripheral.permissions.READABLE,
-            descriptors: [
-              {
-                uuid: '2902',
-                value: new Uint8Array([0, 0]).buffer
-              }
-            ]
+            descriptors: []
           },
           {
             uuid: BLE_RX_CHAR_UUID,

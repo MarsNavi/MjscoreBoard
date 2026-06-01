@@ -1,8 +1,35 @@
 diff --git a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
-index 9a8f7f6..2895382 100644
+index 9a8f7f6..b1a447a 100644
 --- a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
 +++ b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
-@@ -304,9 +304,16 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+@@ -149,7 +149,13 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+                 return false;
+             }
+ 
+-            gattServer = bluetoothManager.openGattServer(cordova.getContext(), gattServerCallback);
++            try {
++                gattServer = bluetoothManager.openGattServer(cordova.getContext(), gattServerCallback);
++            } catch (SecurityException e) {
++                LOG.e(TAG, "SecurityException: Missing Bluetooth Connect permission", e);
++                callbackContext.error("Missing Bluetooth Connect permission");
++                return false;
++            }
+ 
+         }
+ 
+@@ -209,6 +215,11 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+ 
+             try {
+                 UUID serviceUUID = uuidFromString(json.getString("uuid"));
++                BluetoothGattService existingService = services.get(serviceUUID);
++                if (existingService != null && gattServer != null) {
++                    gattServer.removeService(existingService);
++                    services.remove(serviceUUID);
++                }
+                 Log.d(TAG, "Creating service " + serviceUUID);
+                 BluetoothGattService service = new BluetoothGattService(serviceUUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
+ 
+@@ -304,9 +315,16 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
              AdvertiseData advertisementData = getAdvertisementData(serviceUUID);
              AdvertiseSettings advertiseSettings = getAdvertiseSettings();
  
