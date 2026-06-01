@@ -4,42 +4,44 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 牌身立体效果（侧面） -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M25,35 L75,15 L85,25 L85,75 L35,95 L25,85 Z" />
+    <group android:scaleX="0.65" android:scaleY="0.65" android:pivotX="55" android:pivotY="55" android:translateX="-1" android:translateY="-1">
+        <!-- 牌身立体效果（侧面） -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M25,35 L75,15 L85,25 L85,75 L35,95 L25,85 Z" />
 
-    <!-- 牌面（主体） -->
-    <path
-        android:fillColor="#FCF9F0"
-        android:pathData="M32,22 L78,22 C81,22 83,24 83,27 L83,73 C83,76 81,78 78,78 L32,78 C29,78 27,76 27,73 L27,27 C27,24 29,22 32,22 Z" />
+        <!-- 牌面（主体） -->
+        <path
+            android:fillColor="#FCF9F0"
+            android:pathData="M32,22 L78,22 C81,22 83,24 83,27 L83,73 C83,76 81,78 78,78 L32,78 C29,78 27,76 27,73 L27,27 C27,24 29,22 32,22 Z" />
 
-    <!-- 牌面边框 -->
-    <path
-        android:strokeColor="#2E7D32"
-        android:strokeWidth="1"
-        android:pathData="M31,26 L79,26 L79,74 L31,74 Z" />
+        <!-- 牌面边框 -->
+        <path
+            android:strokeColor="#2E7D32"
+            android:strokeWidth="1"
+            android:pathData="M31,26 L79,26 L79,74 L31,74 Z" />
 
-    <!-- 简化的“發”字 (使用路径模拟笔画) -->
-    <!-- 左上部 -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M40,35 Q45,35 48,38 L45,42 Q42,39 38,40 Z" />
-    <!-- 右上部 -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M60,35 Q65,35 68,38 L65,42 Q62,39 58,40 Z" />
-    <!-- 中间横部 -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M40,48 L70,48 L70,52 L40,52 Z" />
-    <!-- 下部“弓”字结构模拟 -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M45,55 L65,55 L65,58 L45,58 Z M45,62 L65,62 L65,65 L45,65 Z M45,69 L65,69 L65,72 L45,72 Z" />
-    <!-- 撇捺模拟 -->
-    <path
-        android:fillColor="#1B5E20"
-        android:pathData="M40,55 Q35,65 35,72 L38,72 Q38,65 42,55 Z M70,55 Q75,65 75,72 L72,72 Q72,65 68,55 Z" />
+        <!-- 简化的“發”字 (使用路径模拟笔画) -->
+        <!-- 左上部 -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M40,35 Q45,35 48,38 L45,42 Q42,39 38,40 Z" />
+        <!-- 右上部 -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M60,35 Q65,35 68,38 L65,42 Q62,39 58,40 Z" />
+        <!-- 中间横部 -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M40,48 L70,48 L70,52 L40,52 Z" />
+        <!-- 下部“弓”字结构模拟 -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M45,55 L65,55 L65,58 L45,58 Z M45,62 L65,62 L65,65 L45,65 Z M45,69 L65,69 L65,72 L45,72 Z" />
+        <!-- 撇捺模拟 -->
+        <path
+            android:fillColor="#1B5E20"
+            android:pathData="M40,55 Q35,65 35,72 L38,72 Q38,65 42,55 Z M70,55 Q75,65 75,72 L72,72 Q72,65 68,55 Z" />
+    </group>
 
 </vector>

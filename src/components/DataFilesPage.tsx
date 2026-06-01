@@ -589,21 +589,21 @@ export default function DataFilesPage({
       {showContactModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-all" onClick={() => setShowContactModal(false)}>
           <div 
-            className="w-full max-w-md rounded-3xl bg-[#fdfbf7] p-8 shadow-2xl relative overflow-hidden border border-[#f3eee3]" 
+            className="w-full max-w-md max-h-[85vh] flex flex-col rounded-3xl bg-[#fdfbf7] shadow-2xl relative overflow-hidden border border-[#f3eee3]" 
             onClick={e => e.stopPropagation()}
           >
             {/* Decorative background element */}
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-orange-100/50 rounded-full blur-3xl mix-blend-multiply"></div>
-            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-rose-100/40 rounded-full blur-3xl mix-blend-multiply"></div>
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-orange-100/50 rounded-full blur-3xl mix-blend-multiply pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-rose-100/40 rounded-full blur-3xl mix-blend-multiply pointer-events-none"></div>
             
             <button 
               onClick={() => setShowContactModal(false)} 
-              className="absolute right-5 top-5 p-2 text-[#bcaaa4] hover:text-gray-600 hover:bg-[#f5f0e6] rounded-full transition-colors z-10"
+              className="absolute right-4 top-4 p-2 text-[#bcaaa4] hover:text-gray-600 hover:bg-[#f5f0e6] rounded-full transition-colors z-[60] bg-[#fdfbf7]/80 backdrop-blur"
             >
               <X size={20} />
             </button>
             
-            <div className="relative z-10">
+            <div className="relative z-10 p-6 sm:p-8 pt-12 sm:pt-14 overflow-y-auto overscroll-contain">
               <h2 className="text-2xl font-black text-[#4e342e] mb-6 tracking-wide">{t('more.letterTitle')}</h2>
               
               <div className="space-y-4 text-[15px] leading-relaxed text-[#5d4037] whitespace-pre-wrap">
