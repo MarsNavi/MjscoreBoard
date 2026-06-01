@@ -226,6 +226,7 @@
     "notSet": "未設定",
     "mahjongScoreboard": "麻雀スコアボード",
     "deviceId": "デバイスID: {{id}}",
+    "waitingHost": "ホストの接続を待っています...",
     "followView": "視点追従: ",
     "position": "家",
     "switch": "切り替え",

@@ -226,6 +226,7 @@
     "notSet": "Not set",
     "mahjongScoreboard": "Mahjong Scoreboard",
     "deviceId": "Device ID: {{id}}",
+    "waitingHost": "Waiting for host connection...",
     "followView": "Follow View: ",
     "position": "Seat",
     "switch": "Switch",

@@ -18,7 +18,8 @@ let package = Package(
         .package(name: "CapacitorKeyboard", path: "../../../node_modules/@capacitor/keyboard"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
         .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar"),
-        .package(name: "CapgoCapacitorBluetoothLowEnergy", path: "../../../node_modules/@capgo/capacitor-bluetooth-low-energy")
+        .package(name: "CapgoCapacitorBluetoothLowEnergy", path: "../../../node_modules/@capgo/capacitor-bluetooth-low-energy"),
+        .package(name: "CordovaPluginBlePeripheral", path: "../../capacitor-cordova-ios-plugins/sources/CordovaPluginBlePeripheral")
     ],
     targets: [
         .target(
@@ -32,7 +33,8 @@ let package = Package(
                 .product(name: "CapacitorKeyboard", package: "CapacitorKeyboard"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
-                .product(name: "CapgoCapacitorBluetoothLowEnergy", package: "CapgoCapacitorBluetoothLowEnergy")
+                .product(name: "CapgoCapacitorBluetoothLowEnergy", package: "CapgoCapacitorBluetoothLowEnergy"),
+                .product(name: "CordovaPluginBlePeripheral", package: "CordovaPluginBlePeripheral")
             ]
         )
     ]

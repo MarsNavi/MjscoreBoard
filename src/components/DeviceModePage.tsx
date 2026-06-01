@@ -35,6 +35,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
   
   // 当前绑定的初始物理座位索引
   const [initialSetupIndex, setInitialSetupIndex] = useState<number | null>(null);
+  const initialSetupIndexRef = useRef<number | null>(null);
   // 当前跟随的玩家姓名（手机模式特有逻辑：机器跟着人走）
   const [followName, setFollowName] = useState<string | null>(null);
   const [showFollowSelector, setShowFollowSelector] = useState(false);
@@ -75,8 +76,8 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                 setFollowName(currentFollow => {
                     let targetName = currentFollow;
                     // 如果尚未确定跟随谁，且我们收到了 SETUP 绑定的初始座位
-                    if (!targetName && initialSetupIndex !== null) {
-                        targetName = newNames[POSITIONS[initialSetupIndex]];
+                    if (!targetName && initialSetupIndexRef.current !== null) {
+                        targetName = newNames[POSITIONS[initialSetupIndexRef.current]];
                     }
                     
                     if (targetName) {
@@ -105,6 +106,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
             const index = parseInt(msg.substring(6).trim(), 10);
             if (index >= 0 && index < 4) {
                 setInitialSetupIndex(index);
+                initialSetupIndexRef.current = index;
                 setMyPosition(POSITIONS[index]);
             }
         }
@@ -116,6 +118,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
     
     return () => {
       active = false;
+      deviceModeBle.stopAdvertising();
       KeepAwake.allowSleep().catch(() => {});
     };
   }, []);

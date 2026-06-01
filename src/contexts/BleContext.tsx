@@ -187,6 +187,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
              }));
              
            } catch (err) {
+             // Reconnect attempt failed silently — will retry on next interval
            }
         }
       }

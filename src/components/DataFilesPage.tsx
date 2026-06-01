@@ -85,7 +85,7 @@ export default function DataFilesPage({
 
   const formatLastGameDate = (dateString?: string) => {
     if (!dateString) return t('files.noRecord');
-    return new Date(dateString).toLocaleDateString('zh-CN', {
+    return new Date(dateString).toLocaleDateString(i18n.language === 'en' ? 'en-US' : i18n.language === 'ja' ? 'ja-JP' : 'zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

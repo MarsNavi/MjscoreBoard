@@ -54,7 +54,7 @@ export default function GameHistoryPage({
   const [deletingGameId, setDeletingGameId] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<Record<string, GameResult[]>>({});
   const [playerDailyTotals, setPlayerDailyTotals] = useState<PlayerDailyTotal[]>([]);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const loadGames = useCallback(async () => {
     setLoading(true);
@@ -134,7 +134,7 @@ export default function GameHistoryPage({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
+    return date.toLocaleString(i18n.language === 'en' ? 'en-US' : i18n.language === 'ja' ? 'ja-JP' : 'zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

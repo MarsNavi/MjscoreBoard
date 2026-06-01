@@ -50,6 +50,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>需要蓝牙权限以连接和管理麻将计分设备</string>

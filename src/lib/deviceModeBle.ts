@@ -65,6 +65,16 @@ class DeviceModeBleManager {
     }
   }
 
+  public async stopAdvertising(): Promise<void> {
+    if (typeof blePeripheral === 'undefined' || !this.isAdvertising) return;
+    try {
+      await blePeripheral.stopAdvertising();
+      this.isAdvertising = false;
+    } catch (e) {
+      console.warn('[DeviceMode] Failed to stop advertising:', e);
+    }
+  }
+
   public async notifyCentral(message: string): Promise<void> {
     if (typeof blePeripheral === 'undefined' || !this.isAdvertising) return;
     
