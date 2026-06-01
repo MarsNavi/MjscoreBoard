@@ -397,6 +397,9 @@
     "language": "言語",
     "about": "概要",
     "versionHistory": "バージョン履歴",
-    "author": "作者"
+    "author": "作者",
+    "contactTitle": "作者に連絡",
+    "contactName": "李睿 (Rui Li)",
+    "contactPhone": "+86 13501165270 (WeChat)"
   }
 }

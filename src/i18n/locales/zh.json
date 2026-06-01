@@ -397,6 +397,9 @@
     "language": "语言",
     "about": "关于",
     "versionHistory": "版本历史",
-    "author": "作者"
+    "author": "作者",
+    "contactTitle": "联系作者",
+    "contactName": "李睿",
+    "contactPhone": "13501165270（微信同号）"
   }
 }

@@ -72,6 +72,8 @@ export default function DataFilesPage({
   const [sharingDataFile, setSharingDataFile] = useState(false);
   const [importingDataFile, setImportingDataFile] = useState(false);
   const [showDataFileSwitcher, setShowDataFileSwitcher] = useState(false);
+  const [authorClicks, setAuthorClicks] = useState(0);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [pendingImport, setPendingImport] = useState<{
     data: MahjongBackupData;
     defaultName: string;
@@ -401,12 +403,6 @@ export default function DataFilesPage({
               <h1 className="mt-1 text-3xl font-black text-gray-900">{t('files.dataFiles')}</h1>
               <p className="mt-1 text-sm text-gray-500">{t('files.dataFilesDesc')}</p>
             </div>
-            <button
-              onClick={onViewHelp}
-              className="shrink-0 rounded-full border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-black text-orange-700 transition-colors hover:bg-orange-100"
-            >
-              {t('common.update')}
-            </button>
           </div>
 
           <div className="mt-5 rounded-3xl bg-gradient-to-br from-orange-50 to-rose-50 p-4 border border-orange-100">
@@ -565,7 +561,17 @@ export default function DataFilesPage({
             onClick={onViewHelp}
           />
           <div className="mx-5 border-t border-gray-100" />
-          <div className="flex items-center gap-4 px-5 py-3.5">
+          <div
+            className="flex items-center gap-4 px-5 py-3.5 select-none"
+            onClick={() => {
+              const newClicks = authorClicks + 1;
+              setAuthorClicks(newClicks);
+              if (newClicks >= 7) {
+                setShowContactModal(true);
+                setAuthorClicks(0);
+              }
+            }}
+          >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center flex-shrink-0">
               <UserIcon size={20} className="text-orange-600" />
             </div>
@@ -579,6 +585,30 @@ export default function DataFilesPage({
 
       </div>
       </div>
+
+      {showContactModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowContactModal(false)}>
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowContactModal(false)} className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-black text-gray-900 mb-6">{t('more.contactTitle')}</h2>
+            <div className="space-y-4">
+              <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100/50">
+                <div className="text-sm font-bold text-orange-800 mb-1">{t('more.contactName')}</div>
+                <div className="text-sm text-orange-600">{t('more.contactPhone')}</div>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <div className="text-sm font-bold text-gray-800 mb-1">GitHub</div>
+                <a href="https://github.com/MarsNavi/MjscoreBoard" target="_blank" rel="noreferrer" className="text-sm text-blue-500 hover:underline break-all">
+                  https://github.com/MarsNavi/MjscoreBoard
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
