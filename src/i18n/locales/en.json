@@ -383,5 +383,20 @@
     "sponsor": "Sponsored by Sichuan Panda Club",
     "author": "Author: Li Rui",
     "languageSettings": "Language Settings"
+  },
+  "more": {
+    "title": "More",
+    "tools": "Tools",
+    "bleConnect": "BLE Scoreboard",
+    "bleConnectDesc": "Connect ESP32 hardware or phone peripherals",
+    "simulatedBoard": "Simulated Scoreboard",
+    "simulatedBoardDesc": "Use this device as a scoreboard display",
+    "settings": "Settings",
+    "dataFiles": "Data Files",
+    "dataFilesDesc": "Create, switch, share and import data files",
+    "language": "Language",
+    "about": "About",
+    "versionHistory": "Version History",
+    "author": "Author"
   }
 }

@@ -167,7 +167,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center p-2 sm:p-6 overflow-hidden select-none">
-      <div className="absolute top-4 left-4 z-50">
+      <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-50">
         <button 
           onClick={onExit}
           className="p-3 bg-slate-800/80 hover:bg-slate-700 rounded-full text-slate-300 transition-colors backdrop-blur"

@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, Sparkles, Globe } from 'lucide-react';
+import { ArrowLeft, Play, Sparkles } from 'lucide-react';
 import { User } from '../lib/types';
 import { useTranslation } from 'react-i18next';
 
@@ -8,16 +8,11 @@ interface HelpPageProps {
 }
 
 export default function HelpPage({ onBack }: HelpPageProps) {
-  const { t, i18n } = useTranslation();
-
-  const handleLanguageChange = (lang: string) => {
-    i18n.changeLanguage(lang);
-    localStorage.setItem('mjscoreboard_lang', lang);
-  };
+  const { t } = useTranslation();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
-      <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white py-6 px-4 shadow-lg">
+      <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] px-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
           <button
             onClick={onBack}
@@ -32,27 +27,6 @@ export default function HelpPage({ onBack }: HelpPageProps) {
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8">
 
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b-2 border-gray-100">
-              <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl flex items-center justify-center">
-                <Globe size={20} className="text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800">{t('help.languageSettings', 'Settings / 语言设置')}</h2>
-            </div>
-            <div className="pl-13 space-y-3">
-              <div className="flex items-center gap-4">
-                <select
-                  value={i18n.language}
-                  onChange={(e) => handleLanguageChange(e.target.value)}
-                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 font-medium text-gray-700 bg-white min-w-[160px]"
-                >
-                  <option value="zh">简体中文</option>
-                  <option value="en">English</option>
-                  <option value="ja">日本語</option>
-                </select>
-              </div>
-            </div>
-          </section>
 
           <section className="space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">

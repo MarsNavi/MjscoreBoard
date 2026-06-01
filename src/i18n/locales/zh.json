@@ -383,5 +383,20 @@
     "sponsor": "本应用由四川熊猫俱乐部赞助",
     "author": "作者 李睿",
     "languageSettings": "语言设置"
+  },
+  "more": {
+    "title": "更多",
+    "tools": "工具",
+    "bleConnect": "蓝牙计分板连接",
+    "bleConnectDesc": "连接 ESP32 硬件计分板或手机外设",
+    "simulatedBoard": "模拟计分板",
+    "simulatedBoardDesc": "将本机作为计分板显示设备",
+    "settings": "设置",
+    "dataFiles": "档案管理",
+    "dataFilesDesc": "新建、切换、分享和导入数据档案",
+    "language": "语言",
+    "about": "关于",
+    "versionHistory": "版本历史",
+    "author": "作者"
   }
 }

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Database, FilePlus, FolderOpen, GitMerge, Pencil, Plus, Share2, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Database, FilePlus, FolderOpen, GitMerge, Pencil, Plus, Share2, Trash2, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
@@ -25,6 +25,7 @@ interface DataFilesPageProps {
   onDeleteDataFile: () => Promise<void>;
   onDataFileChanged: (userId?: string) => Promise<void>;
   onViewHelp: () => void;
+  onBack?: () => void;
 }
 
 export default function DataFilesPage({
@@ -36,6 +37,7 @@ export default function DataFilesPage({
   onDeleteDataFile,
   onDataFileChanged,
   onViewHelp,
+  onBack,
 }: DataFilesPageProps) {
   const [sharingDataFile, setSharingDataFile] = useState(false);
   const [importingDataFile, setImportingDataFile] = useState(false);
@@ -241,7 +243,20 @@ export default function DataFilesPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
+      {onBack && (
+        <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] px-4 shadow-2xl">
+          <div className="max-w-4xl mx-auto flex items-center gap-4">
+            <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-lg">
+              {t('more.dataFiles')}
+            </h1>
+          </div>
+        </div>
+      )}
+      <div className="p-4">
       <input
         type="file"
         accept="application/json"
@@ -483,6 +498,7 @@ export default function DataFilesPage({
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   );

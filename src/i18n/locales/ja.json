@@ -383,5 +383,20 @@
     "sponsor": "四川パンダクラブ提供",
     "author": "著者: Li Rui",
     "languageSettings": "言語設定"
+  },
+  "more": {
+    "title": "その他",
+    "tools": "ツール",
+    "bleConnect": "Bluetoothスコアボード",
+    "bleConnectDesc": "ESP32ハードウェアまたはスマホ周辺機器を接続",
+    "simulatedBoard": "シミュレーションスコアボード",
+    "simulatedBoardDesc": "このデバイスをスコアボードとして使用",
+    "settings": "設定",
+    "dataFiles": "データファイル",
+    "dataFilesDesc": "データファイルの作成、切替、共有、インポート",
+    "language": "言語",
+    "about": "概要",
+    "versionHistory": "バージョン履歴",
+    "author": "作者"
   }
 }
