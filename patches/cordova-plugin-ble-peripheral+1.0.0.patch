@@ -1,0 +1,24 @@
+diff --git a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
+index 9a8f7f6..2895382 100644
+--- a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
++++ b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
+@@ -304,9 +304,16 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+             AdvertiseData advertisementData = getAdvertisementData(serviceUUID);
+             AdvertiseSettings advertiseSettings = getAdvertiseSettings();
+ 
+-            bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertisementData, advertiseCallback);
+-
+-            advertisingStartedCallback = callbackContext;
++            try {
++                bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertisementData, advertiseCallback);
++                advertisingStartedCallback = callbackContext;
++            } catch (SecurityException e) {
++                LOG.e(TAG, "SecurityException: Missing Bluetooth Advertise permission", e);
++                callbackContext.error("Missing Bluetooth Advertise permission");
++            } catch (Exception e) {
++                LOG.e(TAG, "Exception starting advertising", e);
++                callbackContext.error("Failed to start advertising");
++            }
+ 
+         } else if (action.equals(SET_CHARACTERISTIC_VALUE)) {
+ 

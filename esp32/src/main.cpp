@@ -637,7 +637,7 @@ void create_connect_screen() {
     lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
 
     lv_obj_t * ver = lv_label_create(scr_connect);
-    lv_label_set_text(ver, "v1.6.3");
+    lv_label_set_text(ver, "v1.6.4");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
@@ -660,7 +660,7 @@ void create_waiting_screen() {
     lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
 
     lv_obj_t * ver = lv_label_create(scr_waiting);
-    lv_label_set_text(ver, "v1.6.3");
+    lv_label_set_text(ver, "v1.6.4");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);

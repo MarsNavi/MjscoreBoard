@@ -53,6 +53,14 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
         console.warn('KeepAwake error', e);
       }
       
+      try {
+        const { BluetoothLowEnergy } = await import('@capgo/capacitor-bluetooth-low-energy');
+        await BluetoothLowEnergy.requestPermissions();
+        await BluetoothLowEnergy.initialize();
+      } catch (e) {
+        console.warn('Bluetooth permissions check failed:', e);
+      }
+
       let storedId = localStorage.getItem('deviceModeId');
       if (!storedId) {
         storedId = 'MJ-PHONE-' + Math.random().toString(16).substring(2, 6).toUpperCase();
