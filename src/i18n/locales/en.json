@@ -405,5 +405,37 @@
     "letterTitle": "A Letter to Users",
     "letterContent": "Hello everyone, I'm Rui Li, a professional 2-Dan player in Mahjong Competition Rules (MCR).\n\nThe original intention behind developing this scoreboard was very pure: I wanted to contribute my small part to the competitive growth of this mind sport. Whether it's for organizing tournaments or just friendly matches, a handy scoring tool is always indispensable.\n\nTo achieve this, the software is not only completely open-source but specifically designed to support English, Japanese, and Chinese. My sincere hope is that MCR enthusiasts from all over the world can easily use this tool, overcome language barriers, and share the joy of competitive Mahjong together.\n\nI leave my contact information here not to sign my name, but out of a deep desire to connect and communicate with more friends who love MCR. Whether you have suggestions for the app or want to discuss strategies, please feel free to reach out.",
     "letterSignature": "May the MCR community continue to thrive!"
+  },
+  "ble": {
+    "connectionTitle": "Scoreboard Connection",
+    "connectionDesc": "Bind scoreboards to East, South, West, North positions",
+    "bound": "Bound",
+    "unbound": "Unbound",
+    "unbind": "Unbind",
+    "connecting": "Connecting…",
+    "reconnecting": "Disconnected, reconnecting…",
+    "unnamedDevice": "Unnamed Device",
+    "discoveredDevices": "Discovered Devices",
+    "startScan": "Start Scan",
+    "stopScan": "Stop Scan",
+    "scanning": "Searching for nearby scoreboards…",
+    "scanPrompt": "Tap \"Start Scan\" to find nearby scoreboards",
+    "bindTo": "Bind to",
+    "positionSeat": "{{pos}}",
+    "enableBluetoothPrompt": "Bluetooth is required for scoreboard discovery. Open Bluetooth settings?",
+    "bluetoothUnavailable": "Bluetooth unavailable. Please check Bluetooth support and permissions.",
+    "scanError": "Cannot scan. Enable Bluetooth and allow location/nearby device permissions.",
+    "alreadyBound": "{{name}} is already bound to {{pos}}. Unbind first.",
+    "connectFailed": "Connection failed. Ensure the scoreboard is on and nearby."
+  },
+  "dataFile": {
+    "defaultName": "Default",
+    "unnamed": "Unnamed",
+    "newFile": "New File",
+    "importFile": "Imported",
+    "invalidFile": "Not a valid game data file",
+    "notFound": "Data file not found",
+    "snapshotSaveFailed": "Failed to save local game snapshot",
+    "snapshotClearFailed": "Failed to clear local game snapshot"
   }
 }

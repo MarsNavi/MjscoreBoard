@@ -405,5 +405,37 @@
     "letterTitle": "致使用者的一封信",
     "letterContent": "大家好，我是李睿，一名国标麻将专业二段选手。\n\n开发这款计分板的初衷非常纯粹——我希望能为这项智力运动的竞技化发展尽一份微薄之力。不论是线下赛事的筹办，还是平日里朋友间的切磋，一个好用的计分工具总是不可或缺的。\n\n为此，这款软件不仅完全开源，还特意支持了中、英、日三种语言。我衷心希望来自不同国家和地区的国标麻将爱好者们，都能轻松用上这款小工具，跨越语言的障碍，共同享受麻将竞技的魅力。\n\n留下联系方式，不是为了留名，而是渴望能与更多热爱国标麻将的朋友们产生连接与交流。不论是对软件的建议，还是对牌技的探讨，都非常欢迎大家随时找我。",
     "letterSignature": "愿国标麻将越来越好！"
+  },
+  "ble": {
+    "connectionTitle": "计分牌连接",
+    "connectionDesc": "为东、南、西、北绑定对应计分牌",
+    "bound": "已绑定",
+    "unbound": "未绑定",
+    "unbind": "解除绑定",
+    "connecting": "正在连接…",
+    "reconnecting": "连接断开，正在重连…",
+    "unnamedDevice": "未命名设备",
+    "discoveredDevices": "发现设备",
+    "startScan": "开始扫描",
+    "stopScan": "停止扫描",
+    "scanning": "正在搜索附近计分牌…",
+    "scanPrompt": "点按\"开始扫描\"查找附近计分牌",
+    "bindTo": "绑定到",
+    "positionSeat": "{{pos}}家",
+    "enableBluetoothPrompt": "记分板需要开启蓝牙才能搜索和被发现，是否前往系统设置开启蓝牙？",
+    "bluetoothUnavailable": "蓝牙不可用。请确认手机支持蓝牙，并已授权蓝牙权限。",
+    "scanError": "无法扫描。请开启蓝牙，并允许定位或附近设备权限。",
+    "alreadyBound": "{{name}} 已绑定到{{pos}}。请先解除原绑定。",
+    "connectFailed": "连接失败。请确认计分牌已开机并靠近手机。"
+  },
+  "dataFile": {
+    "defaultName": "默认档案",
+    "unnamed": "未命名档案",
+    "newFile": "新档案",
+    "importFile": "导入档案",
+    "invalidFile": "不是有效的牌局档案",
+    "notFound": "档案不存在",
+    "snapshotSaveFailed": "保存本地比赛快照失败",
+    "snapshotClearFailed": "清除本地比赛快照失败"
   }
 }

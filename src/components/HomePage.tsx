@@ -177,7 +177,7 @@ export default function HomePage({
       <div className="relative bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] md:py-5 md:pt-[calc(1.5rem+env(safe-area-inset-top))] px-4 shadow-2xl">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight drop-shadow-lg">
-            国标麻将实时计分板
+            {t('common.appTitle')}
           </h1>
         </div>
       </div>

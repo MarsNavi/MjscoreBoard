@@ -173,7 +173,7 @@ function App() {
       if (allUsers.length === 0) {
         const newUser: User = {
           id: DEFAULT_DATA_FILE_ID,
-          code: '默认档案',
+          code: i18n.t('dataFile.defaultName'),
           created_at: new Date().toISOString(),
           last_login_at: new Date().toISOString(),
         };
@@ -186,8 +186,8 @@ function App() {
       }
 
       if (allUsers.length === 1 && ['local', 'micken', '默认数据'].includes(allUsers[0].code)) {
-        await db.users.update(allUsers[0].id, { code: '默认档案' });
-        allUsers = [{ ...allUsers[0], code: '默认档案' }];
+        await db.users.update(allUsers[0].id, { code: i18n.t('dataFile.defaultName') });
+        allUsers = [{ ...allUsers[0], code: i18n.t('dataFile.defaultName') }];
       }
 
       let targetUser: User | undefined;

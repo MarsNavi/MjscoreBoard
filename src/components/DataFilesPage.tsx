@@ -577,7 +577,7 @@ export default function DataFilesPage({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-semibold text-gray-800">{t('more.author', '作者')}</div>
-              <div className="text-xs text-gray-500 mt-0.5">李睿</div>
+              <div className="text-xs text-gray-500 mt-0.5">{t('more.contactName')}</div>
             </div>
             <span className="text-xs text-gray-400 font-mono">v1.6.1</span>
           </div>

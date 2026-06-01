@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Position } from '../lib/types';
 import { Scan, RefreshCw, Smartphone, Bluetooth, X, Link, Trash2 } from 'lucide-react';
 import { useBle } from '../contexts/useBle';
@@ -8,18 +9,19 @@ interface BleConnectionManagerProps {
   isOpen: boolean;
 }
 
-const positionLabels: Record<Position, string> = {
-  east: '东',
-  south: '南',
-  west: '西',
-  north: '北',
-};
-
 const positions: Position[] = ['east', 'south', 'west', 'north'];
 
 export default function BleConnectionManager({ onClose, isOpen }: BleConnectionManagerProps) {
+  const { t } = useTranslation();
   const { bleDevices, isScanning, scannedDevices, bleError, startScan, stopScan, connectToDevice: contextConnect, disconnectBleForPosition, writeData } = useBle();
   const [connectingPosition, setConnectingPosition] = useState<Position | null>(null);
+
+  const positionLabels: Record<Position, string> = {
+    east: t('mahjong.east'),
+    south: t('mahjong.south'),
+    west: t('mahjong.west'),
+    north: t('mahjong.north'),
+  };
 
   // Safety check to prevent crashes if context isn't fully ready
   if (!isOpen) return null;
@@ -60,9 +62,9 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
           <div>
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               <Bluetooth className="text-blue-500" size={20} />
-              计分牌连接
+              {t('ble.connectionTitle')}
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">为东、南、西、北绑定对应计分牌。</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('ble.connectionDesc')}</p>
           </div>
           <button
             onClick={onClose}
@@ -86,7 +88,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Link size={16} />
-              已绑定
+              {t('ble.bound')}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {positions.map((position) => {
@@ -105,7 +107,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                     }`}
                   >
                     <div className="absolute top-3 right-3 text-xs font-bold text-gray-400 tracking-wider">
-                      {positionLabels[position]}家
+                      {t('ble.positionSeat', { pos: t('mahjong.' + position) })}
                     </div>
                     
                     <div className="flex flex-col h-full justify-between gap-2">
@@ -114,12 +116,12 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                           <div>
                             <div className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
                               <Smartphone size={14} className={isConnected ? "text-green-600" : "text-orange-500"} />
-                              {device.name || '未命名设备'}
+                              {device.name || t('ble.unnamedDevice')}
                             </div>
                             <div className="text-[10px] text-gray-500 font-mono mt-0.5">{device.deviceId}</div>
                             {!isConnected && (
                                 <div className="mt-1 text-[10px] text-orange-600 font-medium animate-pulse">
-                                    {device.status === 'connecting' ? '正在连接…' : '连接断开，正在重连…'}
+                                    {device.status === 'connecting' ? t('ble.connecting') : t('ble.reconnecting')}
                                 </div>
                             )}
                           </div>
@@ -128,13 +130,13 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                             className="self-start px-2 py-1 bg-white border border-red-200 text-red-600 rounded text-xs hover:bg-red-50 flex items-center gap-1 transition-colors"
                           >
                             <Trash2 size={12} />
-                            解除绑定
+                            {t('ble.unbind')}
                           </button>
                         </>
                       ) : (
                         <div className="flex flex-col items-center justify-center py-4 text-gray-400 gap-1">
                           <Bluetooth size={24} className="opacity-20" />
-                          <span className="text-xs">未绑定</span>
+                          <span className="text-xs">{t('ble.unbound')}</span>
                         </div>
                       )}
                     </div>
@@ -149,7 +151,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                  <Scan size={16} />
-                 发现设备 ({scannedDevices.length})
+                 {t('ble.discoveredDevices')} ({scannedDevices.length})
                </h3>
                <button 
                  onClick={isScanning ? stopScan : startScan}
@@ -160,14 +162,14 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                  }`}
                >
                  {isScanning ? <RefreshCw size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                 {isScanning ? '停止扫描' : '开始扫描'}
+                 {isScanning ? t('ble.stopScan') : t('ble.startScan')}
                </button>
             </div>
             
             <div className="max-h-[300px] overflow-y-auto p-2">
                {scannedDevices.length === 0 ? (
                   <div className="text-center py-8 text-gray-400 text-xs">
-                     {isScanning ? '正在搜索附近计分牌…' : '点按“开始扫描”查找附近计分牌'}
+                     {isScanning ? t('ble.scanning') : t('ble.scanPrompt')}
                   </div>
                ) : (
                   <div className="space-y-2">
@@ -178,7 +180,7 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                                 <Bluetooth size={16} />
                               </div>
                               <div>
-                                 <div className="font-medium text-gray-800 text-sm">{device.name || '未命名设备'}</div>
+                                 <div className="font-medium text-gray-800 text-sm">{device.name || t('ble.unnamedDevice')}</div>
                                  <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
                                    <span>ID: {device.deviceId}</span>
                                    <span className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">RSSI: {device.rssi}</span>
@@ -187,14 +189,14 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
                            </div>
                            
                            <div className="flex items-center gap-1.5 pl-11 sm:pl-0 flex-wrap">
-                              <span className="text-[10px] text-gray-400 mr-1">绑定到</span>
+                              <span className="text-[10px] text-gray-400 mr-1">{t('ble.bindTo')}</span>
                               {positions.map(pos => {
                                 const isBound = !!bleDevices[pos];
                                 return (
                                   <button
                                      key={pos}
                                      disabled={isBound || connectingPosition !== null}
-                                     onClick={() => handleConnect(pos, device.deviceId, device.name || '未命名设备')}
+                                     onClick={() => handleConnect(pos, device.deviceId, device.name || t('ble.unnamedDevice'))}
                                      className={`px-2 py-1 rounded text-[10px] border transition-all ${
                                        isBound 
                                          ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'

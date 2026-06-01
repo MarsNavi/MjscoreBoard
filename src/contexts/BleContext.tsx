@@ -2,6 +2,7 @@ import { createContext, useState, useRef, useEffect, ReactNode, useCallback, use
 import { BluetoothLowEnergy, BleDevice } from '@capgo/capacitor-bluetooth-low-energy';
 import { PluginListenerHandle } from '@capacitor/core';
 import { Position } from '../lib/types';
+import i18n from '../i18n';
 
 export type { Position };
 
@@ -32,12 +33,7 @@ const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
 const BLE_TX_CHAR_UUID = '0000fff1-0000-1000-8000-00805f9b34fb';
 const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
 const RECONNECT_INTERVAL = 2000; // 2 seconds
-const POSITION_LABELS: Record<Position, string> = {
-  east: '东',
-  south: '南',
-  west: '西',
-  north: '北',
-};
+const getPositionLabel = (pos: Position): string => i18n.t(`mahjong.${pos}`);
 
 export function BleProvider({ children }: { children: ReactNode }) {
   const [bleDevices, setBleDevices] = useState<Record<Position, BleConnectionInfo | null>>({
@@ -70,7 +66,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         try {
           const { enabled } = await BluetoothLowEnergy.isEnabled();
           if (!enabled) {
-            if (window.confirm('记分板需要开启蓝牙才能搜索和被发现，是否前往系统设置开启蓝牙？')) {
+            if (window.confirm(i18n.t('ble.enableBluetoothPrompt'))) {
               await BluetoothLowEnergy.openBluetoothSettings();
             }
           }
@@ -145,7 +141,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('BLE initialize failed:', error);
-        setBleError('蓝牙不可用。请确认手机支持蓝牙，并已授权蓝牙权限。');
+        setBleError(i18n.t('ble.bluetoothUnavailable'));
       }
     };
     initBle();
@@ -237,7 +233,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error('Failed to start scan:', error);
-      setBleError('无法扫描。请开启蓝牙，并允许定位或附近设备权限。');
+      setBleError(i18n.t('ble.scanError'));
       setIsScanning(false);
     }
   }, [stopScan]);
@@ -247,7 +243,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         const positions: Position[] = ['east', 'south', 'west', 'north'];
         for (const pos of positions) {
             if (bleDevices[pos]?.deviceId === deviceId) {
-                setBleError(`${deviceName} 已绑定到${POSITION_LABELS[pos]}家。请先解除原绑定。`);
+                setBleError(i18n.t('ble.alreadyBound', { name: deviceName, pos: getPositionLabel(pos) + i18n.t('mahjong.playerSuffix') }));
                 return;
             }
         }
@@ -265,7 +261,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
         const connection: BleConnectionInfo = {
             deviceId: deviceId,
-            name: deviceName || '未命名设备',
+            name: deviceName || i18n.t('ble.unnamedDevice'),
             status: 'connected',
         };
 
@@ -283,7 +279,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
         } else if (typeof error === 'string') {
             setBleError(error);
         } else {
-            setBleError('连接失败。请确认计分牌已开机并靠近手机。');
+            setBleError(i18n.t('ble.connectFailed'));
         }
         throw error; 
     }

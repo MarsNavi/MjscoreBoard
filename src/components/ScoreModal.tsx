@@ -79,7 +79,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    if (selectedLoser === null && selectedLoser !== winnerPosition) {
+    if (selectedLoser === null) {
       alert(t('game.selectLoserOrTsumo'));
       return;
     }

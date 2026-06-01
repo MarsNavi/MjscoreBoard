@@ -1,6 +1,7 @@
 import { db } from './db';
 import { Game, GameResult, Penalty, Player, ScoreRecord, User } from './types';
 import { normalizePlayerName } from './playerNames';
+import i18n from '../i18n';
 
 export interface MahjongBackupData {
   exported_at?: string;
@@ -41,13 +42,13 @@ const LEGACY_DEFAULT_CODES = new Set(['local', 'micken', '默认数据']);
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value as T[] : []);
 
 export const getDataFileName = (user: User | null | undefined): string => {
-  if (!user) return '默认档案';
+  if (!user) return i18n.t('dataFile.defaultName');
   const name = String(user.code || '').trim();
-  if (!name || LEGACY_DEFAULT_CODES.has(name)) return '默认档案';
+  if (!name || LEGACY_DEFAULT_CODES.has(name)) return i18n.t('dataFile.defaultName');
   return name;
 };
 
-export const normalizeDataFileName = (name: string | null | undefined, fallback = '未命名档案'): string => {
+export const normalizeDataFileName = (name: string | null | undefined, fallback = i18n.t('dataFile.unnamed')): string => {
   const normalized = String(name || '')
     .replace(/\.[^.]+$/, '')
     .replace(/[_-]+/g, ' ')
@@ -57,7 +58,7 @@ export const normalizeDataFileName = (name: string | null | undefined, fallback 
 
 export const normalizeBackupData = (value: unknown): MahjongBackupData => {
   if (!value || typeof value !== 'object') {
-    throw new Error('不是有效的牌局档案');
+    throw new Error(i18n.t('dataFile.invalidFile'));
   }
 
   const raw = value as MahjongBackupData;
@@ -81,14 +82,14 @@ export const deriveImportDataFileName = (fileName: string, data: MahjongBackupDa
   const fromUser = normalizeDataFileName(data.users?.[0]?.code, '');
   if (fromUser && !LEGACY_DEFAULT_CODES.has(fromUser)) return fromUser;
 
-  return normalizeDataFileName(fileName, '导入档案');
+  return normalizeDataFileName(fileName, i18n.t('dataFile.importFile'));
 };
 
 export const createBlankDataFile = async (name: string): Promise<User> => {
   const now = new Date().toISOString();
   const user: User = {
     id: crypto.randomUUID(),
-    code: normalizeDataFileName(name, '新档案'),
+    code: normalizeDataFileName(name, i18n.t('dataFile.newFile')),
     created_at: now,
     last_login_at: now,
   };
@@ -98,7 +99,7 @@ export const createBlankDataFile = async (name: string): Promise<User> => {
 
 export const renameDataFile = async (userId: string, name: string): Promise<void> => {
   await db.users.update(userId, {
-    code: normalizeDataFileName(name, '未命名档案'),
+    code: normalizeDataFileName(name, i18n.t('dataFile.unnamed')),
     last_login_at: new Date().toISOString(),
   });
 };
@@ -147,7 +148,7 @@ export const deleteDataFile = async (userId: string): Promise<void> => {
 
 export const buildExportDataForUser = async (userId: string): Promise<MahjongBackupData> => {
   const user = await db.users.get(userId);
-  if (!user) throw new Error('档案不存在');
+  if (!user) throw new Error(i18n.t('dataFile.notFound'));
 
   const games = (await db.games.where('creator_id').equals(userId).toArray()).map((game) => ({
     ...game,
@@ -280,7 +281,7 @@ export const importBackupAsNewDataFile = async (
   const now = new Date().toISOString();
   const user: User = {
     id: crypto.randomUUID(),
-    code: normalizeDataFileName(name, '导入档案'),
+    code: normalizeDataFileName(name, i18n.t('dataFile.importFile')),
     created_at: now,
     last_login_at: now,
   };
