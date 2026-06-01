@@ -13,8 +13,11 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.0.1"),
         .package(name: "CapacitorCommunityKeepAwake", path: "../../../node_modules/@capacitor-community/keep-awake"),
+        .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
         .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
+        .package(name: "CapacitorKeyboard", path: "../../../node_modules/@capacitor/keyboard"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
+        .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar"),
         .package(name: "CapgoCapacitorBluetoothLowEnergy", path: "../../../node_modules/@capgo/capacitor-bluetooth-low-energy")
     ],
     targets: [
@@ -24,8 +27,11 @@ let package = Package(
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
                 .product(name: "CapacitorCommunityKeepAwake", package: "CapacitorCommunityKeepAwake"),
+                .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
+                .product(name: "CapacitorKeyboard", package: "CapacitorKeyboard"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
+                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
                 .product(name: "CapgoCapacitorBluetoothLowEnergy", package: "CapgoCapacitorBluetoothLowEnergy")
             ]
         )

@@ -18,6 +18,9 @@ import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } 
 import { useBle } from './contexts/useBle';
 import BleConnectionManager from './components/BleConnectionManager';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
+import { App as CapApp } from '@capacitor/app';
 import {
   buildGameResults,
   buildPlayersWithCalculatedScores,
@@ -60,6 +63,37 @@ function App() {
   const [isConfirmMode, setIsConfirmMode] = useState(false);
   const [showPenaltyModal, setShowPenaltyModal] = useState(false);
   const [currentPenalties, setCurrentPenalties] = useState<Record<string, number> | undefined>(undefined);
+
+  const stateRef = useRef({ currentPage, showScoreModal, showPenaltyModal, showBleModal });
+  useEffect(() => {
+    stateRef.current = { currentPage, showScoreModal, showPenaltyModal, showBleModal };
+  }, [currentPage, showScoreModal, showPenaltyModal, showBleModal]);
+
+  useEffect(() => {
+    const initNativeOptimizations = async () => {
+      try {
+        await StatusBar.setStyle({ style: Style.Light });
+        await StatusBar.setOverlaysWebView({ overlay: true });
+        await Keyboard.setResizeMode({ mode: KeyboardResize.None });
+      } catch (e) {
+        // Ignored on web
+      }
+    };
+    initNativeOptimizations();
+
+    const backButtonListener = CapApp.addListener('backButton', () => {
+      const state = stateRef.current;
+      if (state.showScoreModal) setShowScoreModal(false);
+      else if (state.showPenaltyModal) setShowPenaltyModal(false);
+      else if (state.showBleModal) setShowBleModal(false);
+      else if (state.currentPage !== 'home' && state.currentPage !== 'game') setCurrentPage('home');
+      else if (state.currentPage === 'home') CapApp.exitApp();
+    });
+
+    return () => {
+      backButtonListener.then(l => l.remove());
+    };
+  }, []);
 
   const { bleDevices, writeData, setMessageHandler } = useBle();
 
