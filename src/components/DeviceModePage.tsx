@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { useTranslation } from 'react-i18next';
 import { X, Play, ShieldAlert, BadgeCheck } from 'lucide-react';
