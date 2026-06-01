@@ -32,7 +32,7 @@ const COLORS = {
 };
 
 const setFont = (ctx: CanvasRenderingContext2D, size: number, weight = 700) => {
-  ctx.font = `${weight} ${size}px -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif`;
+  const lang = i18n.language; const fontStack = lang === "ja" ? "-apple-system, BlinkMacSystemFont, \"Hiragino Sans\", \"Meiryo\", \"Noto Sans JP\", sans-serif" : "-apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Noto Sans CJK SC\", \"Microsoft YaHei\", sans-serif"; ctx.font = `${weight} ${size}px ${fontStack}`;
 };
 
 const roundRect = (
