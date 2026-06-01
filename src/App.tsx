@@ -15,7 +15,7 @@ import HelpPage from './components/HelpPage';
 import MorePage from './components/MorePage';
 
 import DeviceModePage from './components/DeviceModePage';
-import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, MoreHorizontal } from 'lucide-react';
+import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Settings } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
 import { useBle } from './contexts/useBle';
 import BleConnectionManager from './components/BleConnectionManager';
@@ -1042,7 +1042,7 @@ function App() {
     { page: 'home' as const, path: '', label: t('common.start', '开局'), Icon: Home },
     { page: 'history' as const, path: '/history', label: t('common.history'), Icon: History },
     { page: 'stats' as const, path: '/stats', label: t('common.stats'), Icon: BarChart3 },
-    { page: 'more' as const, path: '/more', label: t('more.title'), Icon: MoreHorizontal },
+    { page: 'more' as const, path: '/more', label: t('more.title'), Icon: Settings },
   ];
 
   const mainNavigation = (

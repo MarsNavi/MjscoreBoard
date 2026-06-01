@@ -385,7 +385,7 @@
     "languageSettings": "言語設定"
   },
   "more": {
-    "title": "その他",
+    "title": "設定",
     "tools": "ツール",
     "bleConnect": "Bluetoothスコアボード",
     "bleConnectDesc": "ESP32ハードウェアまたはスマホ周辺機器を接続",

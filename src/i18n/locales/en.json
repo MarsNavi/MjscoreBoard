@@ -385,7 +385,7 @@
     "languageSettings": "Language Settings"
   },
   "more": {
-    "title": "More",
+    "title": "Settings",
     "tools": "Tools",
     "bleConnect": "BLE Scoreboard",
     "bleConnectDesc": "Connect ESP32 hardware or phone peripherals",

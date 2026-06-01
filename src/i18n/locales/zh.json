@@ -385,7 +385,7 @@
     "languageSettings": "语言设置"
   },
   "more": {
-    "title": "更多",
+    "title": "设置",
     "tools": "工具",
     "bleConnect": "蓝牙计分板连接",
     "bleConnectDesc": "连接 ESP32 硬件计分板或手机外设",
