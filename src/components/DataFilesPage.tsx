@@ -592,17 +592,22 @@ export default function DataFilesPage({
             <button onClick={() => setShowContactModal(false)} className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
               <X size={20} />
             </button>
-            <h2 className="text-xl font-black text-gray-900 mb-6">{t('more.contactTitle')}</h2>
-            <div className="space-y-4">
-              <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100/50">
-                <div className="text-sm font-bold text-orange-800 mb-1">{t('more.contactName')}</div>
-                <div className="text-sm text-orange-600">{t('more.contactPhone')}</div>
+            <h2 className="text-xl font-black text-gray-900 mb-4">{t('more.letterTitle')}</h2>
+            <div className="space-y-6">
+              <div className="text-[15px] leading-relaxed text-gray-700 whitespace-pre-wrap">
+                {t('more.letterContent')}
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                <div className="text-sm font-bold text-gray-800 mb-1">GitHub</div>
-                <a href="https://github.com/MarsNavi/MjscoreBoard" target="_blank" rel="noreferrer" className="text-sm text-blue-500 hover:underline break-all">
-                  https://github.com/MarsNavi/MjscoreBoard
-                </a>
+              <div className="space-y-3">
+                <div className="bg-orange-50 rounded-xl p-3 border border-orange-100/50 flex flex-col gap-1">
+                  <div className="text-xs font-bold text-orange-800">{t('more.contactTitle')}</div>
+                  <div className="text-sm text-orange-700 font-medium">{t('more.contactName')} · {t('more.contactPhone')}</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col gap-1">
+                  <div className="text-xs font-bold text-gray-500">GitHub</div>
+                  <a href="https://github.com/MarsNavi/MjscoreBoard" target="_blank" rel="noreferrer" className="text-sm text-blue-500 hover:underline break-all">
+                    https://github.com/MarsNavi/MjscoreBoard
+                  </a>
+                </div>
               </div>
             </div>
           </div>

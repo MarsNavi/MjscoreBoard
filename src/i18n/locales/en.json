@@ -400,6 +400,8 @@
     "author": "Author",
     "contactTitle": "Contact Author",
     "contactName": "Rui Li",
-    "contactPhone": "+86 13501165270 (WeChat)"
+    "contactPhone": "+86 13501165270 (WeChat)",
+    "letterTitle": "A Letter to Users",
+    "letterContent": "Hello everyone, I'm Rui Li, a professional 2-Dan player in Mahjong Competition Rules (MCR). I developed this app hoping to help more people discover, learn, and enjoy MCR, and to contribute my small part to its competitive development. Driven by this vision, the project is completely open-source. I hope you find it useful."
   }
 }
