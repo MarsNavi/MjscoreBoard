@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, Database, FilePlus, FolderOpen, GitMerge, Pencil, Plus, Share2, Trash2, Upload, X } from 'lucide-react';
+import { Database, FilePlus, FolderOpen, GitMerge, Pencil, Plus, Share2, Trash2, Upload, X, Globe, BookOpen, Bluetooth, MonitorPlay, User as UserIcon, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
@@ -25,7 +25,8 @@ interface DataFilesPageProps {
   onDeleteDataFile: () => Promise<void>;
   onDataFileChanged: (userId?: string) => Promise<void>;
   onViewHelp: () => void;
-  onBack?: () => void;
+  onOpenBle: () => void;
+  onDeviceMode: () => void;
 }
 
 export default function DataFilesPage({
@@ -37,8 +38,37 @@ export default function DataFilesPage({
   onDeleteDataFile,
   onDataFileChanged,
   onViewHelp,
-  onBack,
+  onOpenBle,
+  onDeviceMode,
 }: DataFilesPageProps) {
+  const { t, i18n } = useTranslation();
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang);
+    try { localStorage.setItem('mjscoreboard_lang', lang); } catch {}
+  };
+
+  const MenuItem = ({ icon: Icon, label, desc, onClick, trailing }: {
+    icon: React.ElementType;
+    label: string;
+    desc?: string;
+    onClick?: () => void;
+    trailing?: React.ReactNode;
+  }) => (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-orange-50/60 active:bg-orange-100/60 transition-colors text-left rounded-xl"
+    >
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center flex-shrink-0">
+        <Icon size={20} className="text-orange-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[15px] font-semibold text-gray-800">{label}</div>
+        {desc && <div className="text-xs text-gray-500 mt-0.5">{desc}</div>}
+      </div>
+      {trailing || <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />}
+    </button>
+  );
   const [sharingDataFile, setSharingDataFile] = useState(false);
   const [importingDataFile, setImportingDataFile] = useState(false);
   const [showDataFileSwitcher, setShowDataFileSwitcher] = useState(false);
@@ -49,7 +79,7 @@ export default function DataFilesPage({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentDataFile = dataFiles.find((file) => file.id === user.id);
   const activeFileName = currentDataFile?.name || getDataFileName(user);
-  const { t } = useTranslation();
+
 
   const formatLastGameDate = (dateString?: string) => {
     if (!dateString) return t('files.noRecord');
@@ -243,20 +273,7 @@ export default function DataFilesPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50">
-      {onBack && (
-        <div className="bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 text-white pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] px-4 shadow-2xl">
-          <div className="max-w-4xl mx-auto flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight drop-shadow-lg">
-              {t('more.dataFiles')}
-            </h1>
-          </div>
-        </div>
-      )}
-      <div className="p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-pink-50 p-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-4">
       <input
         type="file"
         accept="application/json"
@@ -495,6 +512,68 @@ export default function DataFilesPage({
                 <span className="mt-0.5 block text-xs font-semibold text-blue-700/60">{t('files.importDesc')}</span>
               </span>
             </button>
+          </div>
+        {/* Tools Section */}
+        <div className="bg-white rounded-[2rem] shadow-lg border border-orange-100 overflow-hidden mt-4">
+          <div className="px-5 pt-5 pb-2">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('more.tools', '工具')}</h3>
+          </div>
+          <MenuItem
+            icon={Bluetooth}
+            label={t('more.bleConnect', '蓝牙计分板连接')}
+            desc={t('more.bleConnectDesc', '连接 ESP32 硬件计分板或手机外设')}
+            onClick={onOpenBle}
+          />
+          <div className="mx-5 border-t border-gray-100" />
+          <MenuItem
+            icon={MonitorPlay}
+            label={t('more.simulatedBoard', '模拟计分板')}
+            desc={t('more.simulatedBoardDesc', '将本机作为计分板显示设备')}
+            onClick={onDeviceMode}
+          />
+        </div>
+
+        {/* Settings and About Section */}
+        <div className="bg-white rounded-[2rem] shadow-lg border border-orange-100 overflow-hidden mt-4">
+          <div className="px-5 pt-5 pb-2">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('more.settings', '设置')}</h3>
+          </div>
+          <div className="flex items-center gap-4 px-5 py-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center flex-shrink-0">
+              <Globe size={20} className="text-orange-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-semibold text-gray-800">{t('more.language', '语言')}</div>
+            </div>
+            <select
+              value={i18n.language}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 focus:outline-none focus:border-orange-400"
+            >
+              <option value="zh">简体中文</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
+          
+          <div className="px-5 pt-4 pb-2 mt-2">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('more.about', '关于')}</h3>
+          </div>
+          <MenuItem
+            icon={BookOpen}
+            label={t('more.versionHistory', '版本历史')}
+            onClick={onViewHelp}
+          />
+          <div className="mx-5 border-t border-gray-100" />
+          <div className="flex items-center gap-4 px-5 py-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center flex-shrink-0">
+              <UserIcon size={20} className="text-orange-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-semibold text-gray-800">{t('more.author', '作者')}</div>
+              <div className="text-xs text-gray-500 mt-0.5">李睿</div>
+            </div>
+            <span className="text-xs text-gray-400 font-mono">v1.6.1</span>
           </div>
         </div>
 

@@ -12,10 +12,8 @@ import DataFilesPage from './components/DataFilesPage';
 import GameHistoryPage from './components/GameHistoryPage';
 import PlayerStatsPage from './components/PlayerStatsPage';
 import HelpPage from './components/HelpPage';
-import MorePage from './components/MorePage';
-
 import DeviceModePage from './components/DeviceModePage';
-import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Settings } from 'lucide-react';
+import { RotateCcw, Undo, History, Ban, AlertTriangle, Home, Bluetooth, BarChart3, Database } from 'lucide-react';
 import { loadLocalGameSnapshot, saveLocalGameSnapshot, clearLocalGameSnapshot } from './lib/localStore';
 import { useBle } from './contexts/useBle';
 import BleConnectionManager from './components/BleConnectionManager';
@@ -38,7 +36,7 @@ import {
 const TOTAL_GAMES = 16;
 const DEFAULT_DATA_FILE_ID = 'default-data-file';
 
-type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'more' | 'gameDetail' | 'help' | 'deviceMode';
+type PageView = 'home' | 'game' | 'history' | 'stats' | 'data' | 'gameDetail' | 'help' | 'deviceMode';
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -195,9 +193,6 @@ function App() {
     } else if (hash === '/data') {
       setSelectedGameId(null);
       setCurrentPage('data');
-    } else if (hash === '/more') {
-      setSelectedGameId(null);
-      setCurrentPage('more');
     } else if (hash === '/help') {
       setSelectedGameId(null);
       setCurrentPage('help');
@@ -1042,7 +1037,7 @@ function App() {
     { page: 'home' as const, path: '', label: t('common.start', '开局'), Icon: Home },
     { page: 'history' as const, path: '/history', label: t('common.history'), Icon: History },
     { page: 'stats' as const, path: '/stats', label: t('common.stats'), Icon: BarChart3 },
-    { page: 'more' as const, path: '/more', label: t('more.title'), Icon: Settings },
+    { page: 'data' as const, path: '/data', label: t('files.manageFiles'), Icon: Database },
   ];
 
   const mainNavigation = (
@@ -1100,25 +1095,14 @@ function App() {
 
 
   if (currentPage === 'deviceMode') {
-    return <DeviceModePage onExit={() => navigateTo('/more')} />;
-  }
-
-  if (currentPage === 'more') {
-    return renderMainPage(
-      <MorePage
-        onOpenBle={() => setShowBleModal(true)}
-        onDeviceMode={() => navigateTo('deviceMode')}
-        onDataFiles={() => navigateTo('/data')}
-        onVersionHistory={() => navigateTo('/help')}
-      />
-    );
+    return <DeviceModePage onExit={() => navigateTo('/data')} />;
   }
 
   if (currentPage === 'help') {
     return (
       <>
         {bleManager}
-        <HelpPage user={currentUser} onBack={() => navigateTo('/more')} />
+        <HelpPage user={currentUser} onBack={() => navigateTo('/data')} />
       </>
     );
   }
@@ -1147,21 +1131,19 @@ function App() {
   }
 
   if (currentPage === 'data') {
-    return (
-      <>
-        {bleManager}
-        <DataFilesPage
-          user={currentUser}
-          dataFiles={dataFiles}
-          onSwitchDataFile={activateDataFile}
-          onCreateDataFile={handleCreateDataFile}
-          onRenameDataFile={handleRenameDataFile}
-          onDeleteDataFile={handleDeleteDataFile}
-          onDataFileChanged={handleDataFileChanged}
-          onViewHelp={() => navigateTo('/help')}
-          onBack={() => navigateTo('/more')}
-        />
-      </>
+    return renderMainPage(
+      <DataFilesPage
+        user={currentUser}
+        dataFiles={dataFiles}
+        onSwitchDataFile={activateDataFile}
+        onCreateDataFile={handleCreateDataFile}
+        onRenameDataFile={handleRenameDataFile}
+        onDeleteDataFile={handleDeleteDataFile}
+        onDataFileChanged={handleDataFileChanged}
+        onViewHelp={() => navigateTo('/help')}
+        onOpenBle={() => setShowBleModal(true)}
+        onDeviceMode={() => navigateTo('deviceMode')}
+      />
     );
   }
 
