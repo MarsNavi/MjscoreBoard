@@ -449,7 +449,7 @@ const drawDetailTable = (
           });
           drawTag(ctx, i18n.t('shareImage.bigWin', { fan: fanCount }), cellCenterX, cellCenterY - 34, '#fef3c7', '#d97706');
         } else {
-          // D. Regular win (under 32 fans): clean red cell with standard tag
+          // D. Regular win (under 32 fans): clean red cell with absolutely NO corner symbols/text
           fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#fef2f2');
           strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(239, 68, 68, 0.15)', 1);
           text(ctx, `+${change}`, cellCenterX, cellCenterY + 6, {
@@ -459,8 +459,6 @@ const drawDetailTable = (
             align: 'center',
             baseline: 'middle',
           });
-          const label = score.loser_player_id ? i18n.t('game.winner') : i18n.t('game.selfDraw');
-          drawTag(ctx, label, cellCenterX, cellCenterY - 34, '#fef2f2', '#ef4444');
         }
 
       } else if (isLoser) {
@@ -490,7 +488,7 @@ const drawDetailTable = (
           });
           drawTag(ctx, i18n.t('shareImage.discardFan', { fan: fanCount }), cellCenterX, cellCenterY - 34, '#f3e8ff', '#7c3aed');
         } else {
-          // C. Regular discard (under 32 fans): clean purple cell with standard tag
+          // C. Regular discard (under 32 fans): clean purple cell with NO corner tags
           fillRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, '#faf5ff');
           strokeRoundRect(ctx, cellCenterX - 72, cellCenterY - 24, 144, 48, 12, 'rgba(124, 58, 237, 0.15)', 1);
           text(ctx, String(change), cellCenterX, cellCenterY + 6, {
@@ -500,7 +498,6 @@ const drawDetailTable = (
             align: 'center',
             baseline: 'middle',
           });
-          drawTag(ctx, i18n.t('game.loser'), cellCenterX, cellCenterY - 34, '#faf5ff', '#a855f7');
         }
 
       } else {
