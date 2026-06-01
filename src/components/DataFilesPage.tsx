@@ -587,27 +587,49 @@ export default function DataFilesPage({
       </div>
 
       {showContactModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowContactModal(false)}>
-          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowContactModal(false)} className="absolute right-4 top-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-all" onClick={() => setShowContactModal(false)}>
+          <div 
+            className="w-full max-w-md rounded-3xl bg-[#fdfbf7] p-8 shadow-2xl relative overflow-hidden border border-[#f3eee3]" 
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Decorative background element */}
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-orange-100/50 rounded-full blur-3xl mix-blend-multiply"></div>
+            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-rose-100/40 rounded-full blur-3xl mix-blend-multiply"></div>
+            
+            <button 
+              onClick={() => setShowContactModal(false)} 
+              className="absolute right-5 top-5 p-2 text-[#bcaaa4] hover:text-gray-600 hover:bg-[#f5f0e6] rounded-full transition-colors z-10"
+            >
               <X size={20} />
             </button>
-            <h2 className="text-xl font-black text-gray-900 mb-4">{t('more.letterTitle')}</h2>
-            <div className="space-y-6">
-              <div className="text-[15px] leading-relaxed text-gray-700 whitespace-pre-wrap">
+            
+            <div className="relative z-10">
+              <h2 className="text-2xl font-black text-[#4e342e] mb-6 tracking-wide">{t('more.letterTitle')}</h2>
+              
+              <div className="space-y-4 text-[15px] leading-relaxed text-[#5d4037] whitespace-pre-wrap">
                 {t('more.letterContent')}
               </div>
-              <div className="space-y-3">
-                <div className="bg-orange-50 rounded-xl p-3 border border-orange-100/50 flex flex-col gap-1">
-                  <div className="text-xs font-bold text-orange-800">{t('more.contactTitle')}</div>
-                  <div className="text-sm text-orange-700 font-medium">{t('more.contactName')} · {t('more.contactPhone')}</div>
+              
+              <div className="mt-6 text-right">
+                <div className="inline-block text-[#8d6e63] font-medium italic">
+                  —— {t('more.letterSignature', '愿国标麻将越来越好！')}
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col gap-1">
-                  <div className="text-xs font-bold text-gray-500">GitHub</div>
-                  <a href="https://github.com/MarsNavi/MjscoreBoard" target="_blank" rel="noreferrer" className="text-sm text-blue-500 hover:underline break-all">
-                    https://github.com/MarsNavi/MjscoreBoard
-                  </a>
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-[#efebe1] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
+                <div className="flex items-center gap-2 text-[#6d4c41]">
+                  <span className="font-semibold">{t('more.contactName')} :</span>
+                  <span className="opacity-90">{t('more.contactPhone')}</span>
                 </div>
+                <a 
+                  href="https://github.com/MarsNavi/MjscoreBoard" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="flex items-center gap-1.5 text-orange-700 hover:text-orange-800 font-medium transition-colors"
+                >
+                  <Globe size={14} />
+                  <span>GitHub Project</span>
+                </a>
               </div>
             </div>
           </div>
