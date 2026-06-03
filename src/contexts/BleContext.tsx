@@ -218,10 +218,16 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
       scanListenerRef.current = await BluetoothLowEnergy.addListener('deviceScanned', (event) => {
           const device = event.device;
-          if (!device.name) return;
+          // Accept all devices matching our Service UUID — name may arrive on a later advertisement packet
           const existingIndex = scannedDevicesRef.current.findIndex(d => d.deviceId === device.deviceId);
           if (existingIndex === -1) {
             scannedDevicesRef.current = [...scannedDevicesRef.current, device];
+            setScannedDevices([...scannedDevicesRef.current]);
+          } else if (device.name && !scannedDevicesRef.current[existingIndex].name) {
+            // Update with the name once we receive it
+            scannedDevicesRef.current = scannedDevicesRef.current.map((d, i) =>
+              i === existingIndex ? { ...d, name: device.name } : d
+            );
             setScannedDevices([...scannedDevicesRef.current]);
           }
       });
@@ -312,7 +318,8 @@ export function BleProvider({ children }: { children: ReactNode }) {
           deviceId,
           service: BLE_SERVICE_UUID,
           characteristic: BLE_RX_CHAR_UUID,
-          value: Array.from(bytes)
+          value: Array.from(bytes),
+          type: 'withoutResponse'
       });
   }, []);
 

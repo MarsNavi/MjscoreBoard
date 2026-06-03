@@ -33,7 +33,10 @@ export default function BleConnectionManager({ onClose, isOpen }: BleConnectionM
       
       await contextConnect(position, deviceId, deviceName);
 
-      // Send Setup Command immediately
+      // Small delay to let the GATT stack settle before writing
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Send Setup Command to tell the device which position it is
       const encoder = new TextEncoder();
       const positionMap: Record<Position, number> = {
         east: 0,
