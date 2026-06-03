@@ -6,7 +6,7 @@ const keyId = 'GL8UDBLWYF';
 const issuerId = 'ff871bef-0835-4aca-81d6-709743a64d44';
 const keyPath = `${process.env.HOME}/.appstoreconnect/private_keys/AuthKey_${keyId}.p8`;
 const appId = '6758918094';
-const targetVersion = '1.6.7';
+const targetVersion = '1.6.8';
 
 const privateKey = fs.readFileSync(keyPath, 'utf8');
 const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
@@ -51,7 +51,7 @@ async function run() {
     throw new Error('No editable version found!');
   }
 
-  console.log('2. Waiting for build 1.6.7 to finish processing (this takes Apple 5-15 mins)...');
+  console.log('2. Waiting for build 1.6.8 to finish processing (this takes Apple 5-15 mins)...');
   let buildId = null;
   while (!buildId) {
     const builds = await api('GET', `/v1/builds?filter[app]=${appId}&include=preReleaseVersion&limit=20&sort=-uploadedDate`);
@@ -115,7 +115,7 @@ async function run() {
     data: { type: 'reviewSubmissions', id: subId, attributes: { submitted: true } }
   });
 
-  console.log('🎉 1.6.7 SUBMITTED TO APP STORE FOR REVIEW!');
+  console.log('🎉 1.6.8 SUBMITTED TO APP STORE FOR REVIEW!');
   console.log('State:', finalRes.data.attributes.state);
 }
 
