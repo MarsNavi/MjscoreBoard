@@ -227,7 +227,8 @@
     "mahjongScoreboard": "Mahjong Scoreboard",
     "deviceId": "Device ID: {{id}}",
     "waitingHost": "Waiting for host connection...",
-    "followView": "Follow View: ",
+    "followView": "Following: ",
+    "fixedView": "Fixed: ",
     "position": "Seat",
     "switch": "Switch",
     "win": "Win",
@@ -235,7 +236,12 @@
     "selectFollowPlayer": "Select player to follow",
     "followPlayerDesc": "Screen will automatically rotate to keep this player at the bottom",
     "posSeat": "Seat {{pos}}",
-    "displayMode": "Use as Display (Scoreboard Mode)"
+    "displayMode": "Use as Display (Scoreboard Mode)",
+    "followPlayerMode": "Follow Player",
+    "followPlayerModeDesc": "View follows the player, always at the bottom",
+    "fixedPositionMode": "Fixed Position",
+    "fixedPositionModeDesc": "View stays fixed, like a hardware board",
+    "confirmResult": "Please confirm the round result"
   },
   "shareImage": {
     "gameDetailTitle": "MCR Mahjong Game Details",

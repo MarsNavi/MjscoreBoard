@@ -18,7 +18,7 @@
     "copyright": "2026 Rui Li",
     "releaseType": "AFTER_APPROVAL",
     "usesIdfa": false,
-    "versionString": "1.6"
+    "versionString": "1.7"
   },
   "versionLocalization": {
     "promotionalText": "为线下国标麻将比赛设计的实时计分工具，支持16盘制、座位轮换、战绩统计、档案分享和本地备份。",

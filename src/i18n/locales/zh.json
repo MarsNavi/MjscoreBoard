@@ -227,7 +227,8 @@
     "mahjongScoreboard": "麻将计分板",
     "deviceId": "设备号: {{id}}",
     "waitingHost": "等待主机连接...",
-    "followView": "视角跟随: ",
+    "followView": "跟随: ",
+    "fixedView": "固定: ",
     "position": "位",
     "switch": "切换",
     "win": "和牌",
@@ -235,7 +236,12 @@
     "selectFollowPlayer": "选择你要跟随的选手",
     "followPlayerDesc": "手机屏幕会自动旋转，确保该选手始终在正下方",
     "posSeat": "{{pos}}位",
-    "displayMode": "作为显示屏 (模拟计分板)"
+    "displayMode": "作为显示屏 (模拟计分板)",
+    "followPlayerMode": "固定选手",
+    "followPlayerModeDesc": "屏幕跟着人走，你的选手始终在下方",
+    "fixedPositionMode": "固定位置",
+    "fixedPositionModeDesc": "屏幕不动，和硬件计分板一样",
+    "confirmResult": "请确认本局结果"
   },
   "shareImage": {
     "gameDetailTitle": "国标麻将对局明细",

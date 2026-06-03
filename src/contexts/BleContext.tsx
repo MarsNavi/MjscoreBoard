@@ -185,6 +185,23 @@ export function BleProvider({ children }: { children: ReactNode }) {
                 [pos]: { ...prev[pos]!, status: 'connected' }
              }));
              
+             // Re-send SETUP command so the device knows its position after reconnect
+             const positionMap: Record<Position, number> = { east: 0, south: 1, west: 2, north: 3 };
+             const setupCmd = `SETUP:${positionMap[pos]}\n`;
+             const cmdData = new TextEncoder().encode(setupCmd);
+             try {
+               await new Promise(resolve => setTimeout(resolve, 300));
+               await BluetoothLowEnergy.writeCharacteristic({
+                 deviceId: device.deviceId,
+                 service: BLE_SERVICE_UUID,
+                 characteristic: BLE_RX_CHAR_UUID,
+                 value: Array.from(cmdData),
+                 type: 'withoutResponse'
+               });
+             } catch (setupErr) {
+               // SETUP re-send failed — device will still work via sync, just position might be unknown
+             }
+             
            } catch (err) {
              // Reconnect attempt failed silently — will retry on next interval
            }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { useTranslation } from 'react-i18next';
-import { X, Play, ShieldAlert, BadgeCheck } from 'lucide-react';
+import { X, ShieldAlert, User, MapPin } from 'lucide-react';
 import { deviceModeBle } from '../lib/deviceModeBle';
 import { Position } from '../lib/types';
 
@@ -9,7 +9,8 @@ interface DeviceModePageProps {
   onExit: () => void;
 }
 
-type DeviceStatus = 'WAITING' | 'PLAY' | 'CONFIRM' | 'HU' | 'HUANG';
+type DeviceStatus = 'WAITING' | 'PLAY' | 'CONFIRM';
+type ViewMode = 'follow_player' | 'fixed_position';
 
 interface PlayState {
   scores: Record<Position, string>;
@@ -32,6 +33,10 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
     north: t('mahjong.north') 
   };
   const [confirmMsg, setConfirmMsg] = useState('');
+  
+  // View mode: follow_player = screen rotates with player, fixed_position = like ESP32
+  const [viewMode, setViewMode] = useState<ViewMode>('follow_player');
+  const viewModeRef = useRef<ViewMode>('follow_player');
   
   // 当前绑定的初始物理座位索引
   const [initialSetupIndex, setInitialSetupIndex] = useState<number | null>(null);
@@ -69,54 +74,139 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       if (active) setDeviceId(storedId);
       
       deviceModeBle.setMessageHandler((msg: string) => {
-        if (msg.startsWith('STATE:PLAY:')) {
-            const parts = msg.split(':');
-            if (parts.length >= 14) {
+        const trimmed = msg.trim();
+        
+        // Handle SETUP command (position assignment)
+        if (trimmed.startsWith('SETUP:')) {
+            const index = parseInt(trimmed.substring(6).trim(), 10);
+            if (index >= 0 && index < 4) {
+                setInitialSetupIndex(index);
+                initialSetupIndexRef.current = index;
+                setMyPosition(POSITIONS[index]);
+            }
+            return;
+        }
+        
+        // Handle all STATE: messages
+        // Unified format: STATE:<mode>:<eScore>:<sScore>:<wScore>:<nScore>:<eName>:<sName>:<wName>:<nName>:<eActive>:<sActive>:<wActive>:<nActive>
+        if (trimmed.startsWith('STATE:')) {
+            const parts = trimmed.split(':');
+            const mode = parts[1];
+            
+            // IDLE / WAITING — reset to waiting screen
+            if (mode === 'IDLE' || mode === 'WAITING') {
+                setStatus('WAITING');
+                // If 14-field format, still extract names for later use
+                if (parts.length >= 14) {
+                    const newNames = { east: parts[6], south: parts[7], west: parts[8], north: parts[9] };
+                    setPlayState({
+                        scores: { east: '0', south: '0', west: '0', north: '0' },
+                        names: newNames,
+                        actives: { east: false, south: false, west: false, north: false }
+                    });
+                } else {
+                    setPlayState(null);
+                }
+                return;
+            }
+            
+            // GAMEOVER — show final scores  
+            if (mode === 'GAMEOVER') {
+                if (parts.length >= 14) {
+                    const newNames = { east: parts[6], south: parts[7], west: parts[8], north: parts[9] };
+                    setPlayState({
+                        scores: { east: parts[2], south: parts[3], west: parts[4], north: parts[5] },
+                        names: newNames,
+                        actives: { east: false, south: false, west: false, north: false }
+                    });
+                } else if (parts.length >= 6) {
+                    // Fallback: STATE:GAMEOVER:e:s:w:n (no names)
+                    setPlayState(prev => ({
+                        scores: { east: parts[2], south: parts[3], west: parts[4], north: parts[5] },
+                        names: prev?.names || { east: '', south: '', west: '', north: '' },
+                        actives: { east: false, south: false, west: false, north: false }
+                    }));
+                }
+                setStatus('PLAY'); // Show scores in play view
+                return;
+            }
+            
+            // PLAY / CONFIRM — main game states (14 fields, phone format)
+            if ((mode === 'PLAY' || mode === 'CONFIRM') && parts.length >= 14) {
                 const newNames = { east: parts[6], south: parts[7], west: parts[8], north: parts[9] };
                 setPlayState({
                     scores: { east: parts[2], south: parts[3], west: parts[4], north: parts[5] },
                     names: newNames,
                     actives: { east: parts[10] === '1', south: parts[11] === '1', west: parts[12] === '1', north: parts[13] === '1' }
                 });
-                setStatus('PLAY');
                 
-                // 自动视角跟随逻辑：手机跟着选手走
-                setFollowName(currentFollow => {
-                    let targetName = currentFollow;
-                    // 如果尚未确定跟随谁，且我们收到了 SETUP 绑定的初始座位
-                    if (!targetName && initialSetupIndexRef.current !== null) {
-                        targetName = newNames[POSITIONS[initialSetupIndexRef.current]];
-                    }
-                    
-                    if (targetName) {
-                        // 寻找该玩家当前坐在哪个方位
-                        if (targetName === newNames.east) setMyPosition('east');
-                        else if (targetName === newNames.south) setMyPosition('south');
-                        else if (targetName === newNames.west) setMyPosition('west');
-                        else if (targetName === newNames.north) setMyPosition('north');
-                    }
-                    return targetName;
-                });
+                if (mode === 'CONFIRM') {
+                    setConfirmMsg(t('device.confirmResult'));
+                    setStatus('CONFIRM');
+                } else {
+                    setStatus('PLAY');
+                }
+                
+                // Auto follow logic: only in follow_player mode
+                if (viewModeRef.current === 'follow_player') {
+                    setFollowName(currentFollow => {
+                        let targetName = currentFollow;
+                        if (!targetName && initialSetupIndexRef.current !== null) {
+                            targetName = newNames[POSITIONS[initialSetupIndexRef.current]];
+                        }
+                        
+                        if (targetName) {
+                            if (targetName === newNames.east) setMyPosition('east');
+                            else if (targetName === newNames.south) setMyPosition('south');
+                            else if (targetName === newNames.west) setMyPosition('west');
+                            else if (targetName === newNames.north) setMyPosition('north');
+                        }
+                        return targetName;
+                    });
+                }
+                // In fixed_position mode, myPosition stays locked to initialSetupIndex
+                return;
             }
-        } else if (msg.startsWith('STATE:CONFIRM:')) {
-            setConfirmMsg(msg.substring(14));
-            setStatus('CONFIRM');
-        } else if (msg.startsWith('STATE:HU:')) {
-            setConfirmMsg(msg.substring(9));
-            setStatus('HU');
-        } else if (msg === 'STATE:HUANG') {
-            setStatus('HUANG');
-        } else if (msg.startsWith('STATE:IDLE')) {
-            setStatus('WAITING');
-            setPlayState(null);
-            setFollowName(null);
-        } else if (msg.startsWith('SETUP:')) {
-            const index = parseInt(msg.substring(6).trim(), 10);
-            if (index >= 0 && index < 4) {
-                setInitialSetupIndex(index);
-                initialSetupIndexRef.current = index;
-                setMyPosition(POSITIONS[index]);
+            
+            // Fallback: ESP32 format STATE:PLAY:round:gameNum:e:s:w:n (8 fields)
+            // Handles the case where a phone is misidentified as ESP32
+            if ((mode === 'PLAY' || mode === 'CONFIRM') && parts.length >= 8 && parts.length < 14) {
+                setPlayState(prev => ({
+                    scores: { east: parts[4], south: parts[5], west: parts[6], north: parts[7] },
+                    names: prev?.names || { east: '', south: '', west: '', north: '' },
+                    actives: prev?.actives || { east: false, south: false, west: false, north: false }
+                }));
+                if (mode === 'CONFIRM') {
+                    setConfirmMsg(t('device.confirmResult'));
+                    setStatus('CONFIRM');
+                } else {
+                    setStatus('PLAY');
+                }
+                return;
             }
+        }
+        
+        // Handle NAME: command (ESP32 format fallback)
+        if (trimmed.startsWith('NAME:')) {
+            const nameParts = trimmed.split(':');
+            if (nameParts.length >= 3) {
+                const posIdx = parseInt(nameParts[1], 10);
+                const name = nameParts.slice(2).join(':'); // rejoin in case name contains ':'
+                if (posIdx >= 0 && posIdx < 4) {
+                    setPlayState(prev => {
+                        if (!prev) return prev;
+                        const newNames = { ...prev.names };
+                        newNames[POSITIONS[posIdx]] = name;
+                        return { ...prev, names: newNames };
+                    });
+                }
+            }
+            return;
+        }
+        
+        // LANG: command — silently accept (phone handles language from its own settings)
+        if (trimmed.startsWith('LANG:')) {
+            return;
         }
       });
 
@@ -197,6 +287,34 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
               {t('device.deviceId', { id: deviceId || t('common.loading') })}
             </div>
             
+            {/* View Mode Selector */}
+            <div className="flex gap-3 justify-center mt-6">
+              <button
+                onClick={() => { setViewMode('follow_player'); viewModeRef.current = 'follow_player'; }}
+                className={`flex-1 max-w-[200px] p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                  viewMode === 'follow_player'
+                    ? 'border-orange-500 bg-orange-500/10 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.2)]'
+                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                <User size={24} />
+                <span className="font-bold text-sm">{t('device.followPlayerMode')}</span>
+                <span className="text-[10px] opacity-60">{t('device.followPlayerModeDesc')}</span>
+              </button>
+              <button
+                onClick={() => { setViewMode('fixed_position'); viewModeRef.current = 'fixed_position'; }}
+                className={`flex-1 max-w-[200px] p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                  viewMode === 'fixed_position'
+                    ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                    : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                <MapPin size={24} />
+                <span className="font-bold text-sm">{t('device.fixedPositionMode')}</span>
+                <span className="text-[10px] opacity-60">{t('device.fixedPositionModeDesc')}</span>
+              </button>
+            </div>
+            
             <div className="flex items-center justify-center gap-3 text-slate-400 text-lg sm:text-xl animate-pulse mt-4">
               <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
               {t('device.waitingHost')}
@@ -205,18 +323,28 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
         </div>
       )}
 
-      {status === 'PLAY' && playState && (
+      {(status === 'PLAY' || status === 'CONFIRM') && playState && (
         <div className="w-full max-w-5xl aspect-video sm:aspect-auto sm:h-full max-h-[90vh] bg-slate-900 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-row overflow-hidden relative">
            
-           {/* 顶部视角切换提示 */}
+           {/* 顶部视角/模式提示 */}
            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700 backdrop-blur">
-              <span className="text-xs sm:text-sm text-slate-400">{t('device.followView')} <strong className="text-orange-400">{playState.names[myPosition]} ({t('device.posSeat', { pos: POS_LABELS[myPosition] })})</strong></span>
-              <button 
-                onClick={() => setShowFollowSelector(true)}
-                className="text-[10px] sm:text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded transition-colors"
-              >
-                {t('device.switch')}
-              </button>
+              {viewMode === 'follow_player' ? (
+                <>
+                  <User size={14} className="text-orange-400" />
+                  <span className="text-xs sm:text-sm text-slate-400">{t('device.followView')} <strong className="text-orange-400">{playState.names[myPosition]} ({t('device.posSeat', { pos: POS_LABELS[myPosition] })})</strong></span>
+                  <button 
+                    onClick={() => setShowFollowSelector(true)}
+                    className="text-[10px] sm:text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded transition-colors"
+                  >
+                    {t('device.switch')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <MapPin size={14} className="text-cyan-400" />
+                  <span className="text-xs sm:text-sm text-slate-400">{t('device.fixedView')} <strong className="text-cyan-400">{t('device.posSeat', { pos: POS_LABELS[myPosition] })}</strong></span>
+                </>
+              )}
            </div>
 
            {/* 左侧/中部 分数聚拢区 */}
@@ -261,26 +389,26 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
         </div>
       )}
 
-      {(status === 'CONFIRM' || status === 'HU' || status === 'HUANG') && (
+      {status === 'CONFIRM' && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="text-center w-full max-w-2xl px-6 py-10 bg-slate-800 rounded-[2.5rem] border border-slate-700 shadow-2xl animate-in zoom-in-95 duration-200">
              <div className="text-rose-400 mb-6 flex justify-center">
-                {status === 'CONFIRM' ? <ShieldAlert size={64} /> : status === 'HU' ? <BadgeCheck size={64} /> : <Play size={64} />}
+                <ShieldAlert size={64} />
              </div>
              
              <h2 className="text-2xl sm:text-4xl font-black text-white mb-10 leading-relaxed whitespace-pre-line">
-                 {status === 'HUANG' ? t('device.roundDraw') : confirmMsg}
+                 {confirmMsg}
              </h2>
              
              <div className="flex gap-4 sm:gap-6 justify-center">
                  <button 
-                    onClick={() => handleAction('BTN:CANCEL')} 
+                    onClick={() => { handleAction('BTN:CANCEL'); setStatus('PLAY'); }}
                     className="flex-1 max-w-[160px] py-4 sm:py-5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-2xl font-bold text-lg sm:text-xl active:scale-95 transition-all"
                  >
                      {t('common.cancel')}
                  </button>
                  <button 
-                    onClick={() => handleAction('BTN:CONFIRM')} 
+                    onClick={() => { handleAction('BTN:CONFIRM'); setStatus('PLAY'); }}
                     className="flex-1 max-w-[200px] py-4 sm:py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-lg sm:text-xl active:scale-95 transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)]"
                  >
                      {t('common.confirm')}

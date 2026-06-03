@@ -927,36 +927,12 @@ function App() {
                const connection = bleDevices[position];
               if (!connection || connection.status !== 'connected') continue;
 
-              // 0. Send Language
-              const langCmd = `LANG:${i18n.language}\n`;
-              try {
-                  await writeData(connection.deviceId, new DataView(new TextEncoder().encode(langCmd).buffer));
-                  await new Promise(resolve => setTimeout(resolve, 50));
-              } catch (e) {
-                  console.error('Sync lang error', e);
-              }
+              const isPhoneDevice = connection.name?.startsWith('MJ-PHONE-') ?? false;
 
-              // 1. Send Names
-              const pList = [
-                { pos: 0, name: dbPlayers.find(p => p.position === 'east')?.name || '' },
-                { pos: 1, name: dbPlayers.find(p => p.position === 'south')?.name || '' },
-                { pos: 2, name: dbPlayers.find(p => p.position === 'west')?.name || '' },
-                { pos: 3, name: dbPlayers.find(p => p.position === 'north')?.name || '' },
-              ];
-              for (const item of pList) {
-                const cmd = `NAME:${item.pos}:${item.name}\n`;
-                const encoder = new TextEncoder();
-                const data = encoder.encode(cmd);
-                try {
-                   await writeData(connection.deviceId, new DataView(data.buffer));
-                   await new Promise(resolve => setTimeout(resolve, 50)); 
-                } catch (e) {
-                   console.error('Sync name error', e);
-                }
-              }
-
-              // 2. Send Game State
-              let payload = 'STATE:IDLE';
+              const nameE = dbPlayers.find(p => p.position === 'east')?.name || '';
+              const nameS = dbPlayers.find(p => p.position === 'south')?.name || '';
+              const nameW = dbPlayers.find(p => p.position === 'west')?.name || '';
+              const nameN = dbPlayers.find(p => p.position === 'north')?.name || '';
 
               const allScores: Record<Position, number> = {
                  east: 0, south: 0, west: 0, north: 0,
@@ -965,24 +941,77 @@ function App() {
                  allScores[player.position as Position] = player.score;
               });
 
-              const e = allScores.east ?? 0;
-              const s = allScores.south ?? 0;
-              const w = allScores.west ?? 0;
-              const n = allScores.north ?? 0;
-              
-              if (game && (game.is_completed || game.status === 'finished' || game.early_ended)) {
-                  payload = `STATE:GAMEOVER:${e}:${s}:${w}:${n}`;
-              } else if (game && gameStarted) {
-                  const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
-                  payload = `STATE:${mode}:${dbGame.current_round}:${dbGame.current_game}:${e}:${s}:${w}:${n}`;
-              }
-              
-              const encoder = new TextEncoder();
-              const data = encoder.encode(payload + '\n');
-              try {
-                 await writeData(connection.deviceId, new DataView(data.buffer));
-              } catch (e) {
-                 console.error('Sync state error', e);
+              const eScore = allScores.east ?? 0;
+              const sScore = allScores.south ?? 0;
+              const wScore = allScores.west ?? 0;
+              const nScore = allScores.north ?? 0;
+
+              // Determine which position is the active dealer
+              // current_game tells us which seat is the dealer (1-based, cycles through 4 positions)
+              const dealerIdx = ((dbGame.current_game - 1) % 4);
+              const activeE = dealerIdx === 0 ? 1 : 0;
+              const activeS = dealerIdx === 1 ? 1 : 0;
+              const activeW = dealerIdx === 2 ? 1 : 0;
+              const activeN = dealerIdx === 3 ? 1 : 0;
+
+              if (isPhoneDevice) {
+                // Phone devices: send a single unified message with all info
+                // Format: STATE:<mode>:<eScore>:<sScore>:<wScore>:<nScore>:<eName>:<sName>:<wName>:<nName>:<eActive>:<sActive>:<wActive>:<nActive>
+                let payload: string;
+                if (game && (game.is_completed || game.status === 'finished' || game.early_ended)) {
+                    payload = `STATE:GAMEOVER:${eScore}:${sScore}:${wScore}:${nScore}:${nameE}:${nameS}:${nameW}:${nameN}:0:0:0:0`;
+                } else if (game && gameStarted) {
+                    const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
+                    payload = `STATE:${mode}:${eScore}:${sScore}:${wScore}:${nScore}:${nameE}:${nameS}:${nameW}:${nameN}:${activeE}:${activeS}:${activeW}:${activeN}`;
+                } else {
+                    payload = `STATE:IDLE:0:0:0:0:${nameE}:${nameS}:${nameW}:${nameN}:0:0:0:0`;
+                }
+                try {
+                   await writeData(connection.deviceId, new DataView(new TextEncoder().encode(payload + '\n').buffer));
+                } catch (e) {
+                   console.error('Sync phone state error', e);
+                }
+              } else {
+                // ESP32 devices: send multi-packet format (LANG, NAME x4, STATE)
+                // 0. Send Language
+                const langCmd = `LANG:${i18n.language}\n`;
+                try {
+                    await writeData(connection.deviceId, new DataView(new TextEncoder().encode(langCmd).buffer));
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (e) {
+                    console.error('Sync lang error', e);
+                }
+
+                // 1. Send Names
+                const pList = [
+                  { pos: 0, name: nameE },
+                  { pos: 1, name: nameS },
+                  { pos: 2, name: nameW },
+                  { pos: 3, name: nameN },
+                ];
+                for (const item of pList) {
+                  const cmd = `NAME:${item.pos}:${item.name}\n`;
+                  try {
+                     await writeData(connection.deviceId, new DataView(new TextEncoder().encode(cmd).buffer));
+                     await new Promise(resolve => setTimeout(resolve, 50));
+                  } catch (e) {
+                     console.error('Sync name error', e);
+                  }
+                }
+
+                // 2. Send Game State
+                let payload = 'STATE:IDLE';
+                if (game && (game.is_completed || game.status === 'finished' || game.early_ended)) {
+                    payload = `STATE:GAMEOVER:${eScore}:${sScore}:${wScore}:${nScore}`;
+                } else if (game && gameStarted) {
+                    const mode = isConfirmMode ? 'CONFIRM' : 'PLAY';
+                    payload = `STATE:${mode}:${dbGame.current_round}:${dbGame.current_game}:${eScore}:${sScore}:${wScore}:${nScore}`;
+                }
+                try {
+                   await writeData(connection.deviceId, new DataView(new TextEncoder().encode(payload + '\n').buffer));
+                } catch (e) {
+                   console.error('Sync state error', e);
+                }
               }
            }
            
@@ -1012,6 +1041,30 @@ function App() {
         if (msg === 'BTN:HUANG') {
            if (!gameStarted || !game) return;
            void handleHuangzhuangRef.current(true);
+           return;
+        }
+        if (msg === 'BTN:RON') {
+           // Phone scoreboard tapped the "Win" button — open the score modal for that position
+           if (!gameStarted || !game) return;
+           if (isConfirmMode) {
+              // In confirm mode, this acts as confirming result for that position
+              void handleConfirmResult(position);
+           } else {
+              setWinnerPosition(position);
+              setShowScoreModal(true);
+           }
+           return;
+        }
+        if (msg === 'BTN:CONFIRM') {
+           // Phone confirmed a pending action — treat as confirming the result for that position
+           if (!gameStarted || !game) return;
+           if (isConfirmMode) {
+              void handleConfirmResult(position);
+           }
+           return;
+        }
+        if (msg === 'BTN:CANCEL') {
+           // Phone cancelled — no specific host action needed (state will re-sync)
            return;
         }
 

@@ -227,7 +227,8 @@
     "mahjongScoreboard": "麻雀スコアボード",
     "deviceId": "デバイスID: {{id}}",
     "waitingHost": "ホストの接続を待っています...",
-    "followView": "視点追従: ",
+    "followView": "追従: ",
+    "fixedView": "固定: ",
     "position": "家",
     "switch": "切り替え",
     "win": "和了",
@@ -235,7 +236,12 @@
     "selectFollowPlayer": "追従するプレイヤーを選択",
     "followPlayerDesc": "画面は自動的に回転し、このプレイヤーが常に下部に表示されるようにします",
     "posSeat": "{{pos}}家",
-    "displayMode": "ディスプレイとして使用 (スコアボードモード)"
+    "displayMode": "ディスプレイとして使用 (スコアボードモード)",
+    "followPlayerMode": "選手追従",
+    "followPlayerModeDesc": "画面が選手に合わせて回転します",
+    "fixedPositionMode": "位置固定",
+    "fixedPositionModeDesc": "画面が固定、ハードウェアと同様",
+    "confirmResult": "今局の結果を確認してください"
   },
   "shareImage": {
     "gameDetailTitle": "国標麻雀 対局詳細",

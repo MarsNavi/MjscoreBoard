@@ -18,6 +18,21 @@ class DeviceModeBleManager {
     this.onMessageCallback = callback;
   }
 
+  /**
+   * Dispatch received BLE data, splitting by newline since the host
+   * may pack multiple commands into a single BLE write.
+   */
+  private _dispatchMessage(text: string) {
+    if (!this.onMessageCallback) return;
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed) {
+        this.onMessageCallback(trimmed);
+      }
+    }
+  }
+
   public async startAdvertising(deviceId: string): Promise<void> {
     if (this.platform === 'web') {
       console.warn('[DeviceMode] BLE not available on web');
@@ -53,9 +68,7 @@ class DeviceModeBleManager {
       ) {
         const buffer = json.value as ArrayBuffer;
         const text = new TextDecoder().decode(buffer);
-        if (this.onMessageCallback) {
-          this.onMessageCallback(text);
-        }
+        this._dispatchMessage(text);
       }
     });
 
@@ -92,15 +105,16 @@ class DeviceModeBleManager {
     }
 
     // Listen for writes from central (host device)
+    // iOS CoreBluetooth may return UUIDs in short form ("FFF0") or long form ("0000fff0-...")
     blePeripheral.onWriteRequest((json: any) => {
-      const svcMatch = json.service && json.service.toLowerCase().includes('fff0');
-      const chrMatch = json.characteristic && json.characteristic.toLowerCase().includes('fff2');
+      const svc = (json.service || '').toLowerCase();
+      const chr = (json.characteristic || '').toLowerCase();
+      const svcMatch = svc === BLE_SERVICE_UUID || svc === 'fff0';
+      const chrMatch = chr === BLE_RX_CHAR_UUID || chr === 'fff2';
       if (svcMatch && chrMatch) {
         const buffer = json.value as ArrayBuffer;
         const text = new TextDecoder().decode(buffer);
-        if (this.onMessageCallback) {
-          this.onMessageCallback(text);
-        }
+        this._dispatchMessage(text);
       }
     });
 
