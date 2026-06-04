@@ -3,9 +3,9 @@ import { Capacitor } from '@capacitor/core';
 
 declare var blePeripheral: any;
 
-const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
-const BLE_TX_CHAR_UUID = '0000fff1-0000-1000-8000-00805f9b34fb';
-const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
+const BLE_SERVICE_UUID = '0000FFF0-0000-1000-8000-00805F9B34FB';
+const BLE_TX_CHAR_UUID = '0000FFF1-0000-1000-8000-00805F9B34FB';
+const BLE_RX_CHAR_UUID = '0000FFF2-0000-1000-8000-00805F9B34FB';
 
 export type DeviceStateCallback = (message: string) => void;
 

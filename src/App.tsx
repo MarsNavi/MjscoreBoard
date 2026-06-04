@@ -973,6 +973,7 @@ function App() {
                 }
               } else {
                 // ESP32 devices: send multi-packet format (LANG, NAME x4, STATE)
+
                 // 0. Send Language
                 const langCmd = `LANG:${i18n.language}\n`;
                 try {
@@ -1353,6 +1354,7 @@ function App() {
                   gameName={gameName}
                   onGameNameChange={setGameName}
                   tempPlayerNames={tempPlayerNames}
+                  currentUser={currentUser}
                 />
               )}
             </div>

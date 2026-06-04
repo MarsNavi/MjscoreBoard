@@ -34,6 +34,29 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
+                <h2 className="text-2xl font-bold text-gray-800">v1.7.1</h2>
+                <p className="text-sm text-gray-500">2026-06-04</p>
+              </div>
+            </div>
+            <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">
+              <p className="text-lg font-semibold text-gray-900">{t('help.updateContent')}</p>
+              <ul className="list-disc list-inside space-y-2 pl-4">
+                <li>
+                  <strong className="text-gray-900">{t('help.v1_7_1_title')}</strong>{t('help.v1_7_1_desc')}
+                </li>
+                <li>
+                  <strong className="text-gray-900">{t('help.v1_7_2_title')}</strong>{t('help.v1_7_2_desc')}
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b-2 border-orange-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div>
                 <h2 className="text-2xl font-bold text-gray-800">v1.6</h2>
                 <p className="text-sm text-gray-500">2026-05-30</p>
               </div>

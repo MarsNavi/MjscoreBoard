@@ -50,35 +50,33 @@ export default function HomePage({
       return;
     }
 
+    const nameCounts: Record<string, number> = {};
+
+    // Collect names from game_results (completed games)
     const results = await db.game_results
       .where('game_id')
       .anyOf(gameIds)
       .toArray();
 
-    const nameCounts: Record<string, number> = {};
+    results.forEach((result) => {
+      const playerName = normalizePlayerName(result.player_name);
+      if (playerName) {
+        nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
+      }
+    });
 
-    if (results && results.length > 0) {
-      results.forEach((result) => {
-        const playerName = normalizePlayerName(result.player_name);
-        if (playerName) {
-          nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
-        }
-      });
-    }
+    // Also collect names from players table (includes in-progress games)
+    const allPlayers = await db.players
+      .where('game_id')
+      .anyOf(gameIds)
+      .toArray();
 
-    if (Object.keys(nameCounts).length === 0) {
-      const players = await db.players
-        .where('game_id')
-        .anyOf(gameIds)
-        .toArray();
-
-      players.forEach((player) => {
-        const playerName = normalizePlayerName(player.name, player.player_id);
-        if (playerName) {
-          nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
-        }
-      });
-    }
+    allPlayers.forEach((player) => {
+      const playerName = normalizePlayerName(player.name, player.player_id);
+      if (playerName) {
+        nameCounts[playerName] = (nameCounts[playerName] || 0) + 1;
+      }
+    });
 
     // Show ALL known players, sorted by frequency
     const sortedNames = Object.entries(nameCounts)
@@ -149,25 +147,18 @@ export default function HomePage({
     return defaults[position];
   };
 
-  // Filter suggestions: match typed text and exclude names already chosen for other positions
+  // Filter suggestions: match typed text
   const getFilteredSuggestions = (position: Position): string[] => {
-    const currentInput = (tempPlayerNames[position] || '').trim().toLowerCase();
-    const otherChosenNames = new Set(
-      positions
-        .filter((p) => p !== position)
-        .map((p) => (tempPlayerNames[p] || '').trim())
-        .filter(Boolean)
-    );
+    const currentInput = (tempPlayerNames[position] || '').trim();
 
-    return commonNames.filter((name) => {
-      // Exclude names already used in other positions
-      if (otherChosenNames.has(name)) return false;
-      // If user typed something, filter by prefix/contains
-      if (currentInput) {
-        return name.toLowerCase().includes(currentInput);
-      }
-      return true;
-    });
+    // If input is empty or exactly matches a known name, show all names
+    if (!currentInput || commonNames.includes(currentInput)) {
+      return commonNames;
+    }
+
+    // Otherwise filter by partial match (user is typing to search)
+    const lowerInput = currentInput.toLowerCase();
+    return commonNames.filter((name) => name.toLowerCase().includes(lowerInput));
   };
 
   return (
@@ -268,34 +259,21 @@ export default function HomePage({
                             style={{ marginTop: '-2px' }}
                           >
                             <div className="py-1">
-                              <div className="text-[10px] text-gray-400 px-3 py-1.5 font-bold uppercase tracking-wider">
-                                {t('game.commonPlayers')}
-                              </div>
-                              {filteredSuggestions.map((name, idx) => {
-                                const isAlreadySelected = Object.values(tempPlayerNames).some(
-                                  (v) => v.trim() === name
-                                );
-                                return (
+                              {filteredSuggestions.map((name, idx) => (
                                   <button
                                     key={idx}
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       handleSelectSuggestion(position, name);
                                     }}
-                                    className={`w-full text-left px-3 py-3 sm:py-2.5 transition-colors font-medium text-sm sm:text-base flex items-center gap-2 ${
-                                      isAlreadySelected
-                                        ? 'text-gray-300 cursor-not-allowed'
-                                        : 'hover:bg-orange-50 active:bg-orange-100 text-gray-800'
-                                    }`}
-                                    disabled={isAlreadySelected}
+                                    className="w-full text-left px-3 py-3 sm:py-2.5 transition-colors font-medium text-sm sm:text-base flex items-center gap-2 hover:bg-orange-50 active:bg-orange-100 text-gray-800"
                                   >
                                     <span className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center text-xs font-bold text-orange-600 flex-shrink-0">
                                       {name.charAt(0)}
                                     </span>
                                     {name}
                                   </button>
-                                );
-                              })}
+                              ))}
                               {filteredSuggestions.length === 0 && (
                                 <div className="px-3 py-3 text-sm text-gray-400 text-center">
                                   {t('game.noMatch')}

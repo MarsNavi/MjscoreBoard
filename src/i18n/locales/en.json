@@ -389,7 +389,11 @@
     "stat_2": "Player data analysis",
     "sponsor": "Sponsored by Sichuan Panda Club",
     "author": "Author: Li Rui",
-    "languageSettings": "Language Settings"
+    "languageSettings": "Language Settings",
+    "v1_7_1_title": "BLE Connection Fixes: ",
+    "v1_7_1_desc": "Resolved an issue where iOS devices could freeze or fail to bind when connecting to ESP32 scoreboard, improving overall stability.",
+    "v1_7_2_title": "Quick Selection & UI Improvements: ",
+    "v1_7_2_desc": "You can now select any player directly from your history when starting a game. We also removed redundant UI hints for a cleaner look."
   },
   "more": {
     "title": "Settings",

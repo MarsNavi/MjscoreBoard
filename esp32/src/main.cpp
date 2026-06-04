@@ -139,6 +139,11 @@ const char* t(const char* key) {
         if (currentLang == LANG_JA) return "デバイス:";
         return "设备:";
     }
+    if (strcmp(key, "POS_PREFIX") == 0) {
+        if (currentLang == LANG_EN) return "Pos:";
+        if (currentLang == LANG_JA) return "位置:";
+        return "位置:";
+    }
     if (strcmp(key, "HU_SETTLEMENT") == 0) {
         if (currentLang == LANG_EN) return "Win Settlement";
         if (currentLang == LANG_JA) return "和了決済";
@@ -247,6 +252,7 @@ void update_game_ui();
 void show_screen(lv_obj_t* scr);
 void create_connect_screen();
 void create_waiting_screen();
+void update_waiting_ui();
 void create_game_screen();
 void create_hu_menu();
 void processCommand(String cmd);
@@ -335,6 +341,18 @@ void setup() {
 void loop() {
     lv_timer_handler(); // Handle LVGL tasks
 
+    if (!deviceConnected && oldDeviceConnected) {
+        delay(500);
+        bleServer->startAdvertising();
+        oldDeviceConnected = deviceConnected;
+        myPositionIndex = -1;
+        show_screen(scr_connect);
+    }
+    if (deviceConnected && !oldDeviceConnected) {
+        oldDeviceConnected = deviceConnected;
+        show_screen(scr_waiting);
+    }
+
     // Process Commands in Main Loop (Safe for UI updates)
     if (hasNewCommand) {
         std::vector<String> processingQueue;
@@ -351,18 +369,6 @@ void loop() {
         for (const String& cmd : processingQueue) {
             processCommand(cmd);
         }
-    }
-
-    if (!deviceConnected && oldDeviceConnected) {
-        delay(500);
-        bleServer->startAdvertising();
-        oldDeviceConnected = deviceConnected;
-        myPositionIndex = -1;
-        show_screen(scr_connect);
-    }
-    if (deviceConnected && !oldDeviceConnected) {
-        oldDeviceConnected = deviceConnected;
-        show_screen(scr_waiting);
     }
 
     delay(5);
@@ -637,7 +643,7 @@ void create_connect_screen() {
     lv_obj_set_style_arc_color(spinner, C_EMERALD_500, LV_PART_INDICATOR);
 
     lv_obj_t * ver = lv_label_create(scr_connect);
-    lv_label_set_text(ver, "v1.7.0");
+    lv_label_set_text(ver, "v1.7.1");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
@@ -660,10 +666,26 @@ void create_waiting_screen() {
     lv_obj_set_style_text_font(sub, &lv_font_wqy_20, 0);
 
     lv_obj_t * ver = lv_label_create(scr_waiting);
-    lv_label_set_text(ver, "v1.7.0");
+    lv_label_set_text(ver, "v1.7.1");
     lv_obj_align(ver, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_style_text_color(ver, C_SLATE_500, 0);
     lv_obj_set_style_text_font(ver, &lv_font_wqy_20, 0);
+}
+
+void update_waiting_ui() {
+    if (scr_waiting) {
+        lv_obj_t* label = lv_obj_get_child(scr_waiting, 0);
+        lv_obj_t* sub = lv_obj_get_child(scr_waiting, 1);
+        if (label) lv_label_set_text(label, t("BLUETOOTH_CONN"));
+        if (sub) {
+            if (myPositionIndex != -1) {
+                String posMsg = String(t("WAITING_START")) + " " + String(t("POS_PREFIX")) + t_wind(myPositionIndex);
+                lv_label_set_text(sub, posMsg.c_str());
+            } else {
+                lv_label_set_text(sub, t("WAITING_START"));
+            }
+        }
+    }
 }
 
 void create_game_screen() {
@@ -1175,10 +1197,7 @@ void processCommand(String cmd) {
             lv_label_set_text(lv_obj_get_child(btn_hu_opts[2], 0), t("RIGHT_DEAL"));
             lv_label_set_text(lv_obj_get_child(btn_hu_opts[3], 0), t("TSUMO"));
         } else if (lv_scr_act() == scr_waiting) {
-            lv_obj_t* label = lv_obj_get_child(scr_waiting, 0);
-            lv_obj_t* sub = lv_obj_get_child(scr_waiting, 1);
-            if (label) lv_label_set_text(label, t("BLUETOOTH_CONN"));
-            if (sub) lv_label_set_text(sub, t("WAITING_START"));
+            update_waiting_ui();
         } else if (lv_scr_act() == scr_connect) {
             lv_obj_t* label = lv_obj_get_child(scr_connect, 0);
             if (label) {
@@ -1188,6 +1207,7 @@ void processCommand(String cmd) {
         }
     } else if (cmd.startsWith("SETUP:")) {
         myPositionIndex = cmd.substring(6).toInt();
+        update_waiting_ui();
         update_game_ui();
         show_screen(scr_waiting); // Or stay on waiting until state
     } else if (cmd.startsWith("NAME:")) {

@@ -29,11 +29,22 @@ interface BleContextType {
 export const BleContext = createContext<BleContextType | undefined>(undefined);
 
 // Constants
-const BLE_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
-const BLE_TX_CHAR_UUID = '0000fff1-0000-1000-8000-00805f9b34fb';
-const BLE_RX_CHAR_UUID = '0000fff2-0000-1000-8000-00805f9b34fb';
+const BLE_SERVICE_UUID = '0000FFF0-0000-1000-8000-00805F9B34FB';
+const BLE_TX_CHAR_UUID = '0000FFF1-0000-1000-8000-00805F9B34FB';
+const BLE_RX_CHAR_UUID = '0000FFF2-0000-1000-8000-00805F9B34FB';
 const RECONNECT_INTERVAL = 2000; // 2 seconds
 const getPositionLabel = (pos: Position): string => i18n.t(`mahjong.${pos}`);
+
+// Helper: wrap a promise with a timeout so it doesn't hang forever
+const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+};
 
 export function BleProvider({ children }: { children: ReactNode }) {
   const [bleDevices, setBleDevices] = useState<Record<Position, BleConnectionInfo | null>>({
@@ -169,16 +180,38 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
            
            try {
-             await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
-             
-             // Must discover services before requesting characteristics on iOS
-             await BluetoothLowEnergy.discoverServices({ deviceId: device.deviceId });
+              await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
+              
+              // Discover services with timeout
+              try {
+                await withTimeout(
+                  BluetoothLowEnergy.discoverServices({ deviceId: device.deviceId }),
+                  5000,
+                  'discoverServices(reconnect)'
+                );
+              } catch (discoverErr) {
+                console.warn('discoverServices failed or timed out on reconnect:', discoverErr);
+              }
+              
+              try {
+                 await BluetoothLowEnergy.requestMtu({ deviceId: device.deviceId, mtu: 512 });
+              } catch (mtuErr) {
+                 console.warn('MTU request failed or not supported', mtuErr);
+              }
 
-             await BluetoothLowEnergy.startCharacteristicNotifications({
-                deviceId: device.deviceId,
-                service: BLE_SERVICE_UUID,
-                characteristic: BLE_TX_CHAR_UUID,
-             });
+              try {
+                await withTimeout(
+                  BluetoothLowEnergy.startCharacteristicNotifications({
+                     deviceId: device.deviceId,
+                     service: BLE_SERVICE_UUID,
+                     characteristic: BLE_TX_CHAR_UUID,
+                  }),
+                  5000,
+                  'startCharacteristicNotifications(reconnect)'
+                );
+              } catch (notifErr) {
+                console.warn('startCharacteristicNotifications failed on reconnect:', notifErr);
+              }
              
              setBleDevices((prev) => ({
                 ...prev,
@@ -196,7 +229,6 @@ export function BleProvider({ children }: { children: ReactNode }) {
                  service: BLE_SERVICE_UUID,
                  characteristic: BLE_RX_CHAR_UUID,
                  value: Array.from(cmdData),
-                 type: 'withoutResponse'
                });
              } catch (setupErr) {
                // SETUP re-send failed — device will still work via sync, just position might be unknown
@@ -279,14 +311,36 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
         await BluetoothLowEnergy.connect({ deviceId });
 
-        // Must discover services before requesting characteristics on iOS
-        await BluetoothLowEnergy.discoverServices({ deviceId });
+        // Discover services with timeout — this can hang on iOS if descriptors don't resolve
+        try {
+          await withTimeout(
+            BluetoothLowEnergy.discoverServices({ deviceId }),
+            5000,
+            'discoverServices'
+          );
+        } catch (discoverErr) {
+          console.warn('discoverServices failed or timed out, continuing anyway:', discoverErr);
+        }
 
-        await BluetoothLowEnergy.startCharacteristicNotifications({
-            deviceId,
-            service: BLE_SERVICE_UUID,
-            characteristic: BLE_TX_CHAR_UUID,
-        });
+        try {
+           await BluetoothLowEnergy.requestMtu({ deviceId, mtu: 512 });
+        } catch (mtuErr) {
+           console.warn('MTU request failed or not supported', mtuErr);
+        }
+
+        try {
+          await withTimeout(
+            BluetoothLowEnergy.startCharacteristicNotifications({
+                deviceId,
+                service: BLE_SERVICE_UUID,
+                characteristic: BLE_TX_CHAR_UUID,
+            }),
+            5000,
+            'startCharacteristicNotifications'
+          );
+        } catch (notifErr) {
+          console.warn('startCharacteristicNotifications failed or timed out:', notifErr);
+        }
 
         const connection: BleConnectionInfo = {
             deviceId: deviceId,
@@ -336,7 +390,6 @@ export function BleProvider({ children }: { children: ReactNode }) {
           service: BLE_SERVICE_UUID,
           characteristic: BLE_RX_CHAR_UUID,
           value: Array.from(bytes),
-          type: 'withoutResponse'
       });
   }, []);
 

@@ -1,0 +1,15 @@
+--- src/contexts/BleContext.tsx
++++ src/contexts/BleContext.tsx
+@@ -239,6 +239,11 @@
+         await BluetoothLowEnergy.connect({ deviceId });
+         await BluetoothLowEnergy.discoverServices({ deviceId });
+ 
++        try {
++            await BluetoothLowEnergy.requestMtu({ deviceId, mtu: 512 });
++        } catch (e) {
++            console.warn('MTU request failed or not supported', e);
++        }
++
+         // Set up notifications
+         await BluetoothLowEnergy.startCharacteristicNotifications({
+           deviceId,
