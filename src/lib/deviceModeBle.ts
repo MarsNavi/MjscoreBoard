@@ -63,8 +63,8 @@ class DeviceModeBleManager {
     // Listen for writes from central (host device)
     blePeripheral.onWriteRequest((json: any) => {
       if (
-        json.service.toLowerCase() === BLE_SERVICE_UUID &&
-        json.characteristic.toLowerCase() === BLE_RX_CHAR_UUID
+        json.service.toLowerCase() === BLE_SERVICE_UUID.toLowerCase() &&
+        json.characteristic.toLowerCase() === BLE_RX_CHAR_UUID.toLowerCase()
       ) {
         const buffer = json.value as ArrayBuffer;
         const text = new TextDecoder().decode(buffer);
@@ -109,8 +109,8 @@ class DeviceModeBleManager {
     blePeripheral.onWriteRequest((json: any) => {
       const svc = (json.service || '').toLowerCase();
       const chr = (json.characteristic || '').toLowerCase();
-      const svcMatch = svc === BLE_SERVICE_UUID || svc === 'fff0';
-      const chrMatch = chr === BLE_RX_CHAR_UUID || chr === 'fff2';
+      const svcMatch = svc === BLE_SERVICE_UUID.toLowerCase() || svc === 'fff0';
+      const chrMatch = chr === BLE_RX_CHAR_UUID.toLowerCase() || chr === 'fff2';
       if (svcMatch && chrMatch) {
         const buffer = json.value as ArrayBuffer;
         const text = new TextDecoder().decode(buffer);

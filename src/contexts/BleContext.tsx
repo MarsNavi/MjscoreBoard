@@ -58,6 +58,11 @@ export function BleProvider({ children }: { children: ReactNode }) {
   const scannedDevicesRef = useRef<BleDevice[]>([]);
   const [bleError, setBleError] = useState<string | null>(null);
   
+  // Track bleDevices in a ref so listeners can access the latest state without using setBleDevices updater functions
+  const bleDevicesRef = useRef<Record<Position, BleDeviceState>>({
+      east: null, south: null, west: null, north: null
+  });
+  
   const messageHandlerRef = useRef<((position: Position, message: string) => void) | null>(null);
   const scanListenerRef = useRef<PluginListenerHandle | null>(null);
   const disconnectListenerRef = useRef<PluginListenerHandle | null>(null);
@@ -106,23 +111,23 @@ export function BleProvider({ children }: { children: ReactNode }) {
         });
 
         notifyListenerRef.current = await BluetoothLowEnergy.addListener('characteristicChanged', (event) => {
-            if (event.service.toLowerCase() !== BLE_SERVICE_UUID.toLowerCase() || 
-                event.characteristic.toLowerCase() !== BLE_TX_CHAR_UUID.toLowerCase()) {
+            const isServiceMatch = BLE_SERVICE_UUID.toLowerCase().includes(event.service.toLowerCase());
+            const isCharMatch = BLE_TX_CHAR_UUID.toLowerCase().includes(event.characteristic.toLowerCase());
+            if (!isServiceMatch || !isCharMatch) {
                 return;
             }
             const text = new TextDecoder().decode(new Uint8Array(event.value));
             
             if (messageHandlerRef.current) {
-                setBleDevices((prev) => {
-                    const positions: Position[] = ['east', 'south', 'west', 'north'];
-                    for (const pos of positions) {
-                        if (prev[pos]?.deviceId === event.deviceId) {
-                            messageHandlerRef.current!(pos, text);
-                            break;
-                        }
+                const currentDevices = bleDevicesRef.current;
+                const positions: Position[] = ['east', 'south', 'west', 'north'];
+                let matchedPos = null;
+                for (const pos of positions) {
+                    if (currentDevices[pos]?.deviceId.toUpperCase() === event.deviceId.toUpperCase()) {
+                        messageHandlerRef.current!(pos, text);
+                        break;
                     }
-                    return prev;
-                });
+                }
             }
         });
 
@@ -166,6 +171,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('bleDevices', JSON.stringify(bleDevices));
+    bleDevicesRef.current = bleDevices;
   }, [bleDevices]);
 
   useEffect(() => {

@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { useTranslation } from 'react-i18next';
 import { X, ShieldAlert, User, MapPin } from 'lucide-react';
 import { deviceModeBle } from '../lib/deviceModeBle';
-import { Position } from '../lib/types';
+import { Position, Player } from '../lib/types';
+import ScoreModal from './ScoreModal';
 
 interface DeviceModePageProps {
   onExit: () => void;
@@ -24,6 +26,8 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
   const [deviceId, setDeviceId] = useState<string>('');
   const [status, setStatus] = useState<DeviceStatus>('WAITING');
   const [playState, setPlayState] = useState<PlayState | null>(null);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [showHuangConfirm, setShowHuangConfirm] = useState(false);
   const { t } = useTranslation();
   
   const POS_LABELS: Record<Position, string> = { 
@@ -54,8 +58,9 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
     const initDevice = async () => {
       try {
         await KeepAwake.keepAwake();
+        await ScreenOrientation.lock({ orientation: 'landscape' });
       } catch (e) {
-        console.warn('KeepAwake error', e);
+        console.warn('KeepAwake/Orientation error', e);
       }
       
       try {
@@ -218,6 +223,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       active = false;
       deviceModeBle.stopAdvertising();
       KeepAwake.allowSleep().catch(() => {});
+      ScreenOrientation.unlock().catch(() => {});
     };
   }, []);
 
@@ -324,10 +330,10 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
       )}
 
       {(status === 'PLAY' || status === 'CONFIRM') && playState && (
-        <div className="w-full max-w-5xl aspect-video sm:aspect-auto sm:h-full max-h-[90vh] bg-slate-900 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-row overflow-hidden relative">
+        <div className="w-full h-full max-h-none sm:max-h-[90vh] bg-slate-900 sm:rounded-[2rem] border-0 sm:border border-slate-800 shadow-2xl flex flex-col landscape:flex-row overflow-hidden relative">
            
            {/* 顶部视角/模式提示 */}
-           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700 backdrop-blur">
+           <div className="absolute top-4 right-4 z-20 flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700 backdrop-blur">
               {viewMode === 'follow_player' ? (
                 <>
                   <User size={14} className="text-orange-400" />
@@ -349,7 +355,7 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
 
            {/* 左侧/中部 分数聚拢区 */}
            <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 to-slate-900">
-               <div className="grid grid-cols-3 grid-rows-3 gap-2 sm:gap-4 w-full max-w-md aspect-square">
+               <div className="grid grid-cols-3 grid-rows-3 gap-2 sm:gap-4 w-full max-w-[min(100%,_75vh)] aspect-square">
                    <div />
                    {renderPlayerBox(relPositions.top, 'top')}
                    <div />
@@ -368,21 +374,21 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
                </div>
            </div>
 
-           {/* 右侧 功能栏 */}
-           <div className="w-24 sm:w-36 bg-slate-800/50 border-l border-slate-800 flex flex-col items-center justify-center gap-4 sm:gap-8 p-3 sm:p-4 shrink-0 z-10">
+           {/* 底部/右侧 功能栏 */}
+           <div className="w-full landscape:w-24 sm:landscape:w-36 bg-slate-800/50 border-t landscape:border-t-0 landscape:border-l border-slate-800 flex flex-row landscape:flex-col items-center justify-center gap-3 sm:gap-6 p-3 sm:p-4 shrink-0 z-10">
                <button 
-                 onClick={() => handleAction('BTN:HUANG')} 
-                 className="w-full aspect-square bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border border-slate-600/50"
+                 onClick={() => setShowHuangConfirm(true)} 
+                 className="flex-1 landscape:w-full landscape:flex-none landscape:aspect-square h-16 sm:h-20 landscape:h-auto bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all flex flex-row landscape:flex-col items-center justify-center gap-2 border border-slate-600/50"
                >
-                  <span className="text-lg sm:text-2xl opacity-50">💨</span>
+                  <span className="text-xl sm:text-2xl opacity-50">💨</span>
                   <span className="text-sm sm:text-base">{t('mahjong.draw')}</span>
                </button>
                
                <button 
-                 onClick={() => handleAction('BTN:RON')} 
-                 className="w-full aspect-square bg-gradient-to-br from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white rounded-2xl font-black shadow-[0_0_20px_rgba(225,29,72,0.4)] active:scale-95 transition-all flex flex-col items-center justify-center gap-2"
+                 onClick={() => setShowScoreModal(true)} 
+                 className="flex-1 landscape:w-full landscape:flex-none landscape:aspect-square h-16 sm:h-20 landscape:h-auto bg-gradient-to-br from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white rounded-2xl font-black shadow-[0_0_20px_rgba(225,29,72,0.4)] active:scale-95 transition-all flex flex-row landscape:flex-col items-center justify-center gap-2"
                >
-                  <span className="text-xl sm:text-3xl drop-shadow">🀄️</span>
+                  <span className="text-2xl sm:text-3xl drop-shadow">🀄️</span>
                   <span className="text-base sm:text-lg tracking-widest">{t('device.win')}</span>
                </button>
            </div>
@@ -454,6 +460,61 @@ export default function DeviceModePage({ onExit }: DeviceModePageProps) {
         </div>
       )}
 
+      {showScoreModal && playState && (
+        <ScoreModal
+          winnerPosition={myPosition}
+          players={POSITIONS.map(pos => ({
+            id: '',
+            game_id: '',
+            player_id: '',
+            position: pos,
+            score: parseInt(playState.scores[pos] || '0', 10),
+            name: playState.names[pos] || '',
+            is_riichi: false,
+            is_active: playState.actives[pos] || false
+          })) as Player[]}
+          onClose={() => setShowScoreModal(false)}
+          isDeviceMode={true}
+          onSubmit={(loserPosition, baseScore) => {
+              if (loserPosition === null) {
+                 handleAction(`HE:ZIMO:${baseScore}`);
+              } else {
+                 let rel = 'OPPOSITE';
+                 if (loserPosition === relPositions.left) rel = 'LEFT';
+                 else if (loserPosition === relPositions.right) rel = 'RIGHT';
+                 handleAction(`HE:RON:${rel}:${baseScore}`);
+              }
+              setShowScoreModal(false);
+          }}
+        />
+      )}
+
+      {showHuangConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[85%] max-w-sm flex flex-col items-center">
+            <ShieldAlert size={48} className="text-yellow-500 mb-4" />
+            <h2 className="text-xl font-bold text-gray-800 mb-2">{t('game.confirmDraw')}</h2>
+            <p className="text-sm text-gray-600 text-center mb-6">{t('game.confirmDrawDesc')}</p>
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={() => setShowHuangConfirm(false)}
+                className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  handleAction('BTN:HUANG');
+                  setShowHuangConfirm(false);
+                }}
+                className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold transition-colors"
+              >
+                {t('common.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

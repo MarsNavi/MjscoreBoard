@@ -1037,7 +1037,7 @@ function App() {
   // Message Handler Effect
   useEffect(() => {
      setMessageHandler((position, raw) => {
-        const msg = raw.trim();
+        const msg = raw.replace(/[\0\s]+/g, '');
         if (!msg) return;
         if (msg === 'BTN:HUANG') {
            if (!gameStarted || !game) return;

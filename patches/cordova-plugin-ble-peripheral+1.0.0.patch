@@ -1,8 +1,25 @@
 diff --git a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
-index 9a8f7f6..b1a447a 100644
+index 9a8f7f6..3a70abd 100644
 --- a/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
 +++ b/node_modules/cordova-plugin-ble-peripheral/src/android/BLEPeripheralPlugin.java
-@@ -149,7 +149,13 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+@@ -88,6 +88,7 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+ 
+     private BluetoothAdapter bluetoothAdapter;
+     private BluetoothGattServer gattServer;
++    private String previousAdapterName = null;
+ 
+     private Map<UUID, BluetoothGattService> services = new HashMap<>();
+     private Set<BluetoothDevice> registeredDevices = new HashSet<>();
+@@ -121,7 +122,7 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+     public boolean execute(String action, CordovaArgs args, CallbackContext callbackContext) throws JSONException {
+         LOG.d(TAG, "action = " + action);
+ 
+-        if (bluetoothAdapter == null) {
++        if (bluetoothAdapter == null || gattServer == null) {
+             Activity activity = cordova.getActivity();
+             boolean hardwareSupportsBLE = activity.getApplicationContext()
+                                             .getPackageManager()
+@@ -149,7 +150,13 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
                  return false;
              }
  
@@ -17,7 +34,7 @@ index 9a8f7f6..b1a447a 100644
  
          }
  
-@@ -209,6 +215,11 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+@@ -209,6 +216,11 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
  
              try {
                  UUID serviceUUID = uuidFromString(json.getString("uuid"));
@@ -29,12 +46,29 @@ index 9a8f7f6..b1a447a 100644
                  Log.d(TAG, "Creating service " + serviceUUID);
                  BluetoothGattService service = new BluetoothGattService(serviceUUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
  
-@@ -304,9 +315,16 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+@@ -297,16 +309,32 @@ public class BLEPeripheralPlugin extends CordovaPlugin {
+             UUID serviceUUID = uuidFromString(args.getString(0));
+             String advertisedName = args.getString(1);
+ 
+-            Log.w(TAG, "App requested to advertise name " + advertisedName + " but this feature is not currently supported by the Android version of the plugin");
+-
+             BluetoothLeAdvertiser bluetoothLeAdvertiser = bluetoothAdapter.getBluetoothLeAdvertiser();
+ 
              AdvertiseData advertisementData = getAdvertisementData(serviceUUID);
              AdvertiseSettings advertiseSettings = getAdvertiseSettings();
  
 -            bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertisementData, advertiseCallback);
--
++            // Set the adapter name temporarily so it appears in the advertisement
++            if (advertisedName != null && !advertisedName.isEmpty()) {
++                try {
++                    previousAdapterName = bluetoothAdapter.getName();
++                    bluetoothAdapter.setName(advertisedName);
++                    Log.d(TAG, "Set Bluetooth adapter name to: " + advertisedName);
++                } catch (SecurityException e) {
++                    Log.w(TAG, "Could not set Bluetooth adapter name: " + e.getMessage());
++                }
++            }
+ 
 -            advertisingStartedCallback = callbackContext;
 +            try {
 +                bluetoothLeAdvertiser.startAdvertising(advertiseSettings, advertisementData, advertiseCallback);

@@ -10,6 +10,7 @@ interface ScoreModalProps {
   onSubmit: (loserPosition: Position | null, baseScore: number) => void;
   isConfirmMode?: boolean;
   onConfirm?: () => void;
+  isDeviceMode?: boolean;
 }
 
 // Remove positionLabels
@@ -39,7 +40,7 @@ const getRelativePositions = (winner: Position): Position[] => {
   return [left, opposite, right];
 };
 
-export default function ScoreModal({ winnerPosition, players, onClose, onSubmit, isConfirmMode = false, onConfirm }: ScoreModalProps) {
+export default function ScoreModal({ winnerPosition, players, onClose, onSubmit, isConfirmMode = false, onConfirm, isDeviceMode = false }: ScoreModalProps) {
   const { t } = useTranslation();
   const [selectedLoser, setSelectedLoser] = useState<Position | null>(null);
   const [baseScore, setBaseScore] = useState<number>(8);
@@ -92,8 +93,13 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
     }
   };
 
-  const modalPosition = modalPositions[winnerPosition];
-  const modalRotation = modalRotations[winnerPosition];
+  const modalPosition = isDeviceMode 
+    ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' 
+    : modalPositions[winnerPosition];
+    
+  const modalRotation = isDeviceMode 
+    ? '' 
+    : modalRotations[winnerPosition];
 
   if (isConfirmMode) {
     return (
@@ -139,8 +145,8 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-hidden">
-      <div className={`fixed ${modalPosition} ${modalRotation} bg-white rounded-xl shadow-2xl p-6 w-[85%] max-w-lg max-h-[85vh] overflow-y-auto`}>
-        <div className="flex justify-between items-center mb-4">
+      <div className={`fixed ${modalPosition} ${modalRotation} bg-white rounded-xl shadow-2xl ${isDeviceMode ? 'p-4 w-[95%] max-w-2xl max-h-[90vh]' : 'p-6 w-[85%] max-w-lg max-h-[85vh]'} overflow-y-auto`}>
+        <div className={`flex justify-between items-center ${isDeviceMode ? 'mb-2' : 'mb-4'}`}>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
               {t('game.winnerDisplay', { wind: t(`mahjong.${winnerPosition}`) })}
@@ -159,23 +165,23 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
           </button>
         </div>
 
-        <div className="space-y-3">
-          <div className="space-y-3">
-            <div className="flex gap-2 justify-between">
+        <div className={isDeviceMode ? 'flex flex-row gap-4' : 'space-y-3'}>
+          <div className={isDeviceMode ? 'flex-1 space-y-2' : 'space-y-3'}>
+            <div className="flex gap-1 sm:gap-2 justify-between w-full">
               {relativePositions.map((pos) => {
                 const player = getPlayerByPosition(pos);
                 return (
                   <button
                     key={pos}
                     onClick={() => setSelectedLoser(pos)}
-                    className={`flex-1 py-3 px-2 rounded-lg font-bold transition-all text-base ${
+                    className={`flex-1 ${isDeviceMode ? 'py-2 px-1' : 'py-3 px-2'} rounded-lg font-bold transition-all text-base ${
                       selectedLoser === pos
                         ? 'bg-red-500 text-white shadow-lg scale-105'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
                     <div>{t('game.loserDisplay', { wind: t(`mahjong.${pos}`) })}</div>
-                    {player && (
+                    {player && !isDeviceMode && (
                       <div className="text-xs font-normal mt-0.5">
                         ({player.name || player.player_id})
                       </div>
@@ -187,7 +193,7 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
 
             <button
               onClick={() => setSelectedLoser(winnerPosition)}
-              className={`w-full py-3 px-4 rounded-lg text-lg font-bold transition-all ${
+              className={`w-full ${isDeviceMode ? 'py-2' : 'py-3'} px-4 rounded-lg text-lg font-bold transition-all ${
                 selectedLoser === winnerPosition
                   ? 'bg-green-500 text-white shadow-lg scale-105'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -197,80 +203,87 @@ export default function ScoreModal({ winnerPosition, players, onClose, onSubmit,
             </button>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-base font-medium text-gray-700">{t('mahjong.fan')}</label>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => adjustScore(-10)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <span className="text-base font-bold">-10</span>
-              </button>
-              <button
-                onClick={() => adjustScore(-5)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <span className="text-base font-bold">-5</span>
-              </button>
-              <button
-                onClick={() => adjustScore(-1)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <Minus size={18} />
-              </button>
-
-              {isEditingScore ? (
-                <input
-                  type="number"
-                  value={tempScore}
-                  onChange={(e) => setTempScore(e.target.value)}
-                  onBlur={handleScoreInputBlur}
-                  autoFocus
-                  className="flex-1 px-4 py-2.5 text-center border-2 border-blue-500 rounded-lg focus:outline-none text-xl font-bold"
-                  min="1"
-                />
-              ) : (
+          <div className={isDeviceMode ? 'flex-1 flex flex-col justify-between' : ''}>
+            <div className={isDeviceMode ? 'space-y-1' : 'space-y-2'}>
+              {!isDeviceMode && <label className="block text-base font-medium text-gray-700">{t('mahjong.fan')}</label>}
+              
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
-                  onClick={() => setIsEditingScore(true)}
-                  className="flex-1 px-4 py-2.5 text-center border-2 border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-xl font-bold text-blue-600"
+                  onClick={() => adjustScore(-10)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
                 >
-                  {baseScore}
+                  <span className="text-sm sm:text-base font-bold">-10</span>
                 </button>
-              )}
+                <button
+                  onClick={() => adjustScore(-5)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                >
+                  <span className="text-sm sm:text-base font-bold">-5</span>
+                </button>
+                <button
+                  onClick={() => adjustScore(-1)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                >
+                  <Minus size={16} />
+                </button>
 
-              <button
-                onClick={() => adjustScore(1)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <Plus size={18} />
-              </button>
-              <button
-                onClick={() => adjustScore(5)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <span className="text-base font-bold">+5</span>
-              </button>
-              <button
-                onClick={() => adjustScore(10)}
-                className="p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-              >
-                <span className="text-base font-bold">+10</span>
-              </button>
+                {isEditingScore ? (
+                  <input
+                    type="number"
+                    value={tempScore}
+                    onChange={(e) => setTempScore(e.target.value)}
+                    onBlur={handleScoreInputBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleScoreInputBlur();
+                      }
+                    }}
+                    autoFocus
+                    className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2.5 text-center border-2 border-blue-500 rounded-lg focus:outline-none text-lg sm:text-xl font-bold"
+                    min="1"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setIsEditingScore(true)}
+                    className="flex-1 px-2 py-1.5 sm:px-4 sm:py-2.5 text-center border-2 border-gray-300 rounded-lg hover:border-blue-500 transition-colors text-lg sm:text-xl font-bold text-blue-600"
+                  >
+                    {baseScore} {isDeviceMode && t('mahjong.fan')}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => adjustScore(1)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                >
+                  <Plus size={16} />
+                </button>
+                <button
+                  onClick={() => adjustScore(5)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                >
+                  <span className="text-sm sm:text-base font-bold">+5</span>
+                </button>
+                <button
+                  onClick={() => adjustScore(10)}
+                  className="p-1 sm:p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                >
+                  <span className="text-sm sm:text-base font-bold">+10</span>
+                </button>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className={`w-full py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-md ${
-              isSubmitting
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
-            }`}
-          >
-            {isSubmitting ? t('common.recording') : t('game.recordRound')}
-          </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className={`w-full ${isDeviceMode ? 'py-2 mt-4' : 'py-3 mt-0'} text-white text-lg font-bold rounded-lg transition-colors shadow-md ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
+              }`}
+            >
+              {isSubmitting ? t('common.recording') : t('game.recordRound')}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -320,10 +320,12 @@ void setup() {
     indev_drv.read_cb = my_touch_read;
     lv_indev_drv_register(&indev_drv);
 
-    // Get Device ID early
+    // Get Device ID correctly using the last 2 bytes of MAC
     uint64_t chipid = ESP.getEfuseMac();
-    deviceName = "MJ-BOARD-" + String((uint32_t)chipid, HEX);
-    deviceName.toUpperCase();
+    uint8_t* mac = (uint8_t*)&chipid;
+    char nameBuf[32];
+    snprintf(nameBuf, sizeof(nameBuf), "MJ-%02X%02X", mac[4], mac[5]);
+    deviceName = String(nameBuf);
 
     // Create UI
     init_ui();
