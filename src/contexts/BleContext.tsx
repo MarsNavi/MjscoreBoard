@@ -180,7 +180,11 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
            
            try {
-              await BluetoothLowEnergy.connect({ deviceId: device.deviceId });
+              await withTimeout(
+                BluetoothLowEnergy.connect({ deviceId: device.deviceId }),
+                5000,
+                'connect(reconnect)'
+              );
               
               // Discover services with timeout
               try {
@@ -308,8 +312,16 @@ export function BleProvider({ children }: { children: ReactNode }) {
 
         setBleError(null);
         await stopScan();
+        
+        // Add a small delay to let CoreBluetooth settle after stopping scan
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        await BluetoothLowEnergy.connect({ deviceId });
+        // Connect with timeout to prevent hanging forever
+        await withTimeout(
+          BluetoothLowEnergy.connect({ deviceId }),
+          5000,
+          'connect'
+        );
 
         // Discover services with timeout — this can hang on iOS if descriptors don't resolve
         try {
@@ -390,6 +402,7 @@ export function BleProvider({ children }: { children: ReactNode }) {
           service: BLE_SERVICE_UUID,
           characteristic: BLE_RX_CHAR_UUID,
           value: Array.from(bytes),
+          type: 'withoutResponse'
       });
   }, []);
 
