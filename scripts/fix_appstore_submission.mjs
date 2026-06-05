@@ -6,7 +6,7 @@ const keyId = 'GL8UDBLWYF';
 const issuerId = 'ff871bef-0835-4aca-81d6-709743a64d44';
 const keyPath = `${process.env.HOME}/.appstoreconnect/private_keys/AuthKey_${keyId}.p8`;
 const appId = '6758918094';
-const targetVersion = '1.6.8';
+const targetVersion = '1.7.1';
 
 const privateKey = fs.readFileSync(keyPath, 'utf8');
 const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
@@ -48,10 +48,19 @@ async function run() {
       console.log('Updated version string.');
     }
   } else {
-    throw new Error('No editable version found!');
+    console.log(`No editable version found. Creating a new version ${targetVersion}...`);
+    const newVersionRes = await api('POST', '/v1/appStoreVersions', {
+      data: {
+        type: 'appStoreVersions',
+        attributes: { platform: 'IOS', versionString: targetVersion },
+        relationships: { app: { data: { type: 'apps', id: appId } } }
+      }
+    });
+    versionId = newVersionRes.data.id;
+    console.log('Created new version:', versionId);
   }
 
-  console.log('2. Waiting for build 1.6.8 to finish processing (this takes Apple 5-15 mins)...');
+  console.log(`2. Waiting for build ${targetVersion} to finish processing (this takes Apple 5-15 mins)...`);
   let buildId = null;
   while (!buildId) {
     const builds = await api('GET', `/v1/builds?filter[app]=${appId}&include=preReleaseVersion&limit=20&sort=-uploadedDate`);
@@ -115,7 +124,7 @@ async function run() {
     data: { type: 'reviewSubmissions', id: subId, attributes: { submitted: true } }
   });
 
-  console.log('🎉 1.6.8 SUBMITTED TO APP STORE FOR REVIEW!');
+  console.log(`🎉 ${targetVersion} SUBMITTED TO APP STORE FOR REVIEW!`);
   console.log('State:', finalRes.data.attributes.state);
 }
 
