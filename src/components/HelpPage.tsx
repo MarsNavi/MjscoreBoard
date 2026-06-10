@@ -34,8 +34,8 @@ export default function HelpPage({ onBack }: HelpPageProps) {
                 <Sparkles size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">v1.7.1</h2>
-                <p className="text-sm text-gray-500">2026-06-04</p>
+                <h2 className="text-2xl font-bold text-gray-800">v1.7.2</h2>
+                <p className="text-sm text-gray-500">2026-06-05</p>
               </div>
             </div>
             <div className="pl-13 space-y-3 text-gray-700 leading-relaxed">

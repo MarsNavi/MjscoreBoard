@@ -174,7 +174,8 @@ export const buildExportDataForUser = async (userId: string): Promise<MahjongBac
 
   return {
     exported_at: new Date().toISOString(),
-    app_version: '1.7.1',
+    app_version: '1.7.2',
+    source_platform: Capacitor.getPlatform() || 'web',
     data_file: {
       id: user.id,
       name: getDataFileName(user),

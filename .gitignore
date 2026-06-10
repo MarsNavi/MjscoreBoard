@@ -30,3 +30,4 @@ android/.kotlin/
 ios/App/AppStoreMetadata/
 *.keystore
 keystore.properties
+*.apk
